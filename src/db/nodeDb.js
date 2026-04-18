@@ -1,15 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
-// Define the schema for our local JSON database
-export interface NodeDB {
-  vehicles: any[];
-  pricing: any;
-}
-
 const dbPath = path.resolve(process.cwd(), 'database.json');
 
-const defaultDbState: NodeDB = {
+const defaultDbState = {
   vehicles: [],
   pricing: {
     bicycle: 5,
@@ -27,7 +21,7 @@ function initDb() {
 }
 
 // Read database
-export function readDb(): NodeDB {
+export function readDb() {
   initDb();
   try {
     const data = fs.readFileSync(dbPath, 'utf-8');
@@ -38,6 +32,6 @@ export function readDb(): NodeDB {
 }
 
 // Write database
-export function writeDb(data: NodeDB) {
+export function writeDb(data) {
   fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
 }
