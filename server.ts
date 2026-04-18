@@ -103,7 +103,7 @@ async function startServer() {
     // Para ambientes como a Hostinger, garantimos resolução limpa da pasta estática 'dist' 
     const staticPath = path.resolve(process.cwd(), 'dist');
     app.use(express.static(staticPath));
-    app.get('*', (req, res) => {
+    app.use((req, res) => {
       res.sendFile(path.resolve(staticPath, 'index.html'));
     });
   }
