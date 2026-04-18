@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Primitive Definition
+    // ===============================================================
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isVerifiedUser() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isOwner(userId) { return isVerifiedUser() && request.auth.uid == userId; }
+
+    function validStringLength(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    // ===============================================================
+    // Validation Blueprints
+    // ===============================================================
+
+    function isValidVehicle(data, isCreate) {
+      let baseSize = 7;
+      let actualSize = baseSize 
+                     + ('checkOutTime' in data ? 1 : 0)
+                     + ('price' in data ? 1 : 0)
+                     + ('paymentMethod' in data ? 1 : 0);
+                     
+      let hasCorrectKeys = isCreate 
+            ? data.keys().hasAll(['type', 'identifier', 'ownerName', 'cardNumber', 'checkInTime', 'status', 'userId']) && data.keys().size() == actualSize
+            : true; // Updates use affectedKeys() instead of strict key checking here
+            
+      return hasCorrectKeys &&
+             data.type in ['bicycle', 'ebike', 'motorcycle'] &&
+             validStringLength(data.identifier, 1, 50) &&
+             validStringLength(data.ownerName, 1, 100) &&
+             validStringLength(data.cardNumber, 1, 20) &&
+             data.checkInTime is number && data.checkInTime > 0 &&
+             data.userId == request.auth.uid &&
+             data.status in ['active', 'completed'] &&
+             (!('checkOutTime' in data) || (data.checkOutTime is number && data.checkOutTime >= data.checkInTime)) &&
+             (!('price' in data) || (data.price is number && data.price >= 0)) &&
+             (!('paymentMethod' in data) || data.paymentMethod in ['pix', 'card', 'cash']);
+    }
+
+    function isValidPricing(data, isCreate) {
+      let baseSize = 4;
+      let actualSize = baseSize + ('totalSpots' in data ? 1 : 0);
+      
+      let hasCorrectKeys = isCreate 
+            ? data.keys().hasAll(['bicycle', 'ebike', 'motorcycle', 'userId']) && data.keys().size() == actualSize
+            : true;
+            
+      return hasCorrectKeys &&
+             data.userId == request.auth.uid &&
+             data.bicycle is number && data.bicycle >= 0 &&
+             data.ebike is number && data.ebike >= 0 &&
+             data.motorcycle is number && data.motorcycle >= 0 &&
+             (!('totalSpots' in data) || (data.totalSpots is number && data.totalSpots >= 0));
+    }
+
+    // ===============================================================
+    // Path Contexts
+    // ===============================================================
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+
+      match /vehicles/{vehicleId} {
+        allow list: if isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow get:  if isOwner(userId) && isValidId(vehicleId);
+
+        allow create: if isOwner(userId) && 
+                         isValidId(vehicleId) && 
+                         isValidVehicle(incoming(), true);
+
+        // Terminal state lock and action-based update
+        allow update: if isOwner(userId) && 
+                         isValidId(vehicleId) && 
+                         isValidVehicle(incoming(), false) &&
+                         existing().status != 'completed' && // Terminal state guard
+                         incoming().userId == existing().userId && // Immortality
+                         incoming().checkInTime == existing().checkInTime && // Immortality
+                         (
+                           // Action: Checkout
+                           (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'checkOutTime', 'price', 'paymentMethod'])) ||
+                           // Action: Edit vehicle details
+                           (incoming().diff(existing()).affectedKeys().hasOnly(['type', 'identifier', 'ownerName', 'cardNumber']))
+                         );
+
+        allow delete: if false; // Vehicles should be kept for history
+      }
+
+      match /settings/{settingId} {
+        allow get:  if isOwner(userId) && isValidId(settingId);
+        allow list: if isOwner(userId) && resource.data.userId == request.auth.uid;
+
+        allow create: if isOwner(userId) && 
+                         settingId == 'pricing' && 
+                         isValidPricing(incoming(), true);
+
+        allow update: if isOwner(userId) && 
+                         settingId == 'pricing' && 
+                         isValidPricing(incoming(), false) && 
+                         incoming().userId == existing().userId &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['bicycle', 'ebike', 'motorcycle', 'totalSpots']);
+
+        allow delete: if false;
+      }
+    }
+  }
+}

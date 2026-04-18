@@ -1,0 +1,22 @@
+{
+  "name": "BikePark Gestão",
+  "short_name": "BikePark",
+  "description": "Sistema de gestão de estacionamento para bicicletas e motos",
+  "theme_color": "#10b981",
+  "background_color": "#f8fafc",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

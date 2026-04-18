@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "A parked vehicle record",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["bicycle", "ebike", "motorcycle"] },
+        "identifier": { "type": "string", "description": "License plate or bike description" },
+        "ownerName": { "type": "string" },
+        "cardNumber": { "type": "string", "description": "Card number corresponding to the parking bay" },
+        "checkInTime": { "type": "number", "description": "Timestamp in ms" },
+        "checkOutTime": { "type": "number", "description": "Timestamp in ms" },
+        "status": { "type": "string", "enum": ["active", "completed"] },
+        "price": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["pix", "card", "cash"] },
+        "userId": { "type": "string", "description": "The ID of the user who owns this record" }
+      },
+      "required": ["type", "identifier", "ownerName", "cardNumber", "checkInTime", "status", "userId"]
+    },
+    "Pricing": {
+      "title": "Pricing",
+      "description": "Pricing settings for the parking lot",
+      "type": "object",
+      "properties": {
+        "bicycle": { "type": "number" },
+        "ebike": { "type": "number" },
+        "motorcycle": { "type": "number" },
+        "totalSpots": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["bicycle", "ebike", "motorcycle", "userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/vehicles/{vehicleId}": {
+      "schema": { "$ref": "#/entities/Vehicle" },
+      "description": "Vehicles parked in the user's parking lot"
+    },
+    "/users/{userId}/settings/pricing": {
+      "schema": { "$ref": "#/entities/Pricing" },
+      "description": "Pricing settings for the user's parking lot"
+    }
+  }
+}
