@@ -5,7 +5,7 @@ import { readDb, writeDb } from './src/db/nodeDb.js';
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   app.use(express.json());
 
@@ -100,9 +100,11 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static('dist'));
+    // Para ambientes como a Hostinger, garantimos resolução limpa da pasta estática 'dist' 
+    const staticPath = path.resolve(process.cwd(), 'dist');
+    app.use(express.static(staticPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.resolve(process.cwd(), 'dist/index.html'));
+      res.sendFile(path.resolve(staticPath, 'index.html'));
     });
   }
 
