@@ -1,12 +1,11 @@
 import React from 'react';
 import { LayoutDashboard, Bike, History, Settings, BarChart3, LogOut, LogOutIcon, Grid } from 'lucide-react';
-import { User } from 'firebase/auth';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onLogout: () => void;
-  user: User;
+  user: any;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
 }

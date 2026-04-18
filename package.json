@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
@@ -19,7 +19,6 @@
     "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "firebase": "^12.11.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.0",
@@ -40,7 +39,8 @@
     "vite-plugin-pwa": "^1.2.0"
   },
   "overrides": {
-    "glob": "^11.0.0",
-    "serialize-javascript": "^7.0.5"
+    "glob": "^13.0.6",
+    "serialize-javascript": "^7.0.5",
+    "magic-string": "^0.30.21"
   }
 }

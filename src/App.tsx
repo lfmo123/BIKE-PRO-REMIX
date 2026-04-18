@@ -12,10 +12,6 @@ import { SpotsGrid } from './components/SpotsGrid';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
 import { ParkedVehicle, Pricing } from './types';
-import { Auth } from './components/Auth';
-import { auth, db, handleFirestoreError, OperationType } from './firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, doc, onSnapshot, setDoc, updateDoc, addDoc, query, where } from 'firebase/firestore';
 
 const defaultPricing: Pricing = {
   bicycle: 5,
@@ -25,8 +21,7 @@ const defaultPricing: Pricing = {
 };
 
 export default function App() {
-  const [user, setUser] = useState(auth.currentUser);
-  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [user, setUser] = useState<{ email: string; displayName: string } | null>({ email: 'admin@admin.com', displayName: 'Administrador' });
   
   const [activeTab, setActiveTab] = useState('dashboard');
   const [vehicles, setVehicles] = useState<ParkedVehicle[]>([]);
@@ -38,111 +33,87 @@ export default function App() {
   const [vehicleToCheckOut, setVehicleToCheckOut] = useState<ParkedVehicle | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setIsAuthReady(true);
-    });
-    return () => unsubscribe();
+    fetchVehicles();
+    fetchPricing();
   }, []);
 
-  useEffect(() => {
-    if (!isAuthReady || !user) return;
-
-    const vehiclesRef = collection(db, `users/${user.uid}/vehicles`);
-    const q = query(vehiclesRef, where('userId', '==', user.uid));
-
-    const unsubscribeVehicles = onSnapshot(q, (snapshot) => {
-      const vData: ParkedVehicle[] = [];
-      snapshot.forEach(doc => {
-        vData.push({ id: doc.id, ...doc.data() } as ParkedVehicle);
-      });
-      vData.sort((a, b) => b.checkInTime - a.checkInTime);
-      setVehicles(vData);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/vehicles`);
-    });
-
-    const pricingRef = doc(db, `users/${user.uid}/settings/pricing`);
-    const unsubscribePricing = onSnapshot(pricingRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setPricing({
-          bicycle: data.bicycle ?? defaultPricing.bicycle,
-          ebike: data.ebike ?? defaultPricing.ebike,
-          motorcycle: data.motorcycle ?? defaultPricing.motorcycle,
-          totalSpots: data.totalSpots ?? defaultPricing.totalSpots,
-        });
-      } else {
-        // Initialize pricing if it doesn't exist
-        setDoc(pricingRef, { ...defaultPricing, userId: user.uid }).catch(e => {
-          handleFirestoreError(e, OperationType.CREATE, `users/${user.uid}/settings/pricing`);
-        });
+  const fetchVehicles = async () => {
+    try {
+      const res = await fetch('/api/vehicles');
+      if (res.ok) {
+        const data = await res.json();
+        setVehicles(data);
       }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/settings/pricing`);
-    });
+    } catch (e) {
+      console.error('Failed to fetch vehicles', e);
+    }
+  };
 
-    return () => {
-      unsubscribeVehicles();
-      unsubscribePricing();
-    };
-  }, [user, isAuthReady]);
+  const fetchPricing = async () => {
+    try {
+      const res = await fetch('/api/pricing');
+      if (res.ok) {
+        const data = await res.json();
+        setPricing(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch pricing', e);
+    }
+  };
 
   const handleCheckIn = async (newVehicle: Omit<ParkedVehicle, 'id' | 'checkInTime' | 'status'>) => {
-    if (!user) return;
     try {
-      const vehiclesRef = collection(db, `users/${user.uid}/vehicles`);
-      await addDoc(vehiclesRef, {
-        ...newVehicle,
-        checkInTime: Date.now(),
-        status: 'active',
-        userId: user.uid
+      const res = await fetch('/api/vehicles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newVehicle)
       });
-      setIsCheckInOpen(false);
+      if (res.ok) {
+        fetchVehicles(); // refresh list
+        setIsCheckInOpen(false);
+      }
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}/vehicles`);
+      console.error('Error during checkin', error);
     }
   };
 
   const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash') => {
-    if (!user) return;
     try {
-      const vehicleRef = doc(db, `users/${user.uid}/vehicles/${vehicleId}`);
-      await updateDoc(vehicleRef, {
-        status: 'completed',
-        checkOutTime: Date.now(),
-        price,
-        paymentMethod
+      const res = await fetch(`/api/vehicles/${vehicleId}/checkout`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price, paymentMethod })
       });
-      setVehicleToCheckOut(null);
+      if (res.ok) {
+        fetchVehicles(); // refresh list
+        setVehicleToCheckOut(null);
+      }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/vehicles/${vehicleId}`);
+       console.error('Error during checkout', error);
     }
   };
 
   const handleSavePricing = async (newPricing: Pricing) => {
-    if (!user) return;
     try {
-      const pricingRef = doc(db, `users/${user.uid}/settings/pricing`);
-      await setDoc(pricingRef, {
-        ...newPricing,
-        userId: user.uid
+      const res = await fetch('/api/pricing', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPricing)
       });
+      if (res.ok) {
+        fetchPricing();
+      }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/settings/pricing`);
+       console.error('Error updating pricing', error);
     }
   };
 
   const handleLogout = () => {
-    signOut(auth);
+    setUser(null);
   };
 
-  if (!isAuthReady) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50">Carregando...</div>;
-  }
-
   if (!user) {
-    return <Auth />;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><button className="px-4 py-2 bg-emerald-500 rounded text-white font-bold" onClick={() => setUser({ email: 'admin@admin.com', displayName: 'Admin' })}>Entrar Localmente</button></div>;
   }
 
   return (
@@ -151,7 +122,7 @@ export default function App() {
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         onLogout={handleLogout} 
-        user={user} 
+        user={user as any} 
         isOpen={isMobileMenuOpen}
         setIsOpen={setIsMobileMenuOpen}
       />
