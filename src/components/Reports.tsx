@@ -217,6 +217,7 @@ export function Reports({ vehicles }: ReportsProps) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100 text-sm font-medium text-slate-500">
+                  <th className="p-4">Baia</th>
                   <th className="p-4">Veículo</th>
                   <th className="p-4">Proprietário</th>
                   <th className="p-4">Entrada</th>
@@ -228,6 +229,7 @@ export function Reports({ vehicles }: ReportsProps) {
               <tbody className="divide-y divide-slate-100">
                 {overnightVehicles.map((vehicle) => (
                   <tr key={vehicle.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-4 font-bold text-slate-900">{vehicle.cardNumber || '-'}</td>
                     <td className="p-4 font-medium text-slate-900">{vehicle.identifier}</td>
                     <td className="p-4 text-slate-600">{vehicle.ownerName}</td>
                     <td className="p-4 text-slate-600">
@@ -250,7 +252,7 @@ export function Reports({ vehicles }: ReportsProps) {
                 ))}
                 {overnightVehicles.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-500">
+                    <td colSpan={7} className="p-8 text-center text-slate-500">
                       Nenhum registro de pernoite encontrado.
                     </td>
                   </tr>
