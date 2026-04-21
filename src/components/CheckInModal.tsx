@@ -5,7 +5,7 @@ import { VehicleType, ParkedVehicle } from '../types';
 interface CheckInModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCheckIn: (vehicle: Omit<ParkedVehicle, 'id' | 'checkInTime' | 'status'>) => void;
+  onCheckIn: (vehicle: Omit<ParkedVehicle, 'id' | 'status'>) => Promise<void | { success: boolean, error?: string }>;
   initialCardNumber?: string;
 }
 
@@ -14,6 +14,8 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
   const [identifier, setIdentifier] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [cardNumber, setCardNumber] = useState('');
+  const [customDate, setCustomDate] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   React.useEffect(() => {
     if (isOpen) {
@@ -25,22 +27,35 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
       setType('bicycle');
       setIdentifier('');
       setOwnerName('');
+      setErrorMsg('');
+      
+      const now = new Date();
+      const offset = now.getTimezoneOffset() * 60000;
+      setCustomDate(new Date(now.getTime() - offset).toISOString().slice(0, 16));
     }
   }, [isOpen, initialCardNumber]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
     
-    if (!cardNumber) return;
+    if (!cardNumber || !customDate) return;
     
-    onCheckIn({
+    const res = await onCheckIn({
       type,
       identifier: identifier || 'Não informada',
       ownerName: ownerName || 'Não informado',
       cardNumber,
+      checkInTime: new Date(customDate).getTime(),
     });
+    
+    // Check if the parent returned an error
+    if (res && res.success === false) {
+      setErrorMsg(res.error || 'Esta vaga/baia já está sendo usada!');
+      return;
+    }
     
     // Reset form
     setType('bicycle');
@@ -153,9 +168,29 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                 placeholder="Ex: 12"
               />
             </div>
+
+            <div>
+              <label htmlFor="checkInDate" className="block text-sm font-medium text-slate-700 mb-1">
+                Data e Hora de Entrada
+              </label>
+              <input
+                id="checkInDate"
+                type="datetime-local"
+                required
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-slate-700"
+              />
+            </div>
           </div>
           
           <div className="pt-4">
+            {errorMsg && (
+              <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100 flex items-center">
+                <span className="mr-2">⚠️</span>
+                {errorMsg}
+              </div>
+            )}
             <button
               type="submit"
               className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-emerald-500/30"

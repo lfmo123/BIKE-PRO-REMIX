@@ -61,7 +61,7 @@ export default function App() {
     }
   };
 
-  const handleCheckIn = async (newVehicle: Omit<ParkedVehicle, 'id' | 'checkInTime' | 'status'>) => {
+  const handleCheckIn = async (newVehicle: Omit<ParkedVehicle, 'id' | 'status'>) => {
     try {
       const res = await fetch('/api/vehicles', {
         method: 'POST',
@@ -71,9 +71,14 @@ export default function App() {
       if (res.ok) {
         fetchVehicles(); // refresh list
         setIsCheckInOpen(false);
+        return { success: true };
+      } else {
+        const errorData = await res.json();
+        return { success: false, error: errorData.error || 'Erro ao realizar check-in' };
       }
     } catch (error) {
       console.error('Error during checkin', error);
+      return { success: false, error: 'Erro de conexão com o servidor' };
     }
   };
 

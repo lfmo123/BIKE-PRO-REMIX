@@ -28,12 +28,22 @@ async function startServer() {
   // Check-in a new vehicle
   app.post('/api/vehicles', (req, res) => {
     try {
-      const { type, identifier, ownerName, cardNumber } = req.body;
+      const { type, identifier, ownerName, cardNumber, checkInTime: reqCheckInTime } = req.body;
       const id = Math.random().toString(36).substring(2, 9);
-      const checkInTime = Date.now();
+      const checkInTime = reqCheckInTime || Date.now();
       const status = 'active';
 
       const db = readDb();
+      
+      // Check if the spot is already taken
+      const isSpotTaken = db.vehicles.some(
+        v => v.cardNumber === cardNumber && v.status === 'active'
+      );
+      
+      if (isSpotTaken) {
+        return res.status(400).json({ error: 'Spot is already occupied' });
+      }
+
       const newVehicle = { id, type, identifier, ownerName, cardNumber, checkInTime, status };
       db.vehicles.push(newVehicle);
       writeDb(db);
