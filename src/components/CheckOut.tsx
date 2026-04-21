@@ -167,7 +167,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
                     <span className="font-bold text-slate-900 text-lg">
                       {(() => {
                         const breakdown = getBilledBreakdown(selectedVehicle, pricing, now);
-                        return `${breakdown.days} pernoite${breakdown.days > 1 ? 's' : ''}`;
+                        return `${breakdown.days} diária${breakdown.days > 1 ? 's' : ''}`;
                       })()}
                     </span>
                     <span className="text-xs text-slate-500 mt-1">

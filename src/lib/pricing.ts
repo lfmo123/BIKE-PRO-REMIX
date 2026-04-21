@@ -35,7 +35,7 @@ export const formatDuration = (checkInTime: number, now: number) => {
   const parts = [];
   // Use billedDays - 1 as calendar crossed days visually or just show total billed days
   // User perceives 1 diária as no 'd' typically, but in total days it's better to show explicitly
-  if (billedDays > 1) parts.push(`${billedDays} pernoites`);
+  if (billedDays > 1) parts.push(`${billedDays} diárias`);
   if (diffHrs > 0 && billedDays === 1) parts.push(`${diffHrs}h`);
   if (billedDays === 1) parts.push(`${diffMins}m`);
   

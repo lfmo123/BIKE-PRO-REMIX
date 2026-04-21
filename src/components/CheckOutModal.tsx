@@ -55,7 +55,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm }: CheckOut
                 <span className="font-bold text-slate-900">
                   {(() => {
                     const breakdown = getBilledBreakdown(vehicle, pricing, now);
-                    return `${breakdown.days} pernoite${breakdown.days > 1 ? 's' : ''}`;
+                    return `${breakdown.days} diária${breakdown.days > 1 ? 's' : ''}`;
                   })()}
                 </span>
               </div>
