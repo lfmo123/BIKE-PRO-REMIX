@@ -23,9 +23,13 @@ export function ActiveParking({ vehicles, pricing, onCheckOut }: ActiveParkingPr
   const activeVehicles = vehicles.filter(v => v.status === 'active');
   
   const now = new Date(nowTime);
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   
-  const overnightVehicles = activeVehicles.filter(v => v.checkInTime < midnight);
+  const overnightVehicles = activeVehicles.filter(v => {
+    const checkInDate = new Date(v.checkInTime);
+    const startOfCheckInDay = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate()).getTime();
+    return startOfCheckInDay < startOfToday;
+  });
   
   const filteredVehicles = activeVehicles.filter(v => {
     const matchesSearch = v.identifier.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -114,7 +118,10 @@ export function ActiveParking({ vehicles, pricing, onCheckOut }: ActiveParkingPr
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredVehicles.map((vehicle) => {
-          const isOvernight = vehicle.checkInTime < midnight;
+          const checkInDate = new Date(vehicle.checkInTime);
+          const startOfCheckInDay = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate()).getTime();
+          const isOvernight = startOfCheckInDay < startOfToday;
+          
           return (
           <div key={vehicle.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex flex-col ${isOvernight ? 'border-amber-300 shadow-amber-100' : 'border-slate-100'}`}>
             <div className="flex items-start justify-between mb-4">
