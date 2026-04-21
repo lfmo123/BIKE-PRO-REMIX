@@ -2,12 +2,16 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { readDb, writeDb } from './src/db/nodeDb.js';
+import { initBackupService } from './src/db/backupService.js';
 
 async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
 
   app.use(express.json());
+
+  // Inicia serviços de background (Backups automáticos todo dia 00:00)
+  initBackupService();
 
   // --- API Routes ---
 
