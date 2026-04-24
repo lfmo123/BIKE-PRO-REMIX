@@ -68,6 +68,21 @@ export function Settings({ pricing, vehicles, onSavePricing }: SettingsProps) {
     fileInputRef.current?.click();
   };
 
+  const handleTestDB = async () => {
+    try {
+      const res = await fetch('/api/system/db-status');
+      const data = await res.json();
+      if (data.status === 'ok') {
+        alert(data.message + '\nTipo de Banco: ' + data.dbType);
+      } else {
+        alert('Erro ao conectar com o banco: ' + data.message + '\nDetalhes: ' + data.error);
+      }
+    } catch (error) {
+       console.error(error);
+       alert('Ocorreu um erro ao tentar testar o banco de dados. Tente novamente.');
+    }
+  };
+
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -233,6 +248,14 @@ export function Settings({ pricing, vehicles, onSavePricing }: SettingsProps) {
             onChange={handleFileChange} 
             className="hidden" 
           />
+
+           <button
+            onClick={handleTestDB}
+            className="flex items-center justify-center px-6 py-3 border-2 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 text-indigo-700 rounded-xl font-medium transition-colors"
+          >
+            <Cloud className="w-5 h-5 mr-2" />
+            Testar Conexão do BD
+          </button>
         </div>
       </div>
     </div>

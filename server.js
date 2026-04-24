@@ -141,6 +141,22 @@ async function startServer() {
     }
   });
 
+  app.get('/api/system/db-status', async (req, res) => {
+    try {
+      if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        const pool = mysqlDb.getPool();
+        await pool.query('SELECT 1');
+        res.json({ status: 'ok', message: 'Conectado com sucesso ao MySQL!', dbType: 'mysql' });
+      } else {
+        res.json({ status: 'ok', message: 'Usando banco de dados local (JSON).', dbType: 'json' });
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: 'error', message: 'Falha na conexão com banco.', error: error.message || String(error) });
+    }
+  });
+
   // --- Vite Middleware ---
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
