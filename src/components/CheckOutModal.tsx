@@ -7,11 +7,11 @@ interface CheckOutModalProps {
   vehicle: ParkedVehicle | null;
   pricing: Pricing;
   onClose: () => void;
-  onConfirm: (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash') => void;
+  onConfirm: (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card') => void;
 }
 
 export function CheckOutModal({ vehicle, pricing, onClose, onConfirm }: CheckOutModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash'>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash' | 'postpaid_card'>('pix');
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -70,7 +70,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm }: CheckOut
           
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700">Método de Pagamento</label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               <button
                 type="button"
                 onClick={() => setPaymentMethod('pix')}
@@ -108,6 +108,19 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm }: CheckOut
               >
                 <Banknote className={`w-5 h-5 mb-1 ${paymentMethod === 'cash' ? 'text-amber-600' : ''}`} />
                 <span className="text-xs font-medium">Dinheiro</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('postpaid_card')}
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                  paymentMethod === 'postpaid_card' 
+                    ? 'border-purple-500 bg-purple-50 text-purple-700' 
+                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                }`}
+              >
+                <CreditCard className={`w-5 h-5 mb-1 ${paymentMethod === 'postpaid_card' ? 'text-purple-600' : ''}`} />
+                <span className="text-xs font-medium text-center">Pós-Pago</span>
               </button>
             </div>
           </div>

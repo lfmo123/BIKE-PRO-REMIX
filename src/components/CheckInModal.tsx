@@ -21,17 +21,14 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
     if (isOpen) {
       if (initialCardNumber) {
         setCardNumber(initialCardNumber);
-      } else {
-        setCardNumber('');
       }
-      setType('bicycle');
-      setIdentifier('');
-      setOwnerName('');
       setErrorMsg('');
       
-      const now = new Date();
-      const offset = now.getTimezoneOffset() * 60000;
-      setCustomDate(new Date(now.getTime() - offset).toISOString().slice(0, 16));
+      if (!customDate) {
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        setCustomDate(new Date(now.getTime() - offset).toISOString().slice(0, 16));
+      }
     }
   }, [isOpen, initialCardNumber]);
 
@@ -57,11 +54,6 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
       return;
     }
     
-    // Reset form
-    setType('bicycle');
-    setIdentifier('');
-    setOwnerName('');
-    setCardNumber('');
     onClose();
   };
 

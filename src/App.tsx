@@ -26,6 +26,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [vehicles, setVehicles] = useState<ParkedVehicle[]>([]);
   const [pricing, setPricing] = useState<Pricing>(defaultPricing);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const [initialCheckInSpot, setInitialCheckInSpot] = useState<string>('');
@@ -43,9 +44,14 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setVehicles(data);
+        setErrorMsg(null);
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || 'Erro ao carregar veículos.');
       }
     } catch (e) {
       console.error('Failed to fetch vehicles', e);
+      setErrorMsg('Falha na comunicação com o servidor.');
     }
   };
 
@@ -55,6 +61,9 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setPricing(data);
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || 'Erro ao carregar preços.');
       }
     } catch (e) {
       console.error('Failed to fetch pricing', e);
@@ -82,7 +91,7 @@ export default function App() {
     }
   };
 
-  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash') => {
+  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card') => {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}/checkout`, {
         method: 'PUT',
@@ -164,6 +173,12 @@ export default function App() {
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 relative">
           <div className="max-w-6xl mx-auto">
+            {errorMsg && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
+                <strong className="font-bold">Aviso: </strong>
+                <span className="block sm:inline">{errorMsg}</span>
+              </div>
+            )}
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}

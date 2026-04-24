@@ -10,7 +10,7 @@ export interface ParkedVehicle {
   checkOutTime?: number;
   status: 'active' | 'completed';
   price?: number;
-  paymentMethod?: 'pix' | 'card' | 'cash';
+  paymentMethod?: 'pix' | 'card' | 'cash' | 'postpaid_card';
 }
 
 export interface Pricing {

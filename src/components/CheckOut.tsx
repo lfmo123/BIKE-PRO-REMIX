@@ -6,13 +6,13 @@ import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/prici
 interface CheckOutProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
-  onCheckOut: (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash') => void;
+  onCheckOut: (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card') => void;
 }
 
 export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<ParkedVehicle | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash'>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash' | 'postpaid_card'>('pix');
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -188,7 +188,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
               
               <div className="space-y-4 mb-8">
                 <label className="block text-sm font-medium text-slate-700">Selecione o Método de Pagamento</label>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('pix')}
@@ -212,7 +212,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
                     }`}
                   >
                     <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'card' ? 'text-blue-600' : ''}`} />
-                    <span className="text-sm font-medium">Cartão</span>
+                    <span className="text-sm font-medium text-center">Cartão</span>
                   </button>
                   
                   <button
@@ -226,6 +226,19 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
                   >
                     <Banknote className={`w-6 h-6 mb-2 ${paymentMethod === 'cash' ? 'text-amber-600' : ''}`} />
                     <span className="text-sm font-medium">Dinheiro</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('postpaid_card')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                      paymentMethod === 'postpaid_card' 
+                        ? 'border-purple-500 bg-purple-50 text-purple-700' 
+                        : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                    }`}
+                  >
+                    <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'postpaid_card' ? 'text-purple-600' : ''}`} />
+                    <span className="text-sm font-medium text-center leading-tight">Cartão<br/>Pós-Pago</span>
                   </button>
                 </div>
               </div>

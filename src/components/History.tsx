@@ -35,11 +35,12 @@ export function History({ vehicles }: HistoryProps) {
     return `${diffHrs}h ${diffMins}m`;
   };
 
-  const getPaymentIcon = (method?: 'pix' | 'card' | 'cash') => {
+  const getPaymentIcon = (method?: 'pix' | 'card' | 'cash' | 'postpaid_card') => {
     switch (method) {
       case 'pix': return <div className="flex items-center text-emerald-600"><Smartphone className="w-4 h-4 mr-1" /> PIX</div>;
       case 'card': return <div className="flex items-center text-blue-600"><CreditCard className="w-4 h-4 mr-1" /> Cartão</div>;
       case 'cash': return <div className="flex items-center text-amber-600"><Banknote className="w-4 h-4 mr-1" /> Dinheiro</div>;
+      case 'postpaid_card': return <div className="flex items-center text-purple-600"><CreditCard className="w-4 h-4 mr-1" /> Pós-Pago</div>;
       default: return <span className="text-slate-400">-</span>;
     }
   };

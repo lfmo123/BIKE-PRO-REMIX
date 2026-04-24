@@ -21,6 +21,7 @@ export function Reports({ vehicles }: ReportsProps) {
     { name: 'PIX', value: revenueByPayment['pix'] || 0, color: '#10b981' }, // emerald-500
     { name: 'Cartão', value: revenueByPayment['card'] || 0, color: '#3b82f6' }, // blue-500
     { name: 'Dinheiro', value: revenueByPayment['cash'] || 0, color: '#f59e0b' }, // amber-500
+    { name: 'Pós-Pago', value: revenueByPayment['postpaid_card'] || 0, color: '#a855f7' }, // purple-500
   ].filter(d => d.value > 0);
 
   // 2. Revenue by Vehicle Type
