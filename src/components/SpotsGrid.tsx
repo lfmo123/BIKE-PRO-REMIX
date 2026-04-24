@@ -123,7 +123,7 @@ export function SpotsGrid({ vehicles, pricing, onSpotClick, hideTitle }: SpotsGr
                   : 'bg-white border-slate-200 border-dashed hover:border-emerald-400 hover:bg-emerald-50'
               }`}
             >
-              <span className={`absolute top-2 left-3 font-bold text-lg ${isOccupied ? 'text-slate-700' : 'text-slate-400'}`}>
+              <span className={`absolute top-2 left-3 font-bold text-4xl ${isOccupied ? 'text-slate-700' : 'text-slate-400'}`}>
                 {spotNum}
               </span>
               
