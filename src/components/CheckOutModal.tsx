@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, DollarSign, CreditCard, Banknote, Smartphone } from 'lucide-react';
+import { X, Clock, DollarSign, CreditCard, Banknote, Smartphone, AlertTriangle } from 'lucide-react';
 import { ParkedVehicle, Pricing } from '../types';
 import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/pricing';
 
@@ -8,15 +8,22 @@ interface CheckOutModalProps {
   pricing: Pricing;
   onClose: () => void;
   onConfirm: (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card') => void;
+  onReportLostCard?: (vehicleId: string, lostCardName: string, lostCardPhone: string) => void;
 }
 
-export function CheckOutModal({ vehicle, pricing, onClose, onConfirm }: CheckOutModalProps) {
+export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLostCard }: CheckOutModalProps) {
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash' | 'postpaid_card'>('pix');
   const [now, setNow] = useState(Date.now());
+  const [showLostForm, setShowLostForm] = useState(false);
+  const [lostName, setLostName] = useState('');
+  const [lostPhone, setLostPhone] = useState('');
 
   useEffect(() => {
     if (vehicle) {
       setNow(Date.now());
+      setShowLostForm(false);
+      setLostName(vehicle.lostCardName || '');
+      setLostPhone(vehicle.lostCardPhone || '');
     }
   }, [vehicle]);
 
@@ -64,6 +71,11 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm }: CheckOut
                   <DollarSign className="w-3 h-3 mr-1" /> Total
                 </span>
                 <span className="font-bold text-emerald-600 text-lg">R$ {price.toFixed(2)}</span>
+                {vehicle.cardLost && pricing.lostCardFee && (
+                  <span className="text-[10px] text-red-500 mt-1 leading-tight">
+                    + {pricing.lostCardFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} taxa
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -125,7 +137,70 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm }: CheckOut
             </div>
           </div>
           
-          <div className="pt-4">
+          {/* Lost Card Section */}
+          <div className="pt-2 border-t border-slate-100">
+            {vehicle.cardLost ? (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex flex-col">
+                <div className="flex items-center text-red-600 font-bold text-sm mb-1">
+                  <AlertTriangle className="w-4 h-4 mr-1" />
+                  Cartão Marcado como Perdido
+                </div>
+                <div className="text-xs text-red-700">
+                  <span className="font-semibold">Nome:</span> {vehicle.lostCardName || 'Não informado'} <br/>
+                  <span className="font-semibold">Telefone:</span> {vehicle.lostCardPhone || 'Não informado'}
+                </div>
+              </div>
+            ) : showLostForm ? (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between text-red-600 font-bold text-sm mb-1">
+                  <div className="flex items-center">
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    Registrar Cartão Perdido
+                  </div>
+                  <button onClick={() => setShowLostForm(false)} className="text-red-400 hover:text-red-700">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Nome de quem perdeu"
+                  className="w-full px-3 py-2 text-sm bg-white border border-red-200 rounded-lg focus:outline-none focus:border-red-400"
+                  value={lostName}
+                  onChange={e => setLostName(e.target.value)}
+                />
+                <input
+                  type="text"
+                  placeholder="Telefone de contato"
+                  className="w-full px-3 py-2 text-sm bg-white border border-red-200 rounded-lg focus:outline-none focus:border-red-400"
+                  value={lostPhone}
+                  onChange={e => setLostPhone(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onReportLostCard) {
+                      onReportLostCard(vehicle.id, lostName, lostPhone);
+                      setShowLostForm(false);
+                    }
+                  }}
+                  className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-sm transition-colors"
+                >
+                  Salvar Registro de Perda
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowLostForm(true)}
+                className="w-full flex items-center justify-center py-2 text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+              >
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Cliente perdeu o cartão?
+              </button>
+            )}
+          </div>
+
+          <div className="pt-2">
             <button
               onClick={() => onConfirm(vehicle.id, price, paymentMethod)}
               className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-slate-900/20"

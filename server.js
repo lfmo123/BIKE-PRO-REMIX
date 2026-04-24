@@ -106,6 +106,37 @@ async function startServer() {
     }
   });
 
+  // Report lost card
+  app.put('/api/vehicles/:id/lost', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { lostCardName, lostCardPhone } = req.body;
+      
+      if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        const updatedVehicle = await mysqlDb.reportLostCard(id, lostCardName, lostCardPhone);
+        if (!updatedVehicle) return res.status(404).json({ error: 'Vehicle not found' });
+        res.json(updatedVehicle);
+      } else {
+        const db = readDb();
+        const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
+        if (vehicleIndex === -1) return res.status(404).json({ error: 'Vehicle not found' });
+        
+        db.vehicles[vehicleIndex] = {
+          ...db.vehicles[vehicleIndex],
+          cardLost: true,
+          lostCardName,
+          lostCardPhone
+        };
+        writeDb(db);
+        res.json(db.vehicles[vehicleIndex]);
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to report lost card' });
+    }
+  });
+
   // Get pricing
   app.get('/api/pricing', async (req, res) => {
     try {

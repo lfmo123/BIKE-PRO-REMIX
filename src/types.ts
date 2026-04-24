@@ -11,6 +11,9 @@ export interface ParkedVehicle {
   status: 'active' | 'completed';
   price?: number;
   paymentMethod?: 'pix' | 'card' | 'cash' | 'postpaid_card';
+  cardLost?: boolean;
+  lostCardName?: string;
+  lostCardPhone?: string;
 }
 
 export interface Pricing {
@@ -18,4 +21,5 @@ export interface Pricing {
   ebike: number; // per day/overnight
   motorcycle: number; // per day/overnight
   totalSpots?: number; // Total number of spots
+  lostCardFee?: number;
 }

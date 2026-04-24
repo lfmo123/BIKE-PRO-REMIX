@@ -4,8 +4,12 @@ export const calculatePrice = (vehicle: ParkedVehicle, pricing: Pricing, now: nu
   const diffMs = now - vehicle.checkInTime;
   // Cobre a cada 24 horas completadas (Mínimo 1 diária)
   const billedDays = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-  const rate = pricing[vehicle.type];
-  return billedDays * rate;
+  const rate = pricing[vehicle.type] || 0;
+  let price = billedDays * rate;
+  if (vehicle.cardLost && pricing.lostCardFee) {
+    price += pricing.lostCardFee;
+  }
+  return price;
 };
 
 export const getBilledBreakdown = (vehicle: ParkedVehicle, pricing: Pricing, now: number) => {

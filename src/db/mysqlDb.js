@@ -39,7 +39,10 @@ export async function initMySQL() {
       checkOutTime BIGINT,
       status VARCHAR(50) NOT NULL,
       price DECIMAL(10, 2),
-      paymentMethod VARCHAR(50)
+      paymentMethod VARCHAR(50),
+      cardLost BOOLEAN DEFAULT FALSE,
+      lostCardName VARCHAR(255),
+      lostCardPhone VARCHAR(50)
     )
   `;
 
@@ -61,6 +64,26 @@ export async function initMySQL() {
     if (rows[0].count === 0) {
       await currentPool.query('INSERT INTO pricing (vehicle_type, rate) VALUES ("car", 60), ("motorcycle", 30), ("bicycle", 15)');
     }
+    
+    // Migration: add lostCardFee se não existir
+    try {
+      const [pricingRows] = await currentPool.query('SELECT COUNT(*) as count FROM pricing WHERE vehicle_type = "lostCardFee"');
+      if (pricingRows[0].count === 0) {
+        await currentPool.query('INSERT INTO pricing (vehicle_type, rate) VALUES ("lostCardFee", 50)');
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Migration: add new columns if they do not exist
+    try {
+      await currentPool.query('ALTER TABLE vehicles ADD COLUMN cardLost BOOLEAN DEFAULT FALSE');
+      await currentPool.query('ALTER TABLE vehicles ADD COLUMN lostCardName VARCHAR(255)');
+      await currentPool.query('ALTER TABLE vehicles ADD COLUMN lostCardPhone VARCHAR(50)');
+    } catch (e) {
+      // Ignorar se as colunas já existirem
+    }
+
     console.log('Tabelas do MySQL verificadas/criadas com sucesso.');
     isDbConnected = true;
     dbConnectionError = null;
@@ -78,6 +101,7 @@ export async function getVehicles() {
   return rows.map(r => ({
     ...r,
     price: r.price ? parseFloat(r.price) : undefined,
+    cardLost: !!r.cardLost,
   }));
 }
 
@@ -103,7 +127,21 @@ export async function checkOutVehicle(id, price, paymentMethod, checkOutTime) {
   
   const [rows] = await getPool().query('SELECT * FROM vehicles WHERE id = ?', [id]);
   if (!rows || rows.length === 0) return null;
-  return { ...rows[0], price: rows[0].price ? parseFloat(rows[0].price) : undefined };
+  return { ...rows[0], price: rows[0].price ? parseFloat(rows[0].price) : undefined, cardLost: !!rows[0].cardLost };
+}
+
+export async function reportLostCard(id, lostCardName, lostCardPhone) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const query = `
+    UPDATE vehicles 
+    SET cardLost = TRUE, lostCardName = ?, lostCardPhone = ?
+    WHERE id = ?
+  `;
+  await getPool().query(query, [lostCardName, lostCardPhone, id]);
+  
+  const [rows] = await getPool().query('SELECT * FROM vehicles WHERE id = ?', [id]);
+  if (!rows || rows.length === 0) return null;
+  return { ...rows[0], price: rows[0].price ? parseFloat(rows[0].price) : undefined, cardLost: !!rows[0].cardLost };
 }
 
 export async function getPricing() {
@@ -119,7 +157,7 @@ export async function getPricing() {
 export async function updatePricing(pricingObj) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
   const queries = Object.entries(pricingObj).map(([type, rate]) => {
-    return getPool().query('UPDATE pricing SET rate = ? WHERE vehicle_type = ?', [rate, type]);
+    return getPool().query('INSERT INTO pricing (vehicle_type, rate) VALUES (?, ?) ON DUPLICATE KEY UPDATE rate = ?', [type, rate, rate]);
   });
   await Promise.all(queries);
   return getPricing();

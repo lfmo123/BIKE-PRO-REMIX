@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ParkedVehicle, Pricing } from '../types';
-import { Search, Bike, Zap, Motorbike, Plus } from 'lucide-react';
+import { Search, Bike, Zap, Motorbike, Plus, AlertTriangle } from 'lucide-react';
 
 interface SpotsGridProps {
   vehicles: ParkedVehicle[];
@@ -105,6 +105,12 @@ export function SpotsGrid({ vehicles, pricing, onSpotClick, hideTitle }: SpotsGr
             <span className="w-3 h-3 rounded-full bg-purple-100 border border-purple-200 mr-2"></span>
             <span className="text-slate-600">Moto</span>
           </div>
+          <div className="flex items-center">
+            <span className="w-3 h-3 rounded-full bg-red-100 border border-red-400 mr-1 flex items-center justify-center">
+              <AlertTriangle className="w-2 h-2 text-red-500" />
+            </span>
+            <span className="text-slate-600">Perdido</span>
+          </div>
         </div>
       </div>
 
@@ -119,13 +125,21 @@ export function SpotsGrid({ vehicles, pricing, onSpotClick, hideTitle }: SpotsGr
               onClick={() => onSpotClick && onSpotClick(spotNum, vehicle)}
               className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all aspect-square relative hover:shadow-md ${
                 isOccupied 
-                  ? getBgColor(vehicle.type)
+                  ? vehicle?.cardLost 
+                    ? 'bg-red-50 border-red-400 hover:border-red-500' // Perdido
+                    : getBgColor(vehicle.type)
                   : 'bg-white border-slate-200 border-dashed hover:border-emerald-400 hover:bg-emerald-50'
               }`}
             >
-              <span className={`absolute top-2 left-3 font-bold text-4xl text-black`}>
+              <span className={`absolute top-2 left-3 font-bold text-4xl ${vehicle?.cardLost ? 'text-red-900/30' : 'text-black'}`}>
                 {spotNum}
               </span>
+              
+              {isOccupied && vehicle?.cardLost && (
+                <div className="absolute top-2 right-2 text-red-500 bg-red-100 p-1 rounded-full" title="Cartão Perdido">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+              )}
               
               {isOccupied ? (
                 <>
@@ -164,12 +178,19 @@ export function SpotsGrid({ vehicles, pricing, onSpotClick, hideTitle }: SpotsGr
                 <button
                   key={vehicle.id}
                   onClick={() => onSpotClick && onSpotClick(0, vehicle)}
-                  className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all hover:shadow-md ${getBgColor(vehicle.type)}`}
+                  className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all hover:shadow-md relative ${
+                    vehicle.cardLost ? 'bg-red-50 border-red-400 hover:border-red-500' : getBgColor(vehicle.type)
+                  }`}
                 >
                   <span className="absolute top-2 left-3 font-bold text-sm text-slate-700 bg-white/50 px-2 py-0.5 rounded-md">
                     {vehicle.cardNumber}
                   </span>
-                  <div className="mt-2">{getIcon(vehicle.type)}</div>
+                  {vehicle.cardLost && (
+                    <div className="absolute top-2 right-2 text-red-500 bg-red-100 p-1 rounded-full" title="Cartão Perdido">
+                      <AlertTriangle className="w-4 h-4" />
+                    </div>
+                  )}
+                  <div className="mt-2 text-slate-700">{getIcon(vehicle.type)}</div>
                   <span className="mt-2 font-medium text-slate-900 text-sm truncate w-full text-center">
                     {vehicle.identifier !== 'Não informada' ? vehicle.identifier : vehicle.ownerName.split(' ')[0]}
                   </span>

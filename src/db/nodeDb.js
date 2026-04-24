@@ -9,6 +9,7 @@ const defaultDbState = {
     bicycle: 5,
     ebike: 8,
     motorcycle: 12,
+    lostCardFee: 50,
     totalSpots: 50
   }
 };
@@ -25,7 +26,11 @@ export function readDb() {
   initDb();
   try {
     const data = fs.readFileSync(dbPath, 'utf-8');
-    return JSON.parse(data);
+    const db = JSON.parse(data);
+    if (db && db.pricing && typeof db.pricing.lostCardFee === 'undefined') {
+       db.pricing.lostCardFee = 50;
+    }
+    return db;
   } catch (error) {
     return defaultDbState;
   }

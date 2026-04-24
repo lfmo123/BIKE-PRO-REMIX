@@ -107,6 +107,25 @@ export default function App() {
     }
   };
 
+  const handleReportLostCard = async (vehicleId: string, lostCardName: string, lostCardPhone: string) => {
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/lost`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lostCardName, lostCardPhone })
+      });
+      if (res.ok) {
+        fetchVehicles(); // refresh list
+      } else {
+        const data = await res.json();
+        alert('Erro ao registrar cartão perdido: ' + data.error);
+      }
+    } catch (error) {
+      console.error('Failed to report lost card', error);
+      alert('Erro inesperado ao registrar cartão perdido.');
+    }
+  };
+
   const handleSavePricing = async (newPricing: Pricing) => {
     try {
       const res = await fetch('/api/pricing', {
@@ -242,6 +261,7 @@ export default function App() {
         pricing={pricing} 
         onClose={() => setVehicleToCheckOut(null)} 
         onConfirm={handleCheckOut} 
+        onReportLostCard={handleReportLostCard}
       />
     </div>
   );

@@ -182,6 +182,11 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
                       <DollarSign className="w-4 h-4 mr-1.5" /> Valor a Pagar
                     </span>
                     <span className="font-bold text-emerald-600 text-2xl">R$ {calculatePrice(selectedVehicle, pricing, now).toFixed(2)}</span>
+                    {selectedVehicle.cardLost && pricing.lostCardFee && (
+                      <span className="text-xs text-red-500 mt-1 leading-tight">
+                        + {pricing.lostCardFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} taxa
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
