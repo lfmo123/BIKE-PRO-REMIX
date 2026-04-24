@@ -130,7 +130,7 @@ export function Dashboard({ vehicles, pricing, onSpotClick }: DashboardProps) {
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Tabela de Preços (Valor Único / Pernoite)</h2>
+          <h2 className="text-lg font-bold text-slate-900 mb-4">Tabela de Preços (Valor Único / Diária)</h2>
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <span className="text-slate-600">Bicicleta</span>
