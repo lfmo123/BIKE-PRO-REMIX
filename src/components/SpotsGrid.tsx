@@ -71,7 +71,7 @@ export function SpotsGrid({ vehicles, pricing, onSpotClick, hideTitle }: SpotsGr
       {!hideTitle && (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Grade de Vagas</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Grade de Cartões</h1>
             <p className="text-slate-500">Visão geral do estacionamento</p>
           </div>
         </div>
@@ -82,7 +82,7 @@ export function SpotsGrid({ vehicles, pricing, onSpotClick, hideTitle }: SpotsGr
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input 
             type="text" 
-            placeholder="Buscar por vaga, placa ou dono..." 
+            placeholder="Buscar por cartão, placa ou dono..." 
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -148,7 +148,7 @@ export function SpotsGrid({ vehicles, pricing, onSpotClick, hideTitle }: SpotsGr
         })}
         {filteredSpots.length === 0 && (
           <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-100">
-            Nenhuma vaga encontrada para "{searchTerm}".
+            Nenhum cartão encontrado para "{searchTerm}".
           </div>
         )}
       </div>
@@ -156,7 +156,7 @@ export function SpotsGrid({ vehicles, pricing, onSpotClick, hideTitle }: SpotsGr
       {/* List vehicles that have non-numeric spot numbers (fallback) */}
       {activeVehicles.find(v => isNaN(parseInt(v.cardNumber, 10))) && !searchTerm && (
         <div className="mt-8">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Vagas Especiais / Extra</h2>
+          <h2 className="text-lg font-bold text-slate-900 mb-4">Cartões Especiais / Extra</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {activeVehicles
               .filter(v => isNaN(parseInt(v.cardNumber, 10)))

@@ -23,12 +23,10 @@ export function ActiveParking({ vehicles, pricing, onCheckOut }: ActiveParkingPr
   const activeVehicles = vehicles.filter(v => v.status === 'active');
   
   const now = new Date(nowTime);
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
   
   const overnightVehicles = activeVehicles.filter(v => {
-    const checkInDate = new Date(v.checkInTime);
-    const startOfCheckInDay = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate()).getTime();
-    return startOfCheckInDay < startOfToday;
+    return (now.getTime() - v.checkInTime) >= ONE_DAY_MS;
   });
   
   const filteredVehicles = activeVehicles.filter(v => {
@@ -118,9 +116,7 @@ export function ActiveParking({ vehicles, pricing, onCheckOut }: ActiveParkingPr
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredVehicles.map((vehicle) => {
-          const checkInDate = new Date(vehicle.checkInTime);
-          const startOfCheckInDay = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate()).getTime();
-          const isOvernight = startOfCheckInDay < startOfToday;
+          const isOvernight = (now.getTime() - vehicle.checkInTime) >= ONE_DAY_MS;
           
           return (
           <div key={vehicle.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex flex-col ${isOvernight ? 'border-amber-300 shadow-amber-100' : 'border-slate-100'}`}>
@@ -136,12 +132,12 @@ export function ActiveParking({ vehicles, pricing, onCheckOut }: ActiveParkingPr
               </div>
               <div className="flex flex-col items-end space-y-2">
                 <div className="bg-slate-100 text-slate-700 font-bold px-3 py-1 rounded-lg text-sm">
-                  Baia {vehicle.cardNumber}
+                  Cartão {vehicle.cardNumber}
                 </div>
                 {isOvernight && (
                   <div className="bg-amber-100 text-amber-700 font-bold px-2 py-1 rounded-md text-xs flex items-center">
                     <AlertTriangle className="w-3 h-3 mr-1" />
-                    Pernoite
+                    +1 Diária
                   </div>
                 )}
               </div>
@@ -168,7 +164,7 @@ export function ActiveParking({ vehicles, pricing, onCheckOut }: ActiveParkingPr
                 className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-medium transition-colors flex items-center justify-center"
               >
                 <LogOut className="w-4 h-4 mr-2" />
-                Finalizar (Check-out)
+                Registrar Saída
               </button>
             </div>
           </div>

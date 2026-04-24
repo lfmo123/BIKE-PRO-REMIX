@@ -217,7 +217,7 @@ export function Reports({ vehicles }: ReportsProps) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100 text-sm font-medium text-slate-500">
-                  <th className="p-4">Baia</th>
+                  <th className="p-4">Cartão</th>
                   <th className="p-4">Veículo</th>
                   <th className="p-4">Entrada</th>
                   <th className="p-4">Saída</th>

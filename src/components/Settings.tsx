@@ -121,7 +121,7 @@ export function Settings({ pricing, vehicles, onSavePricing }: SettingsProps) {
             <h3 className="font-semibold text-slate-700 border-b border-slate-100 pb-2">Configurações Gerais</h3>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Total de Vagas Disponíveis
+                Total de Cartões Disponíveis
               </label>
               <input
                 type="number"

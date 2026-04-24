@@ -68,7 +68,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900">Realizar Check-out</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Registrar Saída</h1>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
@@ -79,7 +79,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Buscar por placa, dono ou baia..." 
+                placeholder="Buscar por placa, dono ou cartão..." 
                 className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -112,7 +112,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
                         <div className="bg-slate-100 text-slate-700 font-bold px-2 py-1 rounded-lg text-xs inline-block mb-1">
-                          Baia {vehicle.cardNumber}
+                          Cartão {vehicle.cardNumber}
                         </div>
                         <div className="text-xs text-slate-500 flex items-center justify-end">
                           <Clock className="w-3 h-3 mr-1" />
@@ -128,7 +128,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
               <div className="h-full flex flex-col items-center justify-center text-slate-500 p-8 text-center">
                 <Search className="w-12 h-12 text-slate-300 mb-4" />
                 <p className="font-medium text-slate-900">Nenhum veículo encontrado</p>
-                <p className="text-sm mt-1">Tente buscar por outro termo ou verifique se o veículo já fez check-out.</p>
+                <p className="text-sm mt-1">Tente buscar por outro termo ou verifique se o veículo já registrou saída.</p>
               </div>
             )}
           </div>
@@ -155,7 +155,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
                     <p className="text-slate-500">{selectedVehicle.ownerName}</p>
                   </div>
                   <span className="bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-sm">
-                    Baia {selectedVehicle.cardNumber}
+                    Cartão {selectedVehicle.cardNumber}
                   </span>
                 </div>
                 
@@ -236,7 +236,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
                   className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-slate-900/20 flex items-center justify-center"
                 >
                   <LogOut className="w-5 h-5 mr-2" />
-                  Confirmar Check-out
+                  Confirmar Saída
                 </button>
               </div>
             </div>
@@ -244,7 +244,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
             <div className="bg-slate-50 rounded-2xl border border-slate-100 border-dashed flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
               <LogOut className="w-16 h-16 mb-4 text-slate-300" />
               <h3 className="text-lg font-medium text-slate-900 mb-2">Nenhum veículo selecionado</h3>
-              <p>Selecione um veículo na lista ao lado para visualizar os detalhes e realizar o check-out.</p>
+              <p>Selecione um veículo na lista ao lado para visualizar os detalhes e registrar a saída.</p>
             </div>
           )}
         </div>

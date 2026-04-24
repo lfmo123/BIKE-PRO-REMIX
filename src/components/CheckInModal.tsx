@@ -53,7 +53,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
     
     // Check if the parent returned an error
     if (res && res.success === false) {
-      setErrorMsg(res.error || 'Esta vaga/baia já está sendo usada!');
+      setErrorMsg(res.error || 'Este cartão já está sendo usado!');
       return;
     }
     
@@ -69,7 +69,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-900">Novo Check-in</h2>
+          <h2 className="text-xl font-bold text-slate-900">Nova Entrada</h2>
           <button 
             onClick={onClose}
             className="p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-500"
@@ -156,7 +156,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
 
             <div>
               <label htmlFor="cardNumber" className="block text-sm font-medium text-slate-700 mb-1">
-                Número do Cartão (Baia)
+                Número do Cartão
               </label>
               <input
                 id="cardNumber"
@@ -195,7 +195,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
               type="submit"
               className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-emerald-500/30"
             >
-              Confirmar Check-in
+              Confirmar Entrada
             </button>
           </div>
         </form>

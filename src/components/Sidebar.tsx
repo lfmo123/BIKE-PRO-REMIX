@@ -14,8 +14,8 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
   const navItems = [
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'active', label: 'Estacionados', icon: Bike },
-    { id: 'spots', label: 'Grade de Vagas', icon: Grid },
-    { id: 'checkout', label: 'Check-out', icon: LogOut },
+    { id: 'spots', label: 'Grade de Cartões', icon: Grid },
+    { id: 'checkout', label: 'Saída', icon: LogOut },
     { id: 'history', label: 'Histórico', icon: History },
     { id: 'reports', label: 'Relatórios', icon: BarChart3 },
     { id: 'settings', label: 'Configurações', icon: Settings },

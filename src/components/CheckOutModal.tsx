@@ -42,7 +42,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm }: CheckOut
             <div className="flex justify-between items-start mb-1">
               <h3 className="font-bold text-slate-900 text-lg">{vehicle.identifier}</h3>
               <span className="bg-slate-200 text-slate-700 font-bold px-2 py-1 rounded text-xs">
-                Baia {vehicle.cardNumber}
+                Cartão {vehicle.cardNumber}
               </span>
             </div>
             <p className="text-sm text-slate-500 mb-4">{vehicle.ownerName}</p>

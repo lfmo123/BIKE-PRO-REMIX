@@ -74,7 +74,7 @@ export default function App() {
         return { success: true };
       } else {
         const errorData = await res.json();
-        return { success: false, error: errorData.error || 'Erro ao realizar check-in' };
+        return { success: false, error: errorData.error || 'Erro ao registrar entrada' };
       }
     } catch (error) {
       console.error('Error during checkin', error);
@@ -156,8 +156,8 @@ export default function App() {
             className="flex items-center px-4 py-2 lg:px-5 lg:py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-colors shadow-lg shadow-emerald-500/30 text-sm lg:text-base"
           >
             <Plus className="w-5 h-5 lg:mr-2" />
-            <span className="hidden lg:inline">Novo Check-in</span>
-            <span className="inline lg:hidden ml-1">Check-in</span>
+            <span className="hidden lg:inline">Nova Entrada</span>
+            <span className="inline lg:hidden ml-1">Entrada</span>
           </button>
         </header>
 
