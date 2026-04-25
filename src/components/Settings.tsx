@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Save, DollarSign, Download, Upload, Database, Cloud, CloudDownload } from 'lucide-react';
-import { ParkedVehicle, Pricing } from '../types';
+import { ParkedVehicle, Pricing, LostCard } from '../types';
 
 interface SettingsProps {
   pricing: Pricing;
   vehicles: ParkedVehicle[];
+  lostCards?: LostCard[];
+  onLostCardsChange?: () => void;
   onSavePricing: (pricing: Pricing) => Promise<void> | void;
 }
 
-export function Settings({ pricing, vehicles, onSavePricing }: SettingsProps) {
+export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange, onSavePricing }: SettingsProps) {
   const [localPricing, setLocalPricing] = useState<Pricing>(pricing);
   const [isSaving, setIsSaving] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
@@ -224,6 +226,47 @@ export function Settings({ pricing, vehicles, onSavePricing }: SettingsProps) {
             {isSaving ? 'Salvando...' : 'Salvar Configurações'}
           </button>
         </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mt-6 mb-6">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="bg-red-100 p-2 rounded-lg">
+            <Cloud className="w-5 h-5 text-red-600" />
+          </div>
+          <h2 className="text-lg font-bold text-slate-900">Cartões Perdidos</h2>
+        </div>
+        
+        <p className="text-sm text-slate-500 mb-6">
+          Estes cartões foram marcados como perdidos e estão fora de serviço. Para devolvê-los à grade ao encontrá-los, clique para remover da lista de perdidos.
+        </p>
+
+        {lostCards.length === 0 ? (
+          <div className="text-slate-400 text-sm">Não há cartões perdidos no momento.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {lostCards.map(card => (
+              <div key={card.cardNumber} className="flex flex-col bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-sm font-medium relative">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-lg text-red-900">Cartão {card.cardNumber}</span>
+                  <button 
+                    onClick={async () => {
+                      if (confirm(`O cartão ${card.cardNumber} foi encontrado? Ele voltará para a grade como disponível.`)) {
+                        await fetch(`/api/lost-cards/${card.cardNumber}`, { method: 'DELETE' });
+                        onLostCardsChange?.();
+                      }
+                    }}
+                    className="hover:bg-red-200 p-1.5 rounded-lg transition-colors text-red-600 border border-red-300"
+                    title="Marcar como encontrado"
+                  >
+                    <Save className="w-4 h-4 mr-1 inline" /> Recuperar
+                  </button>
+                </div>
+                {card.name && <div className="text-red-800"><b>Cliente:</b> {card.name}</div>}
+                {card.phone && <div className="text-red-800"><b>Telefone:</b> {card.phone}</div>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">

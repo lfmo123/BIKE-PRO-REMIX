@@ -1,5 +1,12 @@
 export type VehicleType = 'bicycle' | 'ebike' | 'motorcycle';
 
+export interface LostCard {
+  cardNumber: string;
+  name?: string;
+  phone?: string;
+  date?: number;
+}
+
 export interface ParkedVehicle {
   id: string;
   type: VehicleType;

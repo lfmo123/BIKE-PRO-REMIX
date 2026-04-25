@@ -1,16 +1,17 @@
 import React from 'react';
 import { Bike, Zap, Motorbike, DollarSign, Clock, Users } from 'lucide-react';
-import { ParkedVehicle, Pricing } from '../types';
+import { ParkedVehicle, Pricing, LostCard } from '../types';
 
 export interface DashboardProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
+  lostCards?: LostCard[];
   onSpotClick?: (spotNumber: number, occupiedVehicle?: ParkedVehicle) => void;
 }
 
 import { SpotsGrid } from './SpotsGrid';
 
-export function Dashboard({ vehicles, pricing, onSpotClick }: DashboardProps) {
+export function Dashboard({ vehicles, pricing, lostCards, onSpotClick }: DashboardProps) {
   const activeVehicles = vehicles.filter(v => v.status === 'active');
   const completedVehicles = vehicles.filter(v => v.status === 'completed');
   
@@ -89,7 +90,7 @@ export function Dashboard({ vehicles, pricing, onSpotClick }: DashboardProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-3">
-          <SpotsGrid vehicles={vehicles} pricing={pricing} onSpotClick={onSpotClick} hideTitle={true} />
+          <SpotsGrid vehicles={vehicles} pricing={pricing} lostCards={lostCards} onSpotClick={onSpotClick} hideTitle={true} />
         </div>
       </div>
 

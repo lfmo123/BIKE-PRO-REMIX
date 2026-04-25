@@ -11,7 +11,7 @@ import { Settings } from './components/Settings';
 import { SpotsGrid } from './components/SpotsGrid';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
-import { ParkedVehicle, Pricing } from './types';
+import { ParkedVehicle, Pricing, LostCard } from './types';
 
 const defaultPricing: Pricing = {
   bicycle: 5,
@@ -26,6 +26,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [vehicles, setVehicles] = useState<ParkedVehicle[]>([]);
   const [pricing, setPricing] = useState<Pricing>(defaultPricing);
+  const [lostCards, setLostCards] = useState<LostCard[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
@@ -36,7 +37,20 @@ export default function App() {
   useEffect(() => {
     fetchVehicles();
     fetchPricing();
+    fetchLostCards();
   }, []);
+
+  const fetchLostCards = async () => {
+    try {
+      const res = await fetch('/api/lost-cards');
+      if (res.ok) {
+        const data = await res.json();
+        setLostCards(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch lost cards', e);
+    }
+  };
 
   const fetchVehicles = async () => {
     try {
@@ -79,6 +93,7 @@ export default function App() {
       });
       if (res.ok) {
         fetchVehicles(); // refresh list
+        fetchLostCards();
         setIsCheckInOpen(false);
         return { success: true };
       } else {
@@ -100,6 +115,7 @@ export default function App() {
       });
       if (res.ok) {
         fetchVehicles(); // refresh list
+        fetchLostCards();
         setVehicleToCheckOut(null);
       }
     } catch (error) {
@@ -116,6 +132,7 @@ export default function App() {
       });
       if (res.ok) {
         fetchVehicles(); // refresh list
+        fetchLostCards();
       } else {
         const data = await res.json();
         alert('Erro ao registrar cartão perdido: ' + data.error);
@@ -210,6 +227,7 @@ export default function App() {
                   <Dashboard 
                     vehicles={vehicles} 
                     pricing={pricing} 
+                    lostCards={lostCards}
                     onSpotClick={(spotNum, occupiedVehicle) => {
                       if (occupiedVehicle) {
                         setVehicleToCheckOut(occupiedVehicle);
@@ -225,6 +243,7 @@ export default function App() {
                   <SpotsGrid 
                     vehicles={vehicles} 
                     pricing={pricing} 
+                    lostCards={lostCards}
                     onSpotClick={(spotNum, occupiedVehicle) => {
                       if (occupiedVehicle) {
                         setVehicleToCheckOut(occupiedVehicle);
@@ -238,7 +257,7 @@ export default function App() {
                 {activeTab === 'checkout' && <CheckOut vehicles={vehicles} pricing={pricing} onCheckOut={handleCheckOut} />}
                 {activeTab === 'history' && <History vehicles={vehicles} />}
                 {activeTab === 'reports' && <Reports vehicles={vehicles} />}
-                {activeTab === 'settings' && <Settings pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} />}
+                {activeTab === 'settings' && <Settings pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={fetchLostCards} />}
               </motion.div>
             </AnimatePresence>
           </div>

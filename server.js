@@ -106,17 +106,38 @@ async function startServer() {
     }
   });
 
+  // Get lost cards
+  app.get('/api/lost-cards', async (req, res) => {
+    try {
+      if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        const cards = await mysqlDb.getLostCards();
+        res.json(cards);
+      } else {
+        const db = readDb();
+        const mappedCards = (db.lostCards || []).map(c => 
+          typeof c === 'string' ? { cardNumber: c } : c
+        );
+        res.json(mappedCards);
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to fetch lost cards' });
+    }
+  });
+
   // Report lost card
   app.put('/api/vehicles/:id/lost', async (req, res) => {
     try {
       const { id } = req.params;
       const { lostCardName, lostCardPhone } = req.body;
       
+      let vehicle;
       if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
-        const updatedVehicle = await mysqlDb.reportLostCard(id, lostCardName, lostCardPhone);
-        if (!updatedVehicle) return res.status(404).json({ error: 'Vehicle not found' });
-        res.json(updatedVehicle);
+        vehicle = await mysqlDb.reportLostCard(id, lostCardName, lostCardPhone);
+        if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+        await mysqlDb.addLostCard(vehicle.cardNumber, lostCardName, lostCardPhone);
       } else {
         const db = readDb();
         const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
@@ -128,12 +149,45 @@ async function startServer() {
           lostCardName,
           lostCardPhone
         };
+        db.lostCards = db.lostCards || [];
+        const existingIndex = db.lostCards.findIndex(c => typeof c === 'string' ? c === db.vehicles[vehicleIndex].cardNumber : c.cardNumber === db.vehicles[vehicleIndex].cardNumber);
+        if (existingIndex === -1) {
+          db.lostCards.push({
+            cardNumber: db.vehicles[vehicleIndex].cardNumber,
+            name: lostCardName,
+            phone: lostCardPhone,
+            date: Date.now()
+          });
+        }
         writeDb(db);
-        res.json(db.vehicles[vehicleIndex]);
+        vehicle = db.vehicles[vehicleIndex];
       }
+      res.json(vehicle);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: error.message || 'Failed to report lost card' });
+    }
+  });
+
+  // Remove lost card
+  app.delete('/api/lost-cards/:cardNumber', async (req, res) => {
+    try {
+      const { cardNumber } = req.params;
+      if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        await mysqlDb.removeLostCard(cardNumber);
+      } else {
+        const db = readDb();
+        db.lostCards = (db.lostCards || []).filter(c => {
+          if (typeof c === 'string') return c !== cardNumber;
+          return c.cardNumber !== cardNumber;
+        });
+        writeDb(db);
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to remove lost card' });
     }
   });
 

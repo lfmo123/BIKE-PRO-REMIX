@@ -53,11 +53,20 @@ export async function initMySQL() {
     )
   `;
 
+  const createLostCardsQuery = `
+    CREATE TABLE IF NOT EXISTS lost_cards (
+      card_number VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(255),
+      phone VARCHAR(50)
+    )
+  `;
+
   try {
     const currentPool = getPool();
     await currentPool.query('SELECT 1'); // Testa a conexão primeiro
     await currentPool.query(createVehiclesQuery);
     await currentPool.query(createPricingQuery);
+    await currentPool.query(createLostCardsQuery);
     
     // Inserir preços padrão se a tabela estiver vazia
     const [rows] = await currentPool.query('SELECT COUNT(*) as count FROM pricing');
@@ -82,6 +91,13 @@ export async function initMySQL() {
       await currentPool.query('ALTER TABLE vehicles ADD COLUMN lostCardPhone VARCHAR(50)');
     } catch (e) {
       // Ignorar se as colunas já existirem
+    }
+
+    try {
+      await currentPool.query('ALTER TABLE lost_cards ADD COLUMN name VARCHAR(255)');
+      await currentPool.query('ALTER TABLE lost_cards ADD COLUMN phone VARCHAR(50)');
+    } catch (e) {
+      // Ignorar
     }
 
     console.log('Tabelas do MySQL verificadas/criadas com sucesso.');
@@ -167,4 +183,20 @@ export async function checkSpotTaken(cardNumber) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
   const [rows] = await getPool().query('SELECT COUNT(*) as count FROM vehicles WHERE cardNumber = ? AND status = "active"', [cardNumber]);
   return rows[0].count > 0;
+}
+
+export async function getLostCards() {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const [rows] = await getPool().query('SELECT card_number as cardNumber, name, phone FROM lost_cards');
+  return rows;
+}
+
+export async function addLostCard(cardNumber, name, phone) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  await getPool().query('INSERT INTO lost_cards (card_number, name, phone) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, phone = ?', [cardNumber, name || null, phone || null, name || null, phone || null]);
+}
+
+export async function removeLostCard(cardNumber) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  await getPool().query('DELETE FROM lost_cards WHERE card_number = ?', [cardNumber]);
 }

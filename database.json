@@ -1,0 +1,215 @@
+{
+  "vehicles": [
+    {
+      "id": "m3phft6",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "1",
+      "checkInTime": 1777068900000,
+      "status": "completed",
+      "cardLost": true,
+      "lostCardName": "kiko",
+      "lostCardPhone": "2100000000000",
+      "checkOutTime": 1777071352482,
+      "price": 5,
+      "paymentMethod": "pix"
+    },
+    {
+      "id": "i8irlq8",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "4",
+      "checkInTime": 1777068900000,
+      "status": "active"
+    },
+    {
+      "id": "t9u1dnw",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "7",
+      "checkInTime": 1777068900000,
+      "status": "active"
+    },
+    {
+      "id": "230b476",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "11",
+      "checkInTime": 1777068900000,
+      "status": "active"
+    },
+    {
+      "id": "3bj0h3m",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "15",
+      "checkInTime": 1777068900000,
+      "status": "active"
+    },
+    {
+      "id": "2sksmil",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "18",
+      "checkInTime": 1777068900000,
+      "status": "active"
+    },
+    {
+      "id": "qem0vw3",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "26",
+      "checkInTime": 1777068900000,
+      "status": "completed",
+      "cardLost": true,
+      "lostCardName": "jac",
+      "lostCardPhone": "",
+      "checkOutTime": 1777074809571,
+      "price": 5,
+      "paymentMethod": "pix"
+    },
+    {
+      "id": "mqh1zs4",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "32",
+      "checkInTime": 1777068900000,
+      "status": "active"
+    },
+    {
+      "id": "szp6dcl",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "37",
+      "checkInTime": 1777068900000,
+      "status": "active"
+    },
+    {
+      "id": "o8s6bo7",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "38",
+      "checkInTime": 1776809700000,
+      "status": "active"
+    },
+    {
+      "id": "4gqg8y9",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "39",
+      "checkInTime": 1776809700000,
+      "status": "active"
+    },
+    {
+      "id": "nxgqia8",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "233",
+      "checkInTime": 1777071120000,
+      "status": "active",
+      "cardLost": true,
+      "lostCardName": "lú",
+      "lostCardPhone": ""
+    },
+    {
+      "id": "6xuwq7r",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "72",
+      "checkInTime": 1777074720000,
+      "status": "active"
+    },
+    {
+      "id": "p00qxbi",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "73",
+      "checkInTime": 1776729120000,
+      "status": "active"
+    },
+    {
+      "id": "b4kf01x",
+      "type": "bicycle",
+      "identifier": "Bike-1",
+      "ownerName": "John",
+      "cardNumber": "10",
+      "checkInTime": 1777075166163,
+      "status": "completed",
+      "cardLost": true,
+      "lostCardName": "John",
+      "lostCardPhone": "123",
+      "checkOutTime": 1777075166191,
+      "price": 10,
+      "paymentMethod": "cash"
+    },
+    {
+      "id": "h6jig3n",
+      "type": "bicycle",
+      "identifier": "Não informada",
+      "ownerName": "Não informado",
+      "cardNumber": "1",
+      "checkInTime": 1777080540000,
+      "status": "completed",
+      "checkOutTime": 1777081749823,
+      "price": 5,
+      "paymentMethod": "pix"
+    },
+    {
+      "id": "4acql4j",
+      "type": "bicycle",
+      "identifier": "Bike-1",
+      "ownerName": "John",
+      "cardNumber": "8",
+      "checkInTime": 1777080837337,
+      "status": "completed",
+      "cardLost": true,
+      "lostCardName": "John",
+      "lostCardPhone": "123",
+      "checkOutTime": 1777080837367,
+      "price": 10,
+      "paymentMethod": "cash"
+    },
+    {
+      "id": "wqcqxhi",
+      "type": "bicycle",
+      "identifier": "Bike-1",
+      "ownerName": "John",
+      "cardNumber": "12",
+      "checkInTime": 1777082109430,
+      "status": "active",
+      "cardLost": true,
+      "lostCardName": "Alice",
+      "lostCardPhone": "555-1234"
+    }
+  ],
+  "pricing": {
+    "bicycle": 5,
+    "ebike": 8,
+    "motorcycle": 12,
+    "totalSpots": 50,
+    "lostCardFee": 20
+  },
+  "lostCards": [
+    "8",
+    {
+      "cardNumber": "12",
+      "name": "Alice",
+      "phone": "555-1234",
+      "date": 1777082109464
+    }
+  ]
+}
