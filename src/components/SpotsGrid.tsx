@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ParkedVehicle, Pricing, LostCard } from '../types';
-import { Search, Bike, Zap, Motorbike, Plus, AlertTriangle } from 'lucide-react';
+import { Search, Bike, Zap, Motorbike, Plus, AlertTriangle, PackageOpen } from 'lucide-react';
 
 interface SpotsGridProps {
   vehicles: ParkedVehicle[];
@@ -109,6 +109,10 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
             </span>
             <span className="text-slate-600">Perdido</span>
           </div>
+          <div className="flex items-center">
+            <span className="w-3 h-3 rounded-full bg-slate-200 border border-slate-400 mr-2"></span>
+            <span className="text-slate-600">Em Depósito</span>
+          </div>
         </div>
       </div>
 
@@ -119,6 +123,8 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
           const isOccupied = !!vehicle;
           const lostCardObj = lostCards?.find(c => c.cardNumber === spotNum);
           const isLostCard = !!lostCardObj || (isOccupied && vehicle?.cardLost);
+          const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+          const isStored = isOccupied && vehicle && (Date.now() - vehicle.checkInTime) >= THIRTY_DAYS_MS;
           
           return (
             <button
@@ -133,7 +139,9 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
                 isOccupied 
                   ? vehicle?.cardLost 
                     ? 'bg-red-100 border-red-500 hover:border-red-600 hover:shadow-md cursor-pointer text-red-900' // Perdido (ocupado, pra fechar checkout da taxa possivelmente)
-                    : `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800`
+                    : isStored
+                      ? 'bg-slate-200 border-slate-400 hover:border-slate-500 hover:shadow-md cursor-pointer text-slate-800 opacity-90'
+                      : `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800`
                   : isLostCard
                     ? 'bg-red-100 border-red-500 opacity-80 cursor-not-allowed text-red-900' // Perdido desocupado
                     : 'bg-white border-slate-200 border-dashed hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-md cursor-pointer group'
@@ -146,6 +154,12 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
               {isLostCard && (
                 <div className="absolute top-2 right-2 text-red-500 bg-red-100 p-1 rounded-full" title="Cartão Perdido">
                   <AlertTriangle className="w-4 h-4" />
+                </div>
+              )}
+              
+              {isStored && !isLostCard && (
+                <div className="absolute top-2 right-2 text-slate-600 bg-slate-300 p-1 rounded-full" title="Em Depósito">
+                  <PackageOpen className="w-4 h-4" />
                 </div>
               )}
               

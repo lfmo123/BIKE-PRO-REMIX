@@ -194,6 +194,25 @@
       "cardLost": true,
       "lostCardName": "Alice",
       "lostCardPhone": "555-1234"
+    },
+    {
+      "id": "51z33ln",
+      "type": "bicycle",
+      "identifier": "Old-1",
+      "ownerName": "Old Joe",
+      "cardNumber": "99",
+      "checkInTime": 1775078173854,
+      "status": "active"
+    },
+    {
+      "id": "abcd123",
+      "type": "ebike",
+      "identifier": "Lost-Stored",
+      "ownerName": "Lost Guy",
+      "cardNumber": "100",
+      "checkInTime": 1774991800877,
+      "status": "active",
+      "cardLost": true
     }
   ],
   "pricing": {

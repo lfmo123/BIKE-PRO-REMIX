@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { ActiveParking } from './components/ActiveParking';
+import { StoredVehicles } from './components/StoredVehicles';
 import { CheckOut } from './components/CheckOut';
 import { History } from './components/History';
 import { Reports } from './components/Reports';
@@ -239,6 +240,7 @@ export default function App() {
                   />
                 )}
                 {activeTab === 'active' && <ActiveParking vehicles={vehicles} pricing={pricing} onCheckOut={setVehicleToCheckOut} />}
+                {activeTab === 'stored' && <StoredVehicles vehicles={vehicles} pricing={pricing} onCheckOut={setVehicleToCheckOut} />}
                 {activeTab === 'spots' && (
                   <SpotsGrid 
                     vehicles={vehicles} 

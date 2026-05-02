@@ -20,7 +20,9 @@ export function ActiveParking({ vehicles, pricing, onCheckOut }: ActiveParkingPr
     return () => clearInterval(interval);
   }, []);
 
-  const activeVehicles = vehicles.filter(v => v.status === 'active');
+  const activeVehicles = vehicles.filter(v => 
+    v.status === 'active' && (nowTime - v.checkInTime) < 30 * 24 * 60 * 60 * 1000
+  );
   
   const now = new Date(nowTime);
   const ONE_DAY_MS = 24 * 60 * 60 * 1000;

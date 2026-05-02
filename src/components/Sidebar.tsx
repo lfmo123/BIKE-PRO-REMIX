@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Bike, History, Settings, BarChart3, LogOut, LogOutIcon, Grid } from 'lucide-react';
+import { LayoutDashboard, Bike, History, Settings, BarChart3, LogOut, LogOutIcon, Grid, PackageOpen } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -14,6 +14,7 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
   const navItems = [
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'active', label: 'Estacionados', icon: Bike },
+    { id: 'stored', label: 'Em Depósito', icon: PackageOpen },
     { id: 'spots', label: 'Grade de Cartões', icon: Grid },
     { id: 'checkout', label: 'Saída', icon: LogOut },
     { id: 'history', label: 'Histórico', icon: History },
