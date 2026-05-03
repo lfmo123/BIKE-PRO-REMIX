@@ -19,7 +19,7 @@ const defaultPricing: Pricing = {
   bicycle: 5,
   ebike: 8,
   motorcycle: 12,
-  totalSpots: 50,
+  totalSpots: 300,
 };
 
 export default function App() {

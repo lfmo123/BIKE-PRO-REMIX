@@ -11,7 +11,7 @@ const defaultDbState = {
     ebike: 8,
     motorcycle: 12,
     lostCardFee: 50,
-    totalSpots: 50
+    totalSpots: 300
   }
 };
 

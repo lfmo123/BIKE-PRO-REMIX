@@ -11,7 +11,7 @@ interface SpotsGridProps {
 }
 
 export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hideTitle }: SpotsGridProps) {
-  const totalSpots = pricing.totalSpots || 50; 
+  const totalSpots = 300; 
   const activeVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
   
   // Creates an array of spot numbers
@@ -89,7 +89,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-3">
         {filteredSpots.map(spotNumStr => {
           const spotNum = spotNumStr.toString();
           const vehicle = spotMap.get(spotNum);
@@ -107,52 +107,49 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
                 }
               }}
               disabled={isLostCard && !isOccupied}
-              className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all aspect-square relative ${
+              className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all aspect-square relative ${
                 isOccupied 
                   ? vehicle?.cardLost 
-                    ? 'bg-red-100 border-red-500 hover:border-red-600 hover:shadow-md cursor-pointer text-red-900' // Perdido (ocupado, pra fechar checkout da taxa possivelmente)
+                    ? 'bg-red-100 border-red-400 hover:border-red-500 hover:shadow-sm cursor-pointer text-red-900' 
                     : isStored
-                      ? 'bg-slate-200 border-slate-400 hover:border-slate-500 hover:shadow-md cursor-pointer text-slate-800 opacity-90'
-                      : `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800`
+                      ? 'bg-slate-200 border-slate-300 hover:border-slate-400 hover:shadow-sm cursor-pointer text-slate-800 opacity-90'
+                      : `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800 border-transparent`
                   : isLostCard
-                    ? 'bg-red-100 border-red-500 opacity-80 cursor-not-allowed text-red-900' // Perdido desocupado
-                    : 'bg-white border-slate-200 border-dashed hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-md cursor-pointer group'
+                    ? 'bg-red-100 border-red-400 opacity-80 cursor-not-allowed text-red-900' 
+                    : 'bg-white border-slate-200 border-dashed hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm cursor-pointer group'
               }`}
             >
-              <span className={`absolute top-2 left-3 font-bold text-4xl ${isLostCard ? 'text-red-900/30' : 'text-black'}`}>
+              <span className={`absolute top-1 left-2 font-bold text-2xl ${isLostCard ? 'text-red-900/30' : 'text-black'}`}>
                 {spotNum}
               </span>
               
               {isLostCard && (
-                <div className="absolute top-2 right-2 text-red-500 bg-red-100 p-1 rounded-full" title="Cartão Perdido">
-                  <AlertTriangle className="w-4 h-4" />
+                <div className="absolute top-1 right-1 text-red-500 bg-red-100 p-0.5 rounded-full" title="Cartão Perdido">
+                  <AlertTriangle className="w-3 h-3" />
                 </div>
               )}
               
               {isStored && !isLostCard && (
-                <div className="absolute top-2 right-2 text-slate-600 bg-slate-300 p-1 rounded-full" title="Em Depósito">
-                  <PackageOpen className="w-4 h-4" />
+                <div className="absolute top-1 right-1 text-slate-600 bg-slate-300 p-0.5 rounded-full" title="Em Depósito">
+                  <PackageOpen className="w-3 h-3" />
                 </div>
               )}
               
               {isOccupied ? (
                 <>
-                  <div className="mt-2 text-slate-700">{getIcon(vehicle.type)}</div>
-                  <span className="mt-2 font-medium text-slate-900 text-sm truncate w-full text-center">
+                  <div className="mt-4 text-slate-700 transform scale-75">{getIcon(vehicle.type)}</div>
+                  <span className="mt-0 font-medium text-slate-900 text-[10px] truncate w-full text-center px-1">
                     {vehicle.identifier !== 'Não informada' ? vehicle.identifier : vehicle.ownerName.split(' ')[0]}
-                  </span>
-                  <span className="text-xs text-slate-500 mt-1 truncate w-full text-center">
-                    {vehicle.ownerName}
                   </span>
                 </>
               ) : isLostCard ? (
-                 <div className="flex flex-col items-center justify-center">
-                   <div className="text-red-400 font-bold text-sm mt-4 text-center px-1 leading-tight">PERDIDO</div>
+                 <div className="flex flex-col items-center justify-center mt-3">
+                   <div className="text-red-400 font-bold text-[10px] text-center px-1 leading-tight">PERDIDO</div>
                  </div>
               ) : (
-                <div className="flex flex-col items-center justify-center text-slate-400 group-hover:text-emerald-500 transition-colors mt-2">
-                  <Plus className="w-8 h-8 mb-1 opacity-50" />
-                  <span className="text-xs font-medium">Livre</span>
+                <div className="flex flex-col items-center justify-center text-slate-300 group-hover:text-emerald-500 transition-colors mt-3">
+                  <Plus className="w-5 h-5 mb-0.5 opacity-50" />
+                  <span className="text-[10px] font-medium">Livre</span>
                 </div>
               )}
             </button>
