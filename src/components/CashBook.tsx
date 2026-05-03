@@ -12,7 +12,6 @@ interface CashBookProps {
 export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTransaction }: CashBookProps) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [type, setType] = useState<'income' | 'expense'>('income');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   // Derived today's timestamp bounds
@@ -20,8 +19,8 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
   const startOfDay = new Date(year, month - 1, day, 0, 0, 0).getTime();
   const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999).getTime();
 
-  // Combine manual transactions + vehicle checkouts for the selected day
-  const dailyTransactions = transactions.filter(t => t.date >= startOfDay && t.date <= endOfDay);
+  // Combine manual transactions (expenses only) + vehicle checkouts for the selected day
+  const dailyTransactions = transactions.filter(t => t.type === 'expense' && t.date >= startOfDay && t.date <= endOfDay);
   const dailyCheckouts = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay);
 
   const combinedEntries = [
@@ -58,7 +57,7 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
     await onAddTransaction({
       description,
       amount: parseFloat(amount),
-      type,
+      type: 'expense',
       date: transactionDate
     });
 
@@ -121,36 +120,8 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">Novo Registro</h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Nova Despesa</h2>
             <form onSubmit={handleAddTransaction} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setType('income')}
-                    className={`py-2 rounded-xl text-sm font-medium transition-colors ${
-                      type === 'income' 
-                        ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500' 
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
-                    }`}
-                  >
-                    Entrada
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setType('expense')}
-                    className={`py-2 rounded-xl text-sm font-medium transition-colors ${
-                      type === 'expense' 
-                        ? 'bg-red-100 text-red-700 ring-2 ring-red-500' 
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
-                    }`}
-                  >
-                    Saída
-                  </button>
-                </div>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
                 <input
@@ -182,7 +153,7 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
                 className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-medium transition-colors flex items-center justify-center mt-2"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Adicionar Registro
+                Adicionar Despesa
               </button>
             </form>
           </div>
