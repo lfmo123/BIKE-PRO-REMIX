@@ -11,8 +11,6 @@ interface SpotsGridProps {
 }
 
 export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hideTitle }: SpotsGridProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  
   const totalSpots = pricing.totalSpots || 50; 
   const activeVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
   
@@ -45,24 +43,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
     }
   };
 
-  const filteredSpots = spots.filter(spotNum => {
-    if (!searchTerm) return true;
-    
-    // Check if the spot number matches
-    if (spotNum.toString().includes(searchTerm)) return true;
-    
-    // Check if the vehicle in the spot matches
-    const vehicle = spotMap.get(spotNum.toString());
-    if (!vehicle) return false;
-    
-    const term = searchTerm.toLowerCase();
-    return (
-      vehicle.identifier.toLowerCase().includes(term) ||
-      vehicle.ownerName.toLowerCase().includes(term) ||
-      vehicle.type.toLowerCase().includes(term) ||
-      vehicle.cardNumber.toLowerCase().includes(term)
-    );
-  });
+  const filteredSpots = spots;
 
   return (
     <div className="space-y-6">
@@ -75,43 +56,35 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-        <div className="relative flex-1 max-w-md w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-          <input 
-            type="text" 
-            placeholder="Buscar por cartão, placa ou dono..." 
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-4 text-sm font-medium">
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-wrap gap-4 items-center justify-center md:justify-start">
+        <div className="flex flex-wrap gap-4 text-sm font-medium justify-center">
           <div className="flex items-center">
-            <span className="w-3 h-3 rounded-full bg-slate-100 border border-slate-200 mr-2"></span>
+            <span className="w-4 h-4 rounded-full bg-slate-100 border border-slate-200 mr-2"></span>
             <span className="text-slate-600">Livre</span>
           </div>
           <div className="flex items-center">
-            <span className="w-3 h-3 rounded-full bg-blue-100 border border-blue-200 mr-2"></span>
+            <span className="w-4 h-4 rounded-full bg-blue-100 border border-blue-200 mr-2"></span>
             <span className="text-slate-600">Bicicleta</span>
           </div>
           <div className="flex items-center">
-            <span className="w-3 h-3 rounded-full bg-emerald-100 border border-emerald-200 mr-2"></span>
+            <span className="w-4 h-4 rounded-full bg-emerald-100 border border-emerald-200 mr-2"></span>
             <span className="text-slate-600">E-Bike</span>
           </div>
           <div className="flex items-center">
-            <span className="w-3 h-3 rounded-full bg-purple-100 border border-purple-200 mr-2"></span>
+            <span className="w-4 h-4 rounded-full bg-purple-100 border border-purple-200 mr-2"></span>
             <span className="text-slate-600">Moto</span>
           </div>
           <div className="flex items-center">
-            <span className="w-3 h-3 rounded-full bg-red-100 border border-red-400 mr-1 flex items-center justify-center">
-              <AlertTriangle className="w-2 h-2 text-red-500" />
+            <span className="w-4 h-4 rounded-full bg-red-100 border border-red-400 mr-2 flex items-center justify-center">
+              <AlertTriangle className="w-3 h-3 text-red-500" />
             </span>
             <span className="text-slate-600">Perdido</span>
           </div>
           <div className="flex items-center">
-            <span className="w-3 h-3 rounded-full bg-slate-200 border border-slate-400 mr-2"></span>
-            <span className="text-slate-600">Em Depósito</span>
+            <span className="w-4 h-4 rounded-full bg-slate-200 border border-slate-400 mr-2 flex items-center justify-center">
+              <PackageOpen className="w-3 h-3 text-slate-500" />
+            </span>
+            <span className="text-slate-600">Depósito</span>
           </div>
         </div>
       </div>
@@ -185,15 +158,10 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
             </button>
           );
         })}
-        {filteredSpots.length === 0 && (
-          <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-100">
-            Nenhum cartão encontrado para "{searchTerm}".
-          </div>
-        )}
       </div>
       
       {/* List vehicles that have non-numeric spot numbers (fallback) */}
-      {activeVehicles.find(v => isNaN(parseInt(v.cardNumber, 10))) && !searchTerm && (
+      {activeVehicles.find(v => isNaN(parseInt(v.cardNumber, 10))) && (
         <div className="mt-8">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Cartões Especiais / Extra</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
