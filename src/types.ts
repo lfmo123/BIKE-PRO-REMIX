@@ -30,3 +30,11 @@ export interface Pricing {
   totalSpots?: number; // Total number of spots
   lostCardFee?: number;
 }
+
+export interface Transaction {
+  id: string;
+  description: string;
+  amount: number;
+  date: number;
+  type: 'expense' | 'income';
+}

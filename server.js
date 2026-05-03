@@ -87,6 +87,67 @@ async function startServer() {
     }
   });
 
+  // Get transactions
+  app.get('/api/transactions', async (req, res) => {
+    try {
+      if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        const transactions = await mysqlDb.getTransactions();
+        res.json(transactions);
+      } else {
+        const db = readDb();
+        res.json(db.transactions || []);
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to fetch transactions' });
+    }
+  });
+
+  // Add a transaction
+  app.post('/api/transactions', async (req, res) => {
+    try {
+      const { description, amount, date, type } = req.body;
+      const id = Math.random().toString(36).substring(2, 9);
+      const newTransaction = { id, description, amount, date: date || Date.now(), type };
+      
+      if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        await mysqlDb.addTransaction(newTransaction);
+      } else {
+        const db = readDb();
+        if (!db.transactions) db.transactions = [];
+        db.transactions.push(newTransaction);
+        writeDb(db);
+      }
+      res.status(201).json(newTransaction);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to add transaction' });
+    }
+  });
+
+  // Delete a transaction
+  app.delete('/api/transactions/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        await mysqlDb.removeTransaction(id);
+      } else {
+        const db = readDb();
+        if (!db.transactions) db.transactions = [];
+        db.transactions = db.transactions.filter(t => t.id !== id);
+        writeDb(db);
+      }
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to delete transaction' });
+    }
+  });
+
   // Check-out a vehicle
   app.put('/api/vehicles/:id/checkout', async (req, res) => {
     try {

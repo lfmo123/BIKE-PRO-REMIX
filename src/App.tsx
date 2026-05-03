@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { ActiveParking } from './components/ActiveParking';
 import { StoredVehicles } from './components/StoredVehicles';
+import { CashBook } from './components/CashBook';
 import { CheckOut } from './components/CheckOut';
 import { History } from './components/History';
 import { Reports } from './components/Reports';
@@ -12,7 +13,7 @@ import { Settings } from './components/Settings';
 import { SpotsGrid } from './components/SpotsGrid';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
-import { ParkedVehicle, Pricing, LostCard } from './types';
+import { ParkedVehicle, Pricing, LostCard, Transaction } from './types';
 
 const defaultPricing: Pricing = {
   bicycle: 5,
@@ -26,6 +27,7 @@ export default function App() {
   
   const [activeTab, setActiveTab] = useState('dashboard');
   const [vehicles, setVehicles] = useState<ParkedVehicle[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [pricing, setPricing] = useState<Pricing>(defaultPricing);
   const [lostCards, setLostCards] = useState<LostCard[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -39,7 +41,47 @@ export default function App() {
     fetchVehicles();
     fetchPricing();
     fetchLostCards();
+    fetchTransactions();
   }, []);
+
+  const fetchTransactions = async () => {
+    try {
+      const res = await fetch('/api/transactions');
+      if (res.ok) {
+        const data = await res.json();
+        setTransactions(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch transactions', e);
+    }
+  };
+
+  const handleAddTransaction = async (transaction: Omit<Transaction, 'id'>) => {
+    try {
+      const res = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(transaction)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTransactions(prev => [data, ...prev].sort((a, b) => b.date - a.date));
+      }
+    } catch (e) {
+      console.error('Failed to add transaction', e);
+    }
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    try {
+      const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setTransactions(prev => prev.filter(t => t.id !== id));
+      }
+    } catch (e) {
+      console.error('Failed to delete transaction', e);
+    }
+  };
 
   const fetchLostCards = async () => {
     try {
@@ -257,6 +299,7 @@ export default function App() {
                   />
                 )}
                 {activeTab === 'checkout' && <CheckOut vehicles={vehicles} pricing={pricing} onCheckOut={handleCheckOut} />}
+                {activeTab === 'cashbook' && <CashBook transactions={transactions} vehicles={vehicles} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} />}
                 {activeTab === 'history' && <History vehicles={vehicles} />}
                 {activeTab === 'reports' && <Reports vehicles={vehicles} />}
                 {activeTab === 'settings' && <Settings pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={fetchLostCards} />}

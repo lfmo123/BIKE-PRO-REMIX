@@ -61,12 +61,23 @@ export async function initMySQL() {
     )
   `;
 
+  const createTransactionsQuery = `
+    CREATE TABLE IF NOT EXISTS transactions (
+      id VARCHAR(50) PRIMARY KEY,
+      description VARCHAR(255) NOT NULL,
+      amount DECIMAL(10, 2) NOT NULL,
+      date BIGINT NOT NULL,
+      type VARCHAR(50) NOT NULL
+    )
+  `;
+
   try {
     const currentPool = getPool();
     await currentPool.query('SELECT 1'); // Testa a conexão primeiro
     await currentPool.query(createVehiclesQuery);
     await currentPool.query(createPricingQuery);
     await currentPool.query(createLostCardsQuery);
+    await currentPool.query(createTransactionsQuery);
     
     // Inserir preços padrão se a tabela estiver vazia
     const [rows] = await currentPool.query('SELECT COUNT(*) as count FROM pricing');
@@ -204,4 +215,29 @@ export async function addLostCard(cardNumber, name, phone) {
 export async function removeLostCard(cardNumber) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
   await getPool().query('DELETE FROM lost_cards WHERE card_number = ?', [cardNumber]);
+}
+
+export async function getTransactions() {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const [rows] = await getPool().query('SELECT * FROM transactions ORDER BY date DESC');
+  return rows.map(r => ({
+    ...r,
+    amount: r.amount ? parseFloat(r.amount) : 0
+  }));
+}
+
+export async function addTransaction(transaction) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const query = `
+    INSERT INTO transactions (id, description, amount, date, type)
+    VALUES (?, ?, ?, ?, ?)
+  `;
+  await getPool().query(query, [
+    transaction.id, transaction.description, transaction.amount, transaction.date, transaction.type
+  ]);
+}
+
+export async function removeTransaction(id) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  await getPool().query('DELETE FROM transactions WHERE id = ?', [id]);
 }
