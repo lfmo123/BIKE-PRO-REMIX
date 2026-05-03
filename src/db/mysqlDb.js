@@ -112,6 +112,11 @@ export async function initMySQL() {
 
 export async function getVehicles() {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  
+  // Atualiza para 'stored' os veículos ativos que passaram de 30 dias (30 * 24 * 60 * 60 * 1000 = 2592000000)
+  const thirtyDaysAgo = Date.now() - 2592000000;
+  await getPool().query('UPDATE vehicles SET status = "stored" WHERE status = "active" AND checkInTime <= ?', [thirtyDaysAgo]);
+
   const [rows] = await getPool().query('SELECT * FROM vehicles ORDER BY checkInTime DESC');
   // Converter os tipos
   return rows.map(r => ({
@@ -181,7 +186,7 @@ export async function updatePricing(pricingObj) {
 
 export async function checkSpotTaken(cardNumber) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
-  const [rows] = await getPool().query('SELECT COUNT(*) as count FROM vehicles WHERE cardNumber = ? AND status = "active"', [cardNumber]);
+  const [rows] = await getPool().query('SELECT COUNT(*) as count FROM vehicles WHERE cardNumber = ? AND status IN ("active", "stored")', [cardNumber]);
   return rows[0].count > 0;
 }
 

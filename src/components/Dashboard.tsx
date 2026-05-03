@@ -13,6 +13,7 @@ import { SpotsGrid } from './SpotsGrid';
 
 export function Dashboard({ vehicles, pricing, lostCards, onSpotClick }: DashboardProps) {
   const activeVehicles = vehicles.filter(v => v.status === 'active');
+  const storedVehicles = vehicles.filter(v => v.status === 'stored');
   const completedVehicles = vehicles.filter(v => v.status === 'completed');
   
   const today = new Date().setHours(0, 0, 0, 0);

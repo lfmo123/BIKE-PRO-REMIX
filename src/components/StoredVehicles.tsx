@@ -19,9 +19,7 @@ export function StoredVehicles({ vehicles, pricing, onCheckOut }: StoredVehicles
     return () => clearInterval(interval);
   }, []);
 
-  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-
-  const storedVehicles = vehicles.filter(v => v.status === 'active' && (nowTime - v.checkInTime) >= THIRTY_DAYS_MS);
+  const storedVehicles = vehicles.filter(v => v.status === 'stored');
 
   const filteredVehicles = storedVehicles.filter(v => {
     const matchesSearch = v.identifier.toLowerCase().includes(searchTerm.toLowerCase()) || 

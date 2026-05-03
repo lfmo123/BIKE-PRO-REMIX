@@ -14,7 +14,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
   const [searchTerm, setSearchTerm] = useState('');
   
   const totalSpots = pricing.totalSpots || 50; 
-  const activeVehicles = vehicles.filter(v => v.status === 'active');
+  const activeVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
   
   // Creates an array of spot numbers
   const spots = Array.from({ length: totalSpots }, (_, i) => i + 1);
@@ -123,8 +123,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
           const isOccupied = !!vehicle;
           const lostCardObj = lostCards?.find(c => c.cardNumber === spotNum);
           const isLostCard = !!lostCardObj || (isOccupied && vehicle?.cardLost);
-          const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-          const isStored = isOccupied && vehicle && (Date.now() - vehicle.checkInTime) >= THIRTY_DAYS_MS;
+          const isStored = isOccupied && vehicle && vehicle.status === 'stored';
           
           return (
             <button

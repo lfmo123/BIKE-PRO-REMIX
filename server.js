@@ -36,6 +36,19 @@ async function startServer() {
         res.json(vehicles);
       } else {
         const db = readDb();
+        let changed = false;
+        const thirtyDaysAgo = Date.now() - 2592000000;
+        
+        db.vehicles.forEach(v => {
+          if (v.status === 'active' && v.checkInTime <= thirtyDaysAgo) {
+            v.status = 'stored';
+            changed = true;
+          }
+        });
+        
+        if (changed) {
+          writeDb(db);
+        }
         res.json(db.vehicles.sort((a, b) => b.checkInTime - a.checkInTime));
       }
     } catch (error) {
@@ -61,7 +74,7 @@ async function startServer() {
         res.status(201).json(newVehicle);
       } else {
         const db = readDb();
-        const isSpotTaken = db.vehicles.some(v => v.cardNumber === cardNumber && v.status === 'active');
+        const isSpotTaken = db.vehicles.some(v => v.cardNumber === cardNumber && (v.status === 'active' || v.status === 'stored'));
         if (isSpotTaken) return res.status(400).json({ error: 'Spot is already occupied' });
         
         db.vehicles.push(newVehicle);

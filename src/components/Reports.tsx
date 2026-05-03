@@ -78,7 +78,7 @@ export function Reports({ vehicles }: ReportsProps) {
   // 4. Overnight Vehicles (Relative to the selected date)
   const overnightVehiclesDaily = vehicles.filter(v => {
     const checkedInBeforeToday = v.checkInTime < startOfDay;
-    const activeToday = (v.status === 'active' || (v.checkOutTime && v.checkOutTime >= startOfDay));
+    const activeToday = (v.status === 'active' || v.status === 'stored' || (v.checkOutTime && v.checkOutTime >= startOfDay));
     return checkedInBeforeToday && activeToday;
   }).sort((a, b) => b.checkInTime - a.checkInTime);
 

@@ -23,14 +23,14 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
   // Update selected vehicle if it gets checked out (it will be removed from active)
   useEffect(() => {
     if (selectedVehicle) {
-      const stillActive = vehicles.find(v => v.id === selectedVehicle.id && v.status === 'active');
+      const stillActive = vehicles.find(v => v.id === selectedVehicle.id && (v.status === 'active' || v.status === 'stored'));
       if (!stillActive) {
         setSelectedVehicle(null);
       }
     }
   }, [vehicles, selectedVehicle]);
 
-  const activeVehicles = vehicles.filter(v => v.status === 'active');
+  const activeVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
   
   const filteredVehicles = activeVehicles.filter(v => {
     if (!searchTerm) return true;

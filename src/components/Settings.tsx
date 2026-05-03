@@ -34,7 +34,7 @@ export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange,
   };
 
   const generateBackupData = () => {
-    const activeVehicles = vehicles.filter(v => v.status === 'active');
+    const activeVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
     const history = vehicles.filter(v => v.status === 'completed');
     const totalRevenue = history.reduce((sum, v) => sum + (v.price || 0), 0);
 
