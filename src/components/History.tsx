@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bike, Zap, Motorbike, Search, Calendar, Clock, DollarSign, CreditCard, Banknote, Smartphone } from 'lucide-react';
+import { Bike, Zap, Motorbike, Search, Calendar, Clock, DollarSign, CreditCard, Banknote, Smartphone, X } from 'lucide-react';
 import { ParkedVehicle, VehicleType } from '../types';
 
 interface HistoryProps {
@@ -9,15 +9,42 @@ interface HistoryProps {
 export function History({ vehicles }: HistoryProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<VehicleType | 'all'>('all');
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedCardForHistory, setSelectedCardForHistory] = useState<string | null>(null);
 
-  const completedVehicles = vehicles.filter(v => v.status === 'completed').sort((a, b) => (b.checkOutTime || 0) - (a.checkOutTime || 0));
-  
+  const reportDate = new Date(selectedDate + 'T00:00:00');
+  const startOfDay = reportDate.setHours(0, 0, 0, 0);
+  const endOfDay = reportDate.setHours(23, 59, 59, 999);
+
+  const completedVehicles = vehicles
+    .filter(v => v.status === 'completed' && v.checkOutTime)
+    .sort((a, b) => (b.checkOutTime || 0) - (a.checkOutTime || 0));
+
   const filteredVehicles = completedVehicles.filter(v => {
     const matchesSearch = v.identifier.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           v.ownerName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || v.type === filterType;
-    return matchesSearch && matchesType;
+    const matchesDate = (v.checkOutTime || 0) >= startOfDay && (v.checkOutTime || 0) <= endOfDay;
+    return matchesSearch && matchesType && matchesDate;
   });
+
+  // Create grouped list for the main table
+  const groupedVehicles = filteredVehicles.reduce((acc: any, v) => {
+    const key = `${v.cardNumber}-${v.type}`;
+    if (!acc[key]) {
+      acc[key] = {
+        cardNumber: v.cardNumber,
+        type: v.type,
+        totalPrice: 0,
+        count: 0,
+      };
+    }
+    acc[key].totalPrice += (v.price || 0);
+    acc[key].count += 1;
+    return acc;
+  }, {});
+
+  const groupedList = Object.values(groupedVehicles);
 
   const getIcon = (type: VehicleType) => {
     switch (type) {
@@ -45,12 +72,22 @@ export function History({ vehicles }: HistoryProps) {
     }
   };
 
+  const selectedCardHistory = selectedCardForHistory 
+    ? completedVehicles.filter(v => v.cardNumber === selectedCardForHistory && (v.checkOutTime || 0) >= startOfDay && (v.checkOutTime || 0) <= endOfDay)
+    : [];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Histórico de Estacionamento</h1>
-        <div className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm font-medium">
-          {completedVehicles.length} Registros
+        <div className="flex items-center space-x-2 bg-white rounded-xl shadow-sm border border-slate-200 p-1 pl-3 transition-shadow hover:shadow-md">
+          <Calendar className="w-5 h-5 text-emerald-500" />
+          <input 
+            type="date" 
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="bg-transparent border-0 focus:ring-0 text-slate-700 font-bold p-2 outline-none cursor-pointer"
+          />
         </div>
       </div>
 
@@ -98,58 +135,30 @@ export function History({ vehicles }: HistoryProps) {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100 text-sm font-medium text-slate-500">
-                <th className="p-4">Veículo</th>
                 <th className="p-4">Cartão</th>
-                <th className="p-4">Proprietário</th>
-                <th className="p-4">Entrada</th>
-                <th className="p-4">Saída</th>
-                <th className="p-4">Duração</th>
-                <th className="p-4">Pagamento</th>
-                <th className="p-4 text-right">Valor Pago</th>
+                <th className="p-4">Tipo</th>
+                <th className="p-4">Usos</th>
+                <th className="p-4 text-right">Total Pago</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredVehicles.map((vehicle) => (
-                <tr key={vehicle.id} className="hover:bg-slate-50/50 transition-colors">
+              {groupedList.map((group: any, idx) => (
+                <tr key={`${group.cardNumber}-${group.type}`} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-4 text-emerald-600 font-bold hover:underline cursor-pointer" onClick={() => setSelectedCardForHistory(group.cardNumber)}>{group.cardNumber}</td>
                   <td className="p-4">
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg bg-slate-100`}>
-                        {getIcon(vehicle.type)}
+                      <div className="flex items-center space-x-2">
+                        {getIcon(group.type)}
+                        <span className="text-slate-700 capitalize">{group.type === 'bicycle' ? 'Bicicleta' : group.type === 'ebike' ? 'E-Bike' : 'Moto'}</span>
                       </div>
-                      <span className="font-medium text-slate-900">{vehicle.identifier}</span>
-                    </div>
                   </td>
-                  <td className="p-4 text-slate-600 font-medium">{vehicle.cardNumber}</td>
-                  <td className="p-4 text-slate-600">{vehicle.ownerName}</td>
-                  <td className="p-4 text-slate-600">
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 mr-2 text-slate-400" />
-                      {new Date(vehicle.checkInTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </td>
-                  <td className="p-4 text-slate-600">
-                    <div className="flex items-center">
-                      <Clock className="w-4 h-4 mr-2 text-slate-400" />
-                      {vehicle.checkOutTime ? new Date(vehicle.checkOutTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
-                    </div>
-                  </td>
-                  <td className="p-4 text-slate-600 font-medium">
-                    {formatDuration(vehicle.checkInTime, vehicle.checkOutTime)}
-                  </td>
-                  <td className="p-4 text-sm font-medium">
-                    {getPaymentIcon(vehicle.paymentMethod)}
-                  </td>
-                  <td className="p-4 text-right">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-800">
-                      R$ {vehicle.price?.toFixed(2) || '0.00'}
-                    </span>
-                  </td>
+                  <td className="p-4 text-slate-600 font-medium">{group.count}</td>
+                  <td className="p-4 text-right text-emerald-800 font-bold">R$ {group.totalPrice.toFixed(2)}</td>
                 </tr>
               ))}
-              {filteredVehicles.length === 0 && (
+              {groupedList.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
-                    Nenhum registro encontrado no histórico.
+                  <td colSpan={4} className="p-8 text-center text-slate-500">
+                    Nenhum registro encontrado para este dia.
                   </td>
                 </tr>
               )}
@@ -157,6 +166,46 @@ export function History({ vehicles }: HistoryProps) {
           </table>
         </div>
       </div>
+
+      {selectedCardForHistory && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900">Histórico do Cartão #{selectedCardForHistory}</h2>
+              <button onClick={() => setSelectedCardForHistory(null)} className="p-2 hover:bg-slate-100 rounded-full">
+                <X className="w-6 h-6 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b text-sm font-medium text-slate-500">
+                    <th className="p-2">Veículo</th>
+                    <th className="p-2">Hora Entrada</th>
+                    <th className="p-2">Hora Saída</th>
+                    <th className="p-2 text-right">Valor</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {selectedCardHistory.map(v => (
+                    <tr key={v.id}>
+                      <td className="p-2">{v.identifier}</td>
+                      <td className="p-2">{new Date(v.checkInTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
+                      <td className="p-2">{v.checkOutTime ? new Date(v.checkOutTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                      <td className="p-2 text-right">R$ {v.price?.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {selectedCardHistory.length === 0 && <tr><td colSpan={4} className="p-4 text-center">Nenhum uso para este cartão no dia.</td></tr>}
+                </tbody>
+              </table>
+              <div className="mt-4 pt-4 border-t font-bold text-lg text-right">
+                Total do dia: R$ {selectedCardHistory.reduce((s, v) => s + (v.price || 0), 0).toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

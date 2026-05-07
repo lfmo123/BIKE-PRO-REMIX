@@ -16,7 +16,6 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
     { id: 'active', label: 'Estacionados', icon: Bike },
     { id: 'stored', label: 'Em Depósito', icon: PackageOpen },
     { id: 'spots', label: 'Grade de Cartões', icon: Grid },
-    { id: 'checkout', label: 'Saída', icon: LogOut },
     { id: 'cashbook', label: 'Livro Caixa', icon: Wallet },
     { id: 'history', label: 'Histórico', icon: History },
     { id: 'reports', label: 'Relatórios', icon: BarChart3 },
@@ -55,11 +54,11 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
                 setActiveTab(item.id);
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors border ${
                 isActive 
                   ? 'bg-emerald-500/10 text-emerald-400' 
                   : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-              }`}
+              } ${item.id === 'checkout' ? 'border-[#e83d0c]' : 'border-transparent'}`}
             >
               <Icon className="w-5 h-5" />
               <span className="font-medium">{item.label}</span>
