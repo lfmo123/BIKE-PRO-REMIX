@@ -23,7 +23,7 @@ export function History({ vehicles }: HistoryProps) {
   const filteredVehicles = completedVehicles.filter(v => {
     const matchesSearch = v.identifier.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           v.ownerName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || v.type === filterType;
+    const matchesType = filterType === 'all' || v.type.toLowerCase() === filterType.toLowerCase();
     const matchesDate = (v.checkOutTime || 0) >= startOfDay && (v.checkOutTime || 0) <= endOfDay;
     return matchesSearch && matchesType && matchesDate;
   });
@@ -177,27 +177,60 @@ export function History({ vehicles }: HistoryProps) {
               </button>
             </div>
             <div className="p-6 overflow-y-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b text-sm font-medium text-slate-500">
-                    <th className="p-2">Veículo</th>
-                    <th className="p-2">Hora Entrada</th>
-                    <th className="p-2">Hora Saída</th>
-                    <th className="p-2 text-right">Valor</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {selectedCardHistory.map(v => (
-                    <tr key={v.id}>
-                      <td className="p-2">{v.identifier}</td>
-                      <td className="p-2">{new Date(v.checkInTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="p-2">{v.checkOutTime ? new Date(v.checkOutTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                      <td className="p-2 text-right">R$ {v.price?.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                  {selectedCardHistory.length === 0 && <tr><td colSpan={4} className="p-4 text-center">Nenhum uso para este cartão no dia.</td></tr>}
-                </tbody>
-              </table>
+              {(() => {
+                const groupedSelectedCardHistory = selectedCardHistory.reduce((acc: any, v) => {
+                  const key = `${v.identifier}-${v.type}`;
+                  if (!acc[key]) {
+                    acc[key] = {
+                      identifier: v.identifier,
+                      type: v.type,
+                      totalPrice: 0,
+                      totalDurationMs: 0,
+                      count: 0
+                    };
+                  }
+                  acc[key].totalPrice += (v.price || 0);
+                  acc[key].totalDurationMs += (v.checkOutTime || 0) - (v.checkInTime || 0);
+                  acc[key].count += 1;
+                  return acc;
+                }, {});
+
+                const groupedHistoryRows = Object.values(groupedSelectedCardHistory);
+
+                return (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b text-sm font-medium text-slate-500">
+                        <th className="p-2">Veículo</th>
+                        <th className="p-2">Tipo</th>
+                        <th className="p-2">Usos</th>
+                        <th className="p-2">Duração Total</th>
+                        <th className="p-2 text-right">Valor Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {groupedHistoryRows.map((v: any, index: number) => (
+                        <tr key={index}>
+                          <td className="p-2 font-medium">{v.identifier}</td>
+                          <td className="p-2 capitalize">{v.type === 'bicycle' ? 'Bicicleta' : v.type === 'ebike' ? 'E-Bike' : 'Moto'}</td>
+                          <td className="p-2">{v.count}</td>
+                          <td className="p-2 text-xs">
+                            {(() => {
+                              const diffHours = Math.floor(v.totalDurationMs / (1000 * 60 * 60));
+                              if (diffHours >= 24) {
+                                return `${Math.ceil(diffHours / 24)} diária(s)`;
+                              }
+                              return `${diffHours}h ${Math.floor((v.totalDurationMs % (1000 * 60 * 60)) / (1000 * 60))}m`;
+                            })()}
+                          </td>
+                          <td className="p-2 text-right">R$ {v.totalPrice.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                      {groupedHistoryRows.length === 0 && <tr><td colSpan={5} className="p-4 text-center">Nenhum uso para este cartão no dia.</td></tr>}
+                    </tbody>
+                  </table>
+                );
+              })()}
               <div className="mt-4 pt-4 border-t font-bold text-lg text-right">
                 Total do dia: R$ {selectedCardHistory.reduce((s, v) => s + (v.price || 0), 0).toFixed(2)}
               </div>
