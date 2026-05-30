@@ -363,6 +363,36 @@ async function startServer() {
     }
   });
 
+  app.delete('/api/system/reset', async (req, res) => {
+    try {
+      if (dbType === 'firebase') {
+        // Implementação simplificada (cuidado em produção real)
+        const vehicles = await firebaseDb.getVehicles();
+        if (vehicles && vehicles.length > 0) {
+          // Aqui idealmente deveríamos apagar cada doc com batch.
+        }
+        res.status(501).json({ error: 'Reset total não suportado diretamente no Firebase pela API simples. Contate o suporte.' });
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        const pool = mysqlDb.getPool();
+        await pool.query('TRUNCATE TABLE transactions;');
+        await pool.query('TRUNCATE TABLE lost_cards;');
+        await pool.query('TRUNCATE TABLE vehicles;');
+        res.json({ success: true, message: 'Todos os registros apagados.' });
+      } else {
+        const db = readDb();
+        db.vehicles = [];
+        db.transactions = [];
+        db.lostCards = [];
+        writeDb(db);
+        res.json({ success: true, message: 'Todos os registros apagados.' });
+      }
+    } catch (error) {
+      console.error('Reset app error:', error);
+      res.status(500).json({ error: error.message || 'Falha ao zerar app.' });
+    }
+  });
+
   app.get('/api/backup/export', async (req, res) => {
     try {
       let backupData = {};

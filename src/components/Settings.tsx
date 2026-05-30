@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Save, DollarSign, Download, Upload, Database, Cloud, CloudDownload } from 'lucide-react';
+import { Save, DollarSign, Download, Upload, Database, Cloud, Trash2 } from 'lucide-react';
 import { ParkedVehicle, Pricing, LostCard } from '../types';
 
 interface SettingsProps {
@@ -8,9 +8,10 @@ interface SettingsProps {
   lostCards?: LostCard[];
   onLostCardsChange?: () => void;
   onSavePricing: (pricing: Pricing) => Promise<void> | void;
+  onResetApp: () => void;
 }
 
-export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange, onSavePricing }: SettingsProps) {
+export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange, onSavePricing, onResetApp }: SettingsProps) {
   const [localPricing, setLocalPricing] = useState<Pricing>(pricing);
   const [localAutoBackupEnabled, setLocalAutoBackupEnabled] = useState(localStorage.getItem('autoBackupEnabled') === 'true');
   const [isSaving, setIsSaving] = useState(false);
@@ -346,6 +347,27 @@ export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange,
           </button>
         </div>
       </div>
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="bg-red-100 p-2 rounded-lg">
+            <Trash2 className="w-5 h-5 text-red-600" />
+          </div>
+          <h2 className="text-lg font-bold text-slate-900">Zerar Aplicativo</h2>
+        </div>
+        
+        <p className="text-sm text-slate-500 mb-6">
+          Atenção: Esta ação apagará todos os registros do aplicativo (veículos, transações e cartões perdidos).
+        </p>
+
+        <button
+          onClick={onResetApp}
+          className="flex items-center justify-center px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-red-600/30"
+        >
+          <Trash2 className="w-5 h-5 mr-2" />
+          Zerar Todos os Dados
+        </button>
+      </div>
+
     </div>
   );
 }

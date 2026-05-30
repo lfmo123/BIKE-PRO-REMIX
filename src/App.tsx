@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Menu } from 'lucide-react';
+import { Plus, Menu, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
@@ -13,6 +13,7 @@ import { Settings } from './components/Settings';
 import { SpotsGrid } from './components/SpotsGrid';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
+import { ResetAppModal } from './components/ResetAppModal';
 import { ParkedVehicle, Pricing, LostCard, Transaction } from './types';
 
 const defaultPricing: Pricing = {
@@ -33,6 +34,7 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
+  const [isResetAppOpen, setIsResetAppOpen] = useState(false);
   const [initialCheckInSpot, setInitialCheckInSpot] = useState<string>('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [vehicleToCheckOut, setVehicleToCheckOut] = useState<ParkedVehicle | null>(null);
@@ -83,6 +85,26 @@ export default function App() {
 
     return () => clearInterval(backupTimer);
   }, []);
+
+  const handleResetApp = async () => {
+    try {
+      const res = await fetch('/api/system/reset', { method: 'DELETE' });
+      if (res.ok) {
+        setVehicles([]);
+        setTransactions([]);
+        setLostCards([]);
+        setIsResetAppOpen(false);
+        setErrorMsg(null);
+        alert('Aplicativo zerado com sucesso.');
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || 'Erro ao zerar aplicativo.');
+      }
+    } catch (e) {
+      console.error('Failed to reset app', e);
+      setErrorMsg('Falha ao zerar aplicativo.');
+    }
+  };
 
   const fetchTransactions = async () => {
     try {
@@ -333,7 +355,7 @@ export default function App() {
                 {activeTab === 'cashbook' && <CashBook transactions={transactions} vehicles={vehicles} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} />}
                 {activeTab === 'history' && <History vehicles={vehicles} />}
                 {activeTab === 'reports' && <Reports vehicles={vehicles} />}
-                {activeTab === 'settings' && <Settings pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={fetchLostCards} />}
+                {activeTab === 'settings' && <Settings pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={fetchLostCards} onResetApp={() => setIsResetAppOpen(true)} />}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -357,6 +379,12 @@ export default function App() {
         onClose={() => setVehicleToCheckOut(null)} 
         onConfirm={handleCheckOut} 
         onReportLostCard={handleReportLostCard}
+      />
+      
+      <ResetAppModal
+        isOpen={isResetAppOpen}
+        onClose={() => setIsResetAppOpen(false)}
+        onConfirm={handleResetApp}
       />
     </div>
   );
