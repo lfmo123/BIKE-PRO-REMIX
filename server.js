@@ -7,7 +7,10 @@ import 'dotenv/config';
 import { readDb, writeDb } from './src/db/nodeDb.js';
 
 // MySQL DB
-import { initMySQL, getVehicles, checkInVehicle, checkOutVehicle, getPricing, updatePricing, checkSpotTaken } from './src/db/mysqlDb.js';
+import { initMySQL, getVehicles as mySqlGetVehicles, checkInVehicle as mySqlCheckInVehicle, checkOutVehicle as mySqlCheckOutVehicle, getPricing as mySqlGetPricing, updatePricing as mySqlUpdatePricing, checkSpotTaken as mySqlCheckSpotTaken } from './src/db/mysqlDb.js';
+
+// Firebase DB
+import * as firebaseDb from './src/db/firebaseDb.js';
 
 import { initBackupService } from './src/db/backupService.js';
 
@@ -17,12 +20,15 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Define qual banco de dados usar
-  const dbType = process.env.DB_TYPE === 'mysql' ? 'mysql' : 'json';
+  // Define qual banco de dados usar ('mysql', 'firebase' ou 'json')
+  const envDbType = process.env.DB_TYPE;
+  const dbType = ['mysql', 'json'].includes(envDbType) ? envDbType : 'firebase';
   console.log(`Usando banco de dados: ${dbType.toUpperCase()}`);
 
   if (dbType === 'mysql') {
     await initMySQL();
+  } else if (dbType === 'firebase') {
+    console.log("Firebase initialized");
   } else {
     initBackupService();
   }
@@ -32,8 +38,11 @@ async function startServer() {
   // Get all vehicles
   app.get('/api/vehicles', async (req, res) => {
     try {
-      if (dbType === 'mysql') {
-        const vehicles = await getVehicles();
+      if (dbType === 'firebase') {
+        const vehicles = await firebaseDb.getVehicles();
+        res.json(vehicles);
+      } else if (dbType === 'mysql') {
+        const vehicles = await mySqlGetVehicles();
         res.json(vehicles);
       } else {
         const db = readDb();
@@ -67,11 +76,17 @@ async function startServer() {
       const status = 'active';
       const newVehicle = { id, type, identifier, ownerName, cardNumber, checkInTime, status };
 
-      if (dbType === 'mysql') {
-        const isSpotTaken = await checkSpotTaken(cardNumber);
+      if (dbType === 'firebase') {
+        const isSpotTaken = await firebaseDb.checkSpotTaken(cardNumber);
         if (isSpotTaken) return res.status(400).json({ error: 'Spot is already occupied' });
         
-        await checkInVehicle(newVehicle);
+        await firebaseDb.checkInVehicle(newVehicle);
+        res.status(201).json(newVehicle);
+      } else if (dbType === 'mysql') {
+        const isSpotTaken = await mySqlCheckSpotTaken(cardNumber);
+        if (isSpotTaken) return res.status(400).json({ error: 'Spot is already occupied' });
+        
+        await mySqlCheckInVehicle(newVehicle);
         res.status(201).json(newVehicle);
       } else {
         const db = readDb();
@@ -91,7 +106,10 @@ async function startServer() {
   // Get transactions
   app.get('/api/transactions', async (req, res) => {
     try {
-      if (dbType === 'mysql') {
+      if (dbType === 'firebase') {
+        const transactions = await firebaseDb.getTransactions();
+        res.json(transactions);
+      } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
         const transactions = await mysqlDb.getTransactions();
         res.json(transactions);
@@ -112,7 +130,9 @@ async function startServer() {
       const id = Math.random().toString(36).substring(2, 9);
       const newTransaction = { id, description, amount, date: date || Date.now(), type };
       
-      if (dbType === 'mysql') {
+      if (dbType === 'firebase') {
+        await firebaseDb.addTransaction(newTransaction);
+      } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
         await mysqlDb.addTransaction(newTransaction);
       } else {
@@ -133,7 +153,9 @@ async function startServer() {
     try {
       const { id } = req.params;
       
-      if (dbType === 'mysql') {
+      if (dbType === 'firebase') {
+        await firebaseDb.removeTransaction(id);
+      } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
         await mysqlDb.removeTransaction(id);
       } else {
@@ -156,8 +178,12 @@ async function startServer() {
       const { price, paymentMethod } = req.body;
       const checkOutTime = Date.now();
       
-      if (dbType === 'mysql') {
-        const updatedVehicle = await checkOutVehicle(id, price, paymentMethod, checkOutTime);
+      if (dbType === 'firebase') {
+        const updatedVehicle = await firebaseDb.checkOutVehicle(id, price, paymentMethod, checkOutTime);
+        if (!updatedVehicle) return res.status(404).json({ error: 'Vehicle not found' });
+        res.json(updatedVehicle);
+      } else if (dbType === 'mysql') {
+        const updatedVehicle = await mySqlCheckOutVehicle(id, price, paymentMethod, checkOutTime);
         if (!updatedVehicle) return res.status(404).json({ error: 'Vehicle not found' });
         res.json(updatedVehicle);
       } else {
@@ -184,7 +210,10 @@ async function startServer() {
   // Get lost cards
   app.get('/api/lost-cards', async (req, res) => {
     try {
-      if (dbType === 'mysql') {
+      if (dbType === 'firebase') {
+        const cards = await firebaseDb.getLostCards();
+        res.json(cards);
+      } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
         const cards = await mysqlDb.getLostCards();
         res.json(cards);
@@ -208,7 +237,11 @@ async function startServer() {
       const { lostCardName, lostCardPhone } = req.body;
       
       let vehicle;
-      if (dbType === 'mysql') {
+      if (dbType === 'firebase') {
+        vehicle = await firebaseDb.reportLostCard(id, lostCardName, lostCardPhone);
+        if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+        await firebaseDb.addLostCard(vehicle.cardNumber, lostCardName, lostCardPhone);
+      } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
         vehicle = await mysqlDb.reportLostCard(id, lostCardName, lostCardPhone);
         if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
@@ -248,7 +281,9 @@ async function startServer() {
   app.delete('/api/lost-cards/:cardNumber', async (req, res) => {
     try {
       const { cardNumber } = req.params;
-      if (dbType === 'mysql') {
+      if (dbType === 'firebase') {
+        await firebaseDb.removeLostCard(cardNumber);
+      } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
         await mysqlDb.removeLostCard(cardNumber);
       } else {
@@ -269,8 +304,11 @@ async function startServer() {
   // Get pricing
   app.get('/api/pricing', async (req, res) => {
     try {
-      if (dbType === 'mysql') {
-        const pricing = await getPricing();
+      if (dbType === 'firebase') {
+        const pricing = await firebaseDb.getPricing();
+        res.json(pricing);
+      } else if (dbType === 'mysql') {
+        const pricing = await mySqlGetPricing();
         res.json(pricing);
       } else {
         const db = readDb();
@@ -286,8 +324,11 @@ async function startServer() {
   app.put('/api/pricing', async (req, res) => {
     try {
         const newPricing = req.body;
-      if (dbType === 'mysql') {
-        const pricing = await updatePricing(newPricing);
+      if (dbType === 'firebase') {
+        const pricing = await firebaseDb.updatePricing(newPricing);
+        res.json(pricing);
+      } else if (dbType === 'mysql') {
+        const pricing = await mySqlUpdatePricing(newPricing);
         res.json(pricing);
       } else {
         const db = readDb();
@@ -303,7 +344,9 @@ async function startServer() {
 
   app.get('/api/system/db-status', async (req, res) => {
     try {
-      if (dbType === 'mysql') {
+      if (dbType === 'firebase') {
+        res.json({ status: 'ok', message: 'Usando banco de dados Firebase', dbType: 'firebase' });
+      } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
         const pool = mysqlDb.getPool();
         await pool.query('SELECT 1');

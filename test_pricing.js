@@ -1,5 +1,5 @@
 import http from 'http';
-http.get('http://localhost:3000/api/system/db-status', (res) => {
+http.get('http://localhost:3000/api/pricing', (res) => {
   let data = '';
   res.on('data', (chunk) => data += chunk);
   res.on('end', () => console.log(data));
