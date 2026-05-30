@@ -1,6 +1,7 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
+import 'dotenv/config';
 
 // Local JSON DB
 import { readDb, writeDb } from './src/db/nodeDb.js';
