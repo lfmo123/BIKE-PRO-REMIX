@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ParkedVehicle } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3 } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X } from 'lucide-react';
 
 interface ReportsProps {
   vehicles: ParkedVehicle[];
@@ -22,6 +22,7 @@ export function Reports({ vehicles }: ReportsProps) {
     new Date().toISOString().split('T')[0]
   );
   const [searchCard, setSearchCard] = useState<string>('');
+  const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<ParkedVehicle | null>(null);
 
   const reportDate = new Date(selectedDate + 'T00:00:00');
   const startOfDay = reportDate.setHours(0, 0, 0, 0);
@@ -744,22 +745,22 @@ export function Reports({ vehicles }: ReportsProps) {
       )}
 
       {reportType === 'cards' && (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[calc(100vh-200px)]">
+          <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center shrink-0">
             <Search className="w-5 h-5 mr-2 text-indigo-500" />
             Detalhes de Entradas e Saídas (Geral)
           </h3>
-          <div className="overflow-x-auto">
+          <div className="overflow-auto border border-slate-100 rounded-xl flex-1 relative">
             <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-100 text-sm font-bold text-slate-500">
-                  <th className="p-4 rounded-tl-xl whitespace-nowrap">Data Entrada</th>
-                  <th className="p-4 whitespace-nowrap">Cartão/Placa</th>
-                  <th className="p-4 whitespace-nowrap">Veículo</th>
-                  <th className="p-4 whitespace-nowrap">Status</th>
-                  <th className="p-4 whitespace-nowrap">Saída</th>
-                  <th className="p-4 whitespace-nowrap">Método</th>
-                  <th className="p-4 text-right rounded-tr-xl whitespace-nowrap">Receita</th>
+                  <th className="p-4 whitespace-nowrap bg-slate-50 shadow-sm outline outline-1 outline-slate-100">Data Entrada</th>
+                  <th className="p-4 whitespace-nowrap bg-slate-50 shadow-sm outline outline-1 outline-slate-100">Cartão/Placa</th>
+                  <th className="p-4 whitespace-nowrap bg-slate-50 shadow-sm outline outline-1 outline-slate-100">Veículo</th>
+                  <th className="p-4 whitespace-nowrap bg-slate-50 shadow-sm outline outline-1 outline-slate-100">Status</th>
+                  <th className="p-4 whitespace-nowrap bg-slate-50 shadow-sm outline outline-1 outline-slate-100">Saída</th>
+                  <th className="p-4 whitespace-nowrap bg-slate-50 shadow-sm outline outline-1 outline-slate-100">Método</th>
+                  <th className="p-4 text-right whitespace-nowrap bg-slate-50 shadow-sm outline outline-1 outline-slate-100">Receita</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -779,12 +780,22 @@ export function Reports({ vehicles }: ReportsProps) {
                       {new Date(vehicle.checkInTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td className="p-4 font-bold text-indigo-600">
-                      <div className="flex flex-col">
+                      <div 
+                        className="flex flex-col cursor-pointer hover:text-indigo-800 transition-colors"
+                        onClick={() => setSelectedVehicleDetails(vehicle)}
+                      >
                         <span>#{vehicle.cardNumber || '-'}</span>
                         <span className="text-xs font-medium text-slate-400 capitalize">{vehicle.type}</span>
                       </div>
                     </td>
-                    <td className="p-4 text-sm font-bold text-slate-900">{vehicle.identifier}</td>
+                    <td className="p-4 text-sm font-bold text-slate-900">
+                      <span 
+                        className="cursor-pointer hover:text-slate-600 transition-colors"
+                        onClick={() => setSelectedVehicleDetails(vehicle)}
+                      >
+                        {vehicle.identifier}
+                      </span>
+                    </td>
                     <td className="p-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
                         vehicle.status === 'completed' ? 'bg-slate-100 text-slate-600 border border-slate-200' :
@@ -811,6 +822,85 @@ export function Reports({ vehicles }: ReportsProps) {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Vehicle Details Modal */}
+      {selectedVehicleDetails && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h2 className="text-xl font-bold text-slate-800">Detalhes do Registro</h2>
+              <button 
+                onClick={() => setSelectedVehicleDetails(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-lg hover:bg-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500 font-medium">Cartão</span>
+                <span className="font-bold text-slate-900 flex items-center">
+                  <span className="text-indigo-600 px-2 py-0.5 bg-indigo-50 rounded mr-2 text-xs">#{selectedVehicleDetails.cardNumber || '-'}</span>
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500 font-medium">Identificação</span>
+                <span className="font-bold text-slate-900">{selectedVehicleDetails.identifier}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500 font-medium">Veículo</span>
+                <span className="font-bold text-slate-900 capitalize">{selectedVehicleDetails.type}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500 font-medium">Status</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                  selectedVehicleDetails.status === 'completed' ? 'bg-slate-100 text-slate-600 border border-slate-200' :
+                  selectedVehicleDetails.status === 'active' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                  'bg-blue-100 text-blue-700 border border-blue-200'
+                }`}>
+                  {selectedVehicleDetails.status === 'completed' ? 'Finalizado' :
+                   selectedVehicleDetails.status === 'active' ? 'Ativo' : 'Guardado'}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500 font-medium">Data de Entrada</span>
+                <span className="font-bold text-slate-900 text-sm">
+                  {new Date(selectedVehicleDetails.checkInTime).toLocaleString('pt-BR')}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500 font-medium">Data de Saída</span>
+                <span className="font-bold text-slate-900 text-sm">
+                  {selectedVehicleDetails.checkOutTime ? new Date(selectedVehicleDetails.checkOutTime).toLocaleString('pt-BR') : '-'}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500 font-medium">Forma de Pagto</span>
+                <span className="font-bold text-slate-900 capitalize">
+                  {selectedVehicleDetails.paymentMethod === 'card' ? 'Cartão' : 
+                   selectedVehicleDetails.paymentMethod === 'cash' ? 'Dinheiro' : 
+                   selectedVehicleDetails.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : 
+                   selectedVehicleDetails.paymentMethod === 'pix' ? 'PIX' : '-'}
+                </span>
+              </div>
+              <div className="flex justify-between pt-2">
+                <span className="text-slate-500 font-bold">Valor Pago</span>
+                <span className="font-black text-emerald-600 text-lg">
+                  {selectedVehicleDetails.price ? "R$ " + selectedVehicleDetails.price.toFixed(2) : '-'}
+                </span>
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-slate-50 text-right">
+              <button
+                onClick={() => setSelectedVehicleDetails(null)}
+                className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
