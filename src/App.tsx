@@ -278,15 +278,6 @@ export default function App() {
               <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md">PRO</span>
             </div>
           </div>
-          
-          <button 
-            onClick={() => setIsCheckInOpen(true)}
-            className="flex items-center px-4 py-2 lg:px-5 lg:py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-colors shadow-lg shadow-emerald-500/30 text-sm lg:text-base"
-          >
-            <Plus className="w-5 h-5 lg:mr-2" />
-            <span className="hidden lg:inline">Nova Entrada</span>
-            <span className="inline lg:hidden ml-1">Entrada</span>
-          </button>
         </header>
 
         {/* Main Content Area */}

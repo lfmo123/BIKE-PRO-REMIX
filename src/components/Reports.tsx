@@ -785,7 +785,12 @@ export function Reports({ vehicles }: ReportsProps) {
                         onClick={() => setSelectedVehicleDetails(vehicle)}
                       >
                         <span>#{vehicle.cardNumber || '-'}</span>
-                        <span className="text-xs font-medium text-slate-400 capitalize">{vehicle.type}</span>
+                        <span className="text-xs font-medium text-slate-400 capitalize">
+                          {vehicle.type === 'bicycle' ? 'Bicicleta' : 
+                           vehicle.type === 'ebike' ? 'E-Bike' : 
+                           vehicle.type === 'motorcycle' ? 'Moto' : 
+                           vehicle.type}
+                        </span>
                       </div>
                     </td>
                     <td className="p-4 text-sm font-bold text-slate-900">
@@ -852,7 +857,12 @@ export function Reports({ vehicles }: ReportsProps) {
               </div>
               <div className="flex justify-between border-b border-slate-100 pb-2">
                 <span className="text-slate-500 font-medium">Veículo</span>
-                <span className="font-bold text-slate-900 capitalize">{selectedVehicleDetails.type}</span>
+                <span className="font-bold text-slate-900 capitalize">
+                  {selectedVehicleDetails.type === 'bicycle' ? 'Bicicleta' : 
+                   selectedVehicleDetails.type === 'ebike' ? 'E-Bike' : 
+                   selectedVehicleDetails.type === 'motorcycle' ? 'Moto' : 
+                   selectedVehicleDetails.type}
+                </span>
               </div>
               <div className="flex justify-between border-b border-slate-100 pb-2">
                 <span className="text-slate-500 font-medium">Status</span>
