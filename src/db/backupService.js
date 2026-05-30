@@ -4,39 +4,60 @@ import cron from 'node-cron';
 import { google } from 'googleapis';
 import 'dotenv/config';
 
-const dbPath = path.resolve(process.cwd(), 'database.json');
+// Firebase imports
+import * as firebaseDb from './firebaseDb.js';
+import * as mysqlDb from './mysqlDb.js';
+import { readDb } from './nodeDb.js';
+
 const backupsDir = path.resolve(process.cwd(), 'backups');
 
-export function initBackupService() {
+export function initBackupService(dbType) {
   // Configura a pasta base de backups local na Hostinger
   if (!fs.existsSync(backupsDir)) {
     fs.mkdirSync(backupsDir, { recursive: true });
   }
 
   // Executa o backup todo dia à meia noite ("0 0 * * *")
-  // Para fins de teste você pode usar "* * * * *" para a cada minuto
-  cron.schedule('0 0 * * *', async () => {
-    console.log('Iniciando rotina de backups automáticos...');
+  // Para alterar para a cada hora: "0 * * * *"
+  cron.schedule('0 * * * *', async () => {
+    console.log(`Iniciando rotina de backups automáticos para banco: ${dbType}...`);
     
-    // 1. Backup Local (Hostinger)
     try {
       const dateStr = new Date().toISOString().replace(/:/g, '-').split('.')[0]; 
-      const localBackupPath = path.join(backupsDir, `database_backup_${dateStr}.json`);
+      const localBackupPath = path.join(backupsDir, `backup_${dbType}_${dateStr}.json`);
       
-      if (fs.existsSync(dbPath)) {
-        fs.copyFileSync(dbPath, localBackupPath);
-        console.log(`[Backup Local] Salvo com sucesso em: ${localBackupPath}`);
-      }
-    } catch (err) {
-      console.error('[Erro Backup Local] Falha ao criar arquivo:', err);
-    }
+      let backupData = {};
 
-    // 2. Backup Nuvem (Google Drive)
-    await uploadToGoogleDrive();
+      if (dbType === 'firebase') {
+        const vehicles = await firebaseDb.getVehicles();
+        const transactions = await firebaseDb.getTransactions();
+        const lostCards = await firebaseDb.getLostCards();
+        const pricing = await firebaseDb.getPricing();
+        backupData = { vehicles, transactions, lostCards, pricing };
+      } else if (dbType === 'mysql') {
+        const vehicles = await mysqlDb.getVehicles();
+        const transactions = await mysqlDb.getTransactions();
+        const lostCards = await mysqlDb.getLostCards();
+        const pricing = await mysqlDb.getPricing();
+        backupData = { vehicles, transactions, lostCards, pricing };
+      } else {
+        backupData = readDb();
+      }
+
+      // Escreve os dados num arquivo JSON local para o backup
+      fs.writeFileSync(localBackupPath, JSON.stringify(backupData, null, 2), 'utf-8');
+      console.log(`[Backup Local] Salvo com sucesso em: ${localBackupPath}`);
+
+      // 2. Backup Nuvem (Google Drive)
+      await uploadToGoogleDrive(localBackupPath);
+
+    } catch (err) {
+      console.error('[Erro Backup] Falha durante o processo de backup:', err);
+    }
   });
 }
 
-async function uploadToGoogleDrive() {
+async function uploadToGoogleDrive(filePath) {
   const credentialsJson = process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS;
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
@@ -55,19 +76,16 @@ async function uploadToGoogleDrive() {
 
     const drive = google.drive({ version: 'v3', auth });
     
-    const dateStr = new Date().toISOString().replace(/:/g, '-').split('.')[0]; 
-    const fileName = `database_backup_${dateStr}.json`;
-
-    if (!fs.existsSync(dbPath)) return;
+    if (!fs.existsSync(filePath)) return;
 
     const fileMetadata = {
-      name: fileName,
+      name: path.basename(filePath),
       parents: [folderId],
     };
     
     const media = {
       mimeType: 'application/json',
-      body: fs.createReadStream(dbPath),
+      body: fs.createReadStream(filePath),
     };
 
     const file = await drive.files.create({
@@ -81,3 +99,4 @@ async function uploadToGoogleDrive() {
     console.error('[Erro Backup Drive] Falha ao realizar upload pro Google:', err);
   }
 }
+

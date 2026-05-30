@@ -30,8 +30,11 @@ async function startServer() {
   } else if (dbType === 'firebase') {
     console.log("Firebase initialized");
   } else {
-    initBackupService();
+    // using local json db
   }
+  
+  // Start backup service for whatever database we are using 
+  initBackupService(dbType);
 
   // --- API Routes ---
 
@@ -357,6 +360,33 @@ async function startServer() {
     } catch (error) {
       console.error(error);
       res.status(500).json({ status: 'error', message: 'Falha na conexão com banco.', error: error.message || String(error) });
+    }
+  });
+
+  app.get('/api/backup/export', async (req, res) => {
+    try {
+      let backupData = {};
+      if (dbType === 'firebase') {
+        const vehicles = await firebaseDb.getVehicles();
+        const transactions = await firebaseDb.getTransactions();
+        const lostCards = await firebaseDb.getLostCards();
+        const pricing = await firebaseDb.getPricing();
+        backupData = { version: 2, exportDate: new Date().toISOString(), pricing, vehicles, transactions, lostCards, dbType };
+      } else if (dbType === 'mysql') {
+        const { getVehicles, getTransactions, getLostCards, getPricing } = await import('./src/db/mysqlDb.js');
+        const vehicles = await getVehicles();
+        const transactions = await getTransactions();
+        const lostCards = await getLostCards();
+        const pricing = await getPricing();
+        backupData = { version: 2, exportDate: new Date().toISOString(), pricing, vehicles, transactions, lostCards, dbType };
+      } else {
+        const db = readDb();
+        backupData = { version: 2, exportDate: new Date().toISOString(), dbType, ...db };
+      }
+      res.json(backupData);
+    } catch (error) {
+      console.error("Backup export error:", error);
+      res.status(500).json({ error: "Failed to export backup data." });
     }
   });
 

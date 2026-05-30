@@ -12,6 +12,7 @@ interface SettingsProps {
 
 export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange, onSavePricing }: SettingsProps) {
   const [localPricing, setLocalPricing] = useState<Pricing>(pricing);
+  const [localAutoBackupEnabled, setLocalAutoBackupEnabled] = useState(localStorage.getItem('autoBackupEnabled') === 'true');
   const [isSaving, setIsSaving] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -24,6 +25,11 @@ export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange,
     setIsSaving(true);
     try {
       await onSavePricing(localPricing);
+      if (localAutoBackupEnabled) {
+        localStorage.setItem('autoBackupEnabled', 'true');
+      } else {
+        localStorage.setItem('autoBackupEnabled', 'false');
+      }
       alert('Configurações salvas com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar configurações:', error);
@@ -54,16 +60,33 @@ export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange,
     };
   };
 
-  const handleDownloadBackup = () => {
-    const backupData = generateBackupData();
+  const handleDownloadBackup = async () => {
+    try {
+      // Tenta buscar o backup completo (veículos, caixa, cartões, etc) do servidor
+      let backupData;
+      try {
+        const res = await fetch('/api/backup/export');
+        if (res.ok) {
+          backupData = await res.json();
+        } else {
+          // Se falhar o servidor por algum motivo, usa os dados locais (fallback)
+          backupData = generateBackupData();
+        }
+      } catch (err) {
+        backupData = generateBackupData();
+      }
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `bikepark_backup_completo_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", `bikepark_backup_completo_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    } catch (error) {
+      console.error("Erro ao gerar backup:", error);
+      alert("Erro ao tentar baixar o backup.");
+    }
   };
 
   const handleRestoreClick = () => {
@@ -194,6 +217,29 @@ export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange,
                 className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all"
                 placeholder="0"
               />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Backup Automático (Local)
+              </label>
+              <div className="flex items-start bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="autoBackupCheck"
+                  checked={localAutoBackupEnabled}
+                  onChange={(e) => setLocalAutoBackupEnabled(e.target.checked)}
+                  className="mt-1 w-5 h-5 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                />
+                <div className="ml-3">
+                  <label htmlFor="autoBackupCheck" className="text-sm font-medium text-slate-700 cursor-pointer">
+                    Baixar automaticamente
+                  </label>
+                  <p className="text-xs text-slate-500 mt-1">
+                    O aplicativo baixará o arquivo de backup assim que a tela for aberta, e a cada 4 horas enquanto estiver ativa.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

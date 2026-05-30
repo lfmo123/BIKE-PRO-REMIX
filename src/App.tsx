@@ -42,6 +42,46 @@ export default function App() {
     fetchPricing();
     fetchLostCards();
     fetchTransactions();
+
+    // Auto backup local check
+    const performAutoBackup = async () => {
+      const isEnabled = localStorage.getItem('autoBackupEnabled');
+      if (isEnabled !== 'true') return;
+
+      const lastBackupTime = parseInt(localStorage.getItem('lastAutoBackupTimestamp') || '0', 10);
+      const now = Date.now();
+      
+      // 4 horas em milissegundos
+      const FOUR_HOURS = 4 * 60 * 60 * 1000;
+      
+      if (now - lastBackupTime >= FOUR_HOURS) {
+         try {
+            console.log('Executando backup automático local...');
+            const res = await fetch('/api/backup/export');
+            if (res.ok) {
+              const backupData = await res.json();
+              const dateStr = new Date().toISOString().split('T')[0];
+              const timeStr = new Date().toISOString().split('T')[1].replace(/:/g, '-').split('.')[0];
+              const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+              const downloadAnchorNode = document.createElement('a');
+              downloadAnchorNode.setAttribute("href", dataStr);
+              downloadAnchorNode.setAttribute("download", `bikepark_backup_auto_${dateStr}_${timeStr}.json`);
+              document.body.appendChild(downloadAnchorNode);
+              downloadAnchorNode.click();
+              downloadAnchorNode.remove();
+              localStorage.setItem('lastAutoBackupTimestamp', now.toString());
+            }
+          } catch(e) { console.error('Auto backup failed', e); }
+      }
+    };
+    
+    // Check right when screen opens
+    performAutoBackup();
+    
+    // Keep checking periodically
+    const backupTimer = setInterval(performAutoBackup, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => clearInterval(backupTimer);
   }, []);
 
   const fetchTransactions = async () => {
