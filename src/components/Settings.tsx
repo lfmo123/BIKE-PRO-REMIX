@@ -218,29 +218,7 @@ export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange,
                 placeholder="0"
               />
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Backup Automático (Local)
-              </label>
-              <div className="flex items-start bg-slate-50 border border-slate-200 p-4 rounded-xl">
-                <input
-                  type="checkbox"
-                  id="autoBackupCheck"
-                  checked={localAutoBackupEnabled}
-                  onChange={(e) => setLocalAutoBackupEnabled(e.target.checked)}
-                  className="mt-1 w-5 h-5 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                />
-                <div className="ml-3">
-                  <label htmlFor="autoBackupCheck" className="text-sm font-medium text-slate-700 cursor-pointer">
-                    Baixar automaticamente
-                  </label>
-                  <p className="text-xs text-slate-500 mt-1">
-                    O aplicativo baixará o arquivo de backup assim que a tela for aberta, e a cada 4 horas enquanto estiver ativa.
-                  </p>
-                </div>
-              </div>
-            </div>
+
           </div>
         </div>
 
@@ -308,6 +286,30 @@ export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange,
         <p className="text-sm text-slate-500 mb-6">
           Salve ou restaure uma cópia de segurança dos dados localmente.
         </p>
+
+        <div className="mb-8">
+          <div className="flex items-start bg-slate-50 border border-slate-200 p-4 rounded-xl">
+            <input
+              type="checkbox"
+              id="autoBackupCheck"
+              checked={localAutoBackupEnabled}
+              onChange={(e) => {
+                setLocalAutoBackupEnabled(e.target.checked);
+                if (e.target.checked) localStorage.setItem('autoBackupEnabled', 'true');
+                else localStorage.setItem('autoBackupEnabled', 'false');
+              }}
+              className="mt-1 w-5 h-5 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+            />
+            <div className="ml-3">
+              <label htmlFor="autoBackupCheck" className="text-sm font-bold text-slate-700 cursor-pointer">
+                Baixar backup automaticamente
+              </label>
+              <p className="text-xs text-slate-500 mt-1">
+                Uma cópia do banco de dados será baixada assim que abrir o software e depois a cada 4 horas. Note que para valer é preciso clicar em "Salvar Configurações" caso essa opção esteja na sessão acima, mas agora funciona ao marcar!
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
           <button

@@ -8,13 +8,20 @@ interface ReportsProps {
 }
 
 export function Reports({ vehicles }: ReportsProps) {
-  const [reportType, setReportType] = useState<'daily' | 'monthly'>('daily');
+  const [reportType, setReportType] = useState<'daily' | 'monthly' | 'custom' | 'cards'>('daily');
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
   const [selectedMonth, setSelectedMonth] = useState<string>(
     new Date().toISOString().slice(0, 7) // YYYY-MM
   );
+  const [startDate, setStartDate] = useState<string>(
+    new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0]
+  );
+  const [endDate, setEndDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
+  );
+  const [searchCard, setSearchCard] = useState<string>('');
 
   const reportDate = new Date(selectedDate + 'T00:00:00');
   const startOfDay = reportDate.setHours(0, 0, 0, 0);
@@ -122,6 +129,41 @@ export function Reports({ vehicles }: ReportsProps) {
     };
   });
 
+  // Custom Calculations
+  const customStart = new Date(startDate + 'T00:00:00').getTime();
+  const customEnd = new Date(endDate + 'T23:59:59').getTime();
+
+  const completedVehiclesCustom = vehicles.filter(v => 
+    v.status === 'completed' && v.price && v.checkOutTime && v.checkOutTime >= customStart && v.checkOutTime <= customEnd
+  );
+  const entriesCustom = vehicles.filter(v => v.checkInTime >= customStart && v.checkInTime <= customEnd);
+  const exitsCustom = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= customStart && v.checkOutTime <= customEnd);
+  const totalRevenueCustom = completedVehiclesCustom.reduce((sum, v) => sum + (v.price || 0), 0);
+
+  const revenueByPaymentCustom = completedVehiclesCustom.reduce((acc, v) => {
+    const method = v.paymentMethod || 'cash';
+    acc[method] = (acc[method] || 0) + (v.price || 0);
+    return acc;
+  }, {} as Record<string, number>);
+
+  const paymentDataCustom = [
+    { name: 'PIX', value: revenueByPaymentCustom['pix'] || 0, color: '#10b981' }, 
+    { name: 'Cartão', value: revenueByPaymentCustom['card'] || 0, color: '#3b82f6' }, 
+    { name: 'Dinheiro', value: revenueByPaymentCustom['cash'] || 0, color: '#f59e0b' }, 
+    { name: 'Pós-Pago', value: revenueByPaymentCustom['postpaid_card'] || 0, color: '#a855f7' }, 
+  ].filter(d => d.value > 0);
+
+  const revenueByTypeCustom = completedVehiclesCustom.reduce((acc, v) => {
+    acc[v.type] = (acc[v.type] || 0) + (v.price || 0);
+    return acc;
+  }, {} as Record<string, number>);
+
+  const typeDataCustom = [
+    { name: 'Bikes', value: revenueByTypeCustom['bicycle'] || 0, fill: '#3b82f6' },
+    { name: 'E-Bikes', value: revenueByTypeCustom['ebike'] || 0, fill: '#10b981' },
+    { name: 'Motos', value: revenueByTypeCustom['motorcycle'] || 0, fill: '#a855f7' }, 
+  ];
+
   // Overall historical for last 7 days (kept for Daily view)
   const completedVehicles = vehicles.filter(v => v.status === 'completed' && v.price);
 
@@ -176,9 +218,29 @@ export function Reports({ vehicles }: ReportsProps) {
             >
               Mensal
             </button>
+            <button
+              onClick={() => setReportType('custom')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                reportType === 'custom' 
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Período
+            </button>
+            <button
+              onClick={() => setReportType('cards')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                reportType === 'cards' 
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Histórico
+            </button>
           </div>
 
-          {reportType === 'daily' ? (
+          {reportType === 'daily' && (
             <div className="flex items-center space-x-2 bg-white rounded-xl shadow-sm border border-slate-200 p-1 pl-3 transition-shadow hover:shadow-md">
               <Calendar className="w-5 h-5 text-emerald-500" />
               <input 
@@ -188,7 +250,9 @@ export function Reports({ vehicles }: ReportsProps) {
                 className="bg-transparent border-0 focus:ring-0 text-slate-700 font-bold p-2 outline-none cursor-pointer"
               />
             </div>
-          ) : (
+          )}
+          
+          {reportType === 'monthly' && (
             <div className="flex items-center space-x-2 bg-white rounded-xl shadow-sm border border-slate-200 p-1 pl-3 transition-shadow hover:shadow-md">
               <Calendar className="w-5 h-5 text-blue-500" />
               <input 
@@ -196,6 +260,38 @@ export function Reports({ vehicles }: ReportsProps) {
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="bg-transparent border-0 focus:ring-0 text-slate-700 font-bold p-2 outline-none cursor-pointer"
+              />
+            </div>
+          )}
+
+          {reportType === 'custom' && (
+            <div className="flex items-center space-x-2 bg-white rounded-xl shadow-sm border border-slate-200 p-1 pl-3 pr-2 transition-shadow hover:shadow-md">
+              <Calendar className="w-5 h-5 text-indigo-500" />
+              <input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent border-0 focus:ring-0 text-slate-700 font-bold p-2 outline-none cursor-pointer w-[130px]"
+              />
+              <span className="text-slate-400 font-bold">até</span>
+              <input 
+                type="date" 
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent border-0 focus:ring-0 text-slate-700 font-bold p-2 outline-none cursor-pointer w-[130px]"
+              />
+            </div>
+          )}
+
+          {reportType === 'cards' && (
+            <div className="flex items-center space-x-2 bg-white rounded-xl shadow-sm border border-slate-200 p-1 pl-3 transition-shadow hover:shadow-md">
+              <Search className="w-5 h-5 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Buscar por placa ou cartão..."
+                value={searchCard}
+                onChange={(e) => setSearchCard(e.target.value)}
+                className="bg-transparent border-0 focus:ring-0 text-slate-700 font-medium p-2 outline-none placeholder:text-slate-400"
               />
             </div>
           )}
@@ -538,6 +634,185 @@ export function Reports({ vehicles }: ReportsProps) {
 
           </div>
         </>
+      )}
+
+      {reportType === 'custom' && (
+        <>
+          {/* Custom Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-emerald-100 p-3 rounded-xl">
+                <DollarSign className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Faturamento</p>
+                <h3 className="text-2xl font-black text-slate-900">R$ {totalRevenueCustom.toFixed(2)}</h3>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-blue-100 p-3 rounded-xl">
+                <TrendingUp className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Ticket Médio</p>
+                <h3 className="text-2xl font-black text-slate-900">
+                  R$ {completedVehiclesCustom.length > 0 ? (totalRevenueCustom / completedVehiclesCustom.length).toFixed(2) : '0.00'}
+                </h3>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-indigo-100 p-3 rounded-xl">
+                <ArrowRightLeft className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Entradas do Período</p>
+                <h3 className="text-2xl font-black text-slate-900">{entriesCustom.length}</h3>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-purple-100 p-3 rounded-xl">
+                <LogOut className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Saídas Concluídas</p>
+                <h3 className="text-2xl font-black text-slate-900">{exitsCustom.length}</h3>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Revenue by Type */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
+                <Bike className="w-5 h-5 mr-2 text-blue-500" />
+                Receita por Categoria (Período)
+              </h3>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={typeDataCustom}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => "R$ " + value} />
+                    <Tooltip 
+                      cursor={{ fill: '#f8fafc' }}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      formatter={(value: number) => ["R$ " + value.toFixed(2), 'Faturamento']}
+                    />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Revenue by Payment Method */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
+                <CreditCard className="w-5 h-5 mr-2 text-emerald-500" />
+                Métodos de Pagamento (Período)
+              </h3>
+              <div className="h-72 flex items-center justify-center">
+                {paymentDataCustom.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={paymentDataCustom}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {paymentDataCustom.map((entry, index) => (
+                          <Cell key={"cell-" + index} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: number) => ["R$ " + value.toFixed(2), 'Faturamento']}
+                      />
+                      <Legend verticalAlign="bottom" height={36} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-slate-500 font-medium">Nenhum faturamento registrado neste período</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {reportType === 'cards' && (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
+            <Search className="w-5 h-5 mr-2 text-indigo-500" />
+            Detalhes de Entradas e Saídas (Geral)
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100 text-sm font-bold text-slate-500">
+                  <th className="p-4 rounded-tl-xl whitespace-nowrap">Data Entrada</th>
+                  <th className="p-4 whitespace-nowrap">Cartão/Placa</th>
+                  <th className="p-4 whitespace-nowrap">Veículo</th>
+                  <th className="p-4 whitespace-nowrap">Status</th>
+                  <th className="p-4 whitespace-nowrap">Saída</th>
+                  <th className="p-4 whitespace-nowrap">Método</th>
+                  <th className="p-4 text-right rounded-tr-xl whitespace-nowrap">Receita</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {vehicles
+                  .filter(v => {
+                    const search = searchCard.toLowerCase().trim();
+                    if (!search) return true;
+                    return (
+                      (v.identifier && v.identifier.toLowerCase().includes(search)) ||
+                      (v.cardNumber && v.cardNumber.toLowerCase().includes(search))
+                    );
+                  })
+                  .sort((a, b) => b.checkInTime - a.checkInTime)
+                  .map((vehicle) => (
+                  <tr key={vehicle.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-4 text-sm font-medium text-slate-600">
+                      {new Date(vehicle.checkInTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td className="p-4 font-bold text-indigo-600">
+                      <div className="flex flex-col">
+                        <span>#{vehicle.cardNumber || '-'}</span>
+                        <span className="text-xs font-medium text-slate-400 capitalize">{vehicle.type}</span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-sm font-bold text-slate-900">{vehicle.identifier}</td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                        vehicle.status === 'completed' ? 'bg-slate-100 text-slate-600 border border-slate-200' :
+                        vehicle.status === 'active' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                        'bg-blue-100 text-blue-700 border border-blue-200'
+                      }`}>
+                        {vehicle.status === 'completed' ? 'Finalizado' :
+                         vehicle.status === 'active' ? 'Ativo' : 'Guardado'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm text-slate-600">
+                      {vehicle.checkOutTime ? new Date(vehicle.checkOutTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+                    </td>
+                    <td className="p-4 text-sm font-medium text-slate-500 capitalize">
+                      {vehicle.paymentMethod === 'card' ? 'Cartão' : 
+                       vehicle.paymentMethod === 'cash' ? 'Dinheiro' : 
+                       vehicle.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : 
+                       vehicle.paymentMethod === 'pix' ? 'PIX' : '-'}
+                    </td>
+                    <td className="p-4 text-right font-black text-emerald-600">
+                      {vehicle.price ? "R$ " + vehicle.price.toFixed(2) : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
     </div>
