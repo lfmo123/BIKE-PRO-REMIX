@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, query, where, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, query, where, orderBy, writeBatch } from 'firebase/firestore';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import fs from 'fs';
 import path from 'path';
@@ -165,4 +165,28 @@ export async function updatePricing(newPricing) {
   await updateDoc(doc(db, 'config', 'pricing'), newPricing);
   const updated = await getPricing();
   return updated;
+}
+
+export async function resetDatabase() {
+  const batch = writeBatch(db);
+  
+  // Get and delete all vehicles
+  const vehiclesSnapshot = await getDocs(collection(db, 'vehicles'));
+  vehiclesSnapshot.forEach((document) => {
+    batch.delete(doc(db, 'vehicles', document.id));
+  });
+
+  // Get and delete all transactions
+  const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
+  transactionsSnapshot.forEach((document) => {
+    batch.delete(doc(db, 'transactions', document.id));
+  });
+
+  // Get and delete all lost cards
+  const lostCardsSnapshot = await getDocs(collection(db, 'lostCards'));
+  lostCardsSnapshot.forEach((document) => {
+    batch.delete(doc(db, 'lostCards', document.id));
+  });
+
+  await batch.commit();
 }

@@ -366,12 +366,8 @@ async function startServer() {
   app.delete('/api/system/reset', async (req, res) => {
     try {
       if (dbType === 'firebase') {
-        // Implementação simplificada (cuidado em produção real)
-        const vehicles = await firebaseDb.getVehicles();
-        if (vehicles && vehicles.length > 0) {
-          // Aqui idealmente deveríamos apagar cada doc com batch.
-        }
-        res.status(501).json({ error: 'Reset total não suportado diretamente no Firebase pela API simples. Contate o suporte.' });
+        await firebaseDb.resetDatabase();
+        res.json({ success: true, message: 'Todos os registros apagados no Firebase.' });
       } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
         const pool = mysqlDb.getPool();
