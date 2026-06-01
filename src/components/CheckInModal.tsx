@@ -17,10 +17,20 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
   const [customDate, setCustomDate] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  const isSpecialGrid = initialCardNumber?.includes('MT/BE');
+  const isTraditionalGrid = initialCardNumber && !initialCardNumber.includes('MT/BE');
+
   React.useEffect(() => {
     if (isOpen) {
       if (initialCardNumber) {
         setCardNumber(initialCardNumber);
+        if (initialCardNumber.includes('MT/BE')) {
+          setType('ebike');
+        } else {
+          setType('bicycle');
+        }
+      } else {
+        setType('bicycle');
       }
       setErrorMsg('');
       
@@ -73,45 +83,51 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700">Tipo de Veículo</label>
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => setType('bicycle')}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                  type === 'bicycle' 
-                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                }`}
-              >
-                <Bike className={`w-6 h-6 mb-2 ${type === 'bicycle' ? 'text-blue-600' : ''}`} />
-                <span className="text-xs font-medium">Bicicleta</span>
-              </button>
+            <div className={`grid ${isSpecialGrid ? 'grid-cols-2' : (isTraditionalGrid ? 'grid-cols-1' : 'grid-cols-3')} gap-3`}>
+              {!isSpecialGrid && (
+                <button
+                  type="button"
+                  onClick={() => setType('bicycle')}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                    type === 'bicycle' 
+                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                      : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                  }`}
+                >
+                  <Bike className={`w-6 h-6 mb-2 ${type === 'bicycle' ? 'text-blue-600' : ''}`} />
+                  <span className="text-xs font-medium">Bicicleta</span>
+                </button>
+              )}
               
-              <button
-                type="button"
-                onClick={() => setType('ebike')}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                  type === 'ebike' 
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
-                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                }`}
-              >
-                <Zap className={`w-6 h-6 mb-2 ${type === 'ebike' ? 'text-emerald-600' : ''}`} />
-                <span className="text-xs font-medium">E-Bike</span>
-              </button>
+              {!isTraditionalGrid && (
+                <button
+                  type="button"
+                  onClick={() => setType('ebike')}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                    type === 'ebike' 
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
+                      : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                  }`}
+                >
+                  <Zap className={`w-6 h-6 mb-2 ${type === 'ebike' ? 'text-emerald-600' : ''}`} />
+                  <span className="text-xs font-medium">E-Bike</span>
+                </button>
+              )}
               
-              <button
-                type="button"
-                onClick={() => setType('motorcycle')}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                  type === 'motorcycle' 
-                    ? 'border-purple-500 bg-purple-50 text-purple-700' 
-                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                }`}
-              >
-                <Motorbike className={`w-6 h-6 mb-2 ${type === 'motorcycle' ? 'text-purple-600' : ''}`} />
-                <span className="text-xs font-medium">Moto</span>
-              </button>
+              {!isTraditionalGrid && (
+                <button
+                  type="button"
+                  onClick={() => setType('motorcycle')}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                    type === 'motorcycle' 
+                      ? 'border-purple-500 bg-purple-50 text-purple-700' 
+                      : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                  }`}
+                >
+                  <Motorbike className={`w-6 h-6 mb-2 ${type === 'motorcycle' ? 'text-purple-600' : ''}`} />
+                  <span className="text-xs font-medium">Moto</span>
+                </button>
+              )}
             </div>
           </div>
           

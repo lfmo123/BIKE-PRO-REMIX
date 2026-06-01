@@ -69,6 +69,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
     { name: 'Cartão', value: revenueByPaymentDaily['card'] || 0, color: '#3b82f6' }, 
     { name: 'Dinheiro', value: revenueByPaymentDaily['cash'] || 0, color: '#f59e0b' }, 
     { name: 'Pós-Pago', value: revenueByPaymentDaily['postpaid_card'] || 0, color: '#a855f7' }, 
+    { name: 'Aguardando Pag.', value: revenueByPaymentDaily['fiado'] || 0, color: '#ef4444' }, 
   ].filter(d => d.value > 0);
 
   const revenueByTypeDaily = completedVehiclesDaily.reduce((acc, v) => {
@@ -115,6 +116,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
     { name: 'Cartão', value: revenueByPaymentMonthly['card'] || 0, color: '#3b82f6' }, 
     { name: 'Dinheiro', value: revenueByPaymentMonthly['cash'] || 0, color: '#f59e0b' }, 
     { name: 'Pós-Pago', value: revenueByPaymentMonthly['postpaid_card'] || 0, color: '#a855f7' }, 
+    { name: 'Aguardando Pag.', value: revenueByPaymentMonthly['fiado'] || 0, color: '#ef4444' },
   ].filter(d => d.value > 0);
 
   const revenueByTypeMonthly = completedVehiclesMonthly.reduce((acc, v) => {
@@ -171,6 +173,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
     { name: 'Cartão', value: revenueByPaymentCustom['card'] || 0, color: '#3b82f6' }, 
     { name: 'Dinheiro', value: revenueByPaymentCustom['cash'] || 0, color: '#f59e0b' }, 
     { name: 'Pós-Pago', value: revenueByPaymentCustom['postpaid_card'] || 0, color: '#a855f7' }, 
+    { name: 'Aguardando Pag.', value: revenueByPaymentCustom['fiado'] || 0, color: '#ef4444' },
   ].filter(d => d.value > 0);
 
   const revenueByTypeCustom = completedVehiclesCustom.reduce((acc, v) => {

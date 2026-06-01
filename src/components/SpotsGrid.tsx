@@ -66,7 +66,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
               className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all aspect-square relative ${
                 isOccupied 
                   ? vehicle?.cardLost 
-                    ? 'bg-red-100 border-red-400 hover:border-red-500 hover:shadow-sm cursor-pointer text-red-900' 
+                    ? `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800 border-red-400 border-2` 
                     : isStored
                       ? 'bg-slate-200 border-slate-300 hover:border-slate-400 hover:shadow-sm cursor-pointer text-slate-800 opacity-90'
                       : `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800 border-transparent`
@@ -180,7 +180,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
                   key={vehicle.id}
                   onClick={() => onSpotClick && onSpotClick('', vehicle)}
                   className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all hover:shadow-md relative ${
-                    vehicle.cardLost ? 'bg-red-100 border-red-500 hover:border-red-600 text-red-900' : getBgColor(vehicle.type)
+                    vehicle.cardLost ? `${getBgColor(vehicle.type)} border-red-500` : getBgColor(vehicle.type)
                   }`}
                 >
                   <span className="absolute top-2 left-3 font-bold text-sm text-slate-700 bg-white/50 px-2 py-0.5 rounded-md">

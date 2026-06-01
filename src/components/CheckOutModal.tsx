@@ -7,12 +7,12 @@ interface CheckOutModalProps {
   vehicle: ParkedVehicle | null;
   pricing: Pricing;
   onClose: () => void;
-  onConfirm: (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card') => void;
+  onConfirm: (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado') => void;
   onReportLostCard?: (vehicleId: string, lostCardName: string, lostCardPhone: string) => void;
 }
 
 export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLostCard }: CheckOutModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash' | 'postpaid_card'>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado'>('pix');
   const [now, setNow] = useState(Date.now());
   const [showLostForm, setShowLostForm] = useState(false);
   const [lostName, setLostName] = useState('');
@@ -93,11 +93,11 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
           
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700">Método de Pagamento</label>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-5 gap-2">
               <button
                 type="button"
                 onClick={() => setPaymentMethod('pix')}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
                   paymentMethod === 'pix' 
                     ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
                     : 'border-slate-100 hover:border-slate-200 text-slate-500'
@@ -110,7 +110,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
               <button
                 type="button"
                 onClick={() => setPaymentMethod('card')}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
                   paymentMethod === 'card' 
                     ? 'border-blue-500 bg-blue-50 text-blue-700' 
                     : 'border-slate-100 hover:border-slate-200 text-slate-500'
@@ -123,7 +123,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
               <button
                 type="button"
                 onClick={() => setPaymentMethod('cash')}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
                   paymentMethod === 'cash' 
                     ? 'border-amber-500 bg-amber-50 text-amber-700' 
                     : 'border-slate-100 hover:border-slate-200 text-slate-500'
@@ -136,14 +136,27 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
               <button
                 type="button"
                 onClick={() => setPaymentMethod('postpaid_card')}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
                   paymentMethod === 'postpaid_card' 
                     ? 'border-purple-500 bg-purple-50 text-purple-700' 
                     : 'border-slate-100 hover:border-slate-200 text-slate-500'
                 }`}
               >
                 <CreditCard className={`w-5 h-5 mb-1 ${paymentMethod === 'postpaid_card' ? 'text-purple-600' : ''}`} />
-                <span className="text-xs font-medium text-center">Pós-Pago</span>
+                <span className="text-[10px] font-medium text-center">Pós-Pago</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('fiado')}
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
+                  paymentMethod === 'fiado' 
+                    ? 'border-red-500 bg-red-50 text-red-700' 
+                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                }`}
+              >
+                <AlertTriangle className={`w-5 h-5 mb-1 ${paymentMethod === 'fiado' ? 'text-red-600' : ''}`} />
+                <span className="text-[10px] font-medium text-center">Fiado</span>
               </button>
             </div>
           </div>
@@ -203,10 +216,10 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
               <button
                 type="button"
                 onClick={() => setShowLostForm(true)}
-                className="w-full flex items-center justify-center py-2 text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                className="w-full flex items-center justify-center py-2 text-sm font-bold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
               >
                 <AlertTriangle className="w-4 h-4 mr-2" />
-                Cliente perdeu o cartão?
+                CARTÃO PERDIDO
               </button>
             )}
           </div>

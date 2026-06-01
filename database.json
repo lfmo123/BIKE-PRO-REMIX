@@ -163,10 +163,7 @@
       "ownerName": "Não informado",
       "cardNumber": "1",
       "checkInTime": 1777080540000,
-      "status": "completed",
-      "checkOutTime": 1777081749823,
-      "price": 5,
-      "paymentMethod": "pix"
+      "status": "active"
     },
     {
       "id": "4acql4j",

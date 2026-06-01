@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Menu, Trash2 } from 'lucide-react';
+import { Plus, Menu, Trash2, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
@@ -270,7 +270,7 @@ export default function App() {
     }
   };
 
-  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card') => {
+  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado') => {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}/checkout`, {
         method: 'PUT',
@@ -351,6 +351,18 @@ export default function App() {
             >
               <Menu className="w-6 h-6" />
             </button>
+            
+            {activeTab !== 'dashboard' && (
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className="p-2 mr-3 text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-xl flex items-center transition-colors border border-slate-200 lg:-ml-2 bg-white shadow-sm"
+                title="Voltar ao Início"
+              >
+                <ArrowLeft className="w-5 h-5 sm:mr-1" />
+                <span className="font-medium hidden sm:inline text-sm">Voltar</span>
+              </button>
+            )}
+
             <div className="flex items-center text-sm text-slate-500 font-medium hidden sm:flex">
               <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md mr-2">PRO</span>
               Sistema de Gestão
