@@ -345,6 +345,128 @@ async function startServer() {
     }
   });
 
+  // Store endpoints
+  app.get('/api/products', async (req, res) => {
+    try {
+      if (dbType === 'firebase') {
+        const products = await firebaseDb.getProducts();
+        res.json(products);
+      } else {
+        const db = readDb();
+        res.json(db.products || []);
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to fetch products' });
+    }
+  });
+
+  app.post('/api/products', async (req, res) => {
+    try {
+      const product = { ...req.body, id: Math.random().toString(36).substring(2, 9) };
+      if (dbType === 'firebase') {
+        const newProduct = await firebaseDb.addProduct(product);
+        res.status(201).json(newProduct);
+      } else {
+        const db = readDb();
+        db.products = db.products || [];
+        db.products.push(product);
+        writeDb(db);
+        res.status(201).json(product);
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to add product' });
+    }
+  });
+
+  app.put('/api/products/:id', async (req, res) => {
+    try {
+      const product = req.body;
+      if (dbType === 'firebase') {
+        const updated = await firebaseDb.updateProduct(product);
+        res.json(updated);
+      } else {
+        const db = readDb();
+        db.products = db.products || [];
+        db.products = db.products.map(p => p.id === product.id ? product : p);
+        writeDb(db);
+        res.json(product);
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to update product' });
+    }
+  });
+
+  app.delete('/api/products/:id', async (req, res) => {
+    try {
+      if (dbType === 'firebase') {
+        await firebaseDb.removeProduct(req.params.id);
+        res.status(204).send();
+      } else {
+        const db = readDb();
+        db.products = db.products || [];
+        db.products = db.products.filter(p => p.id !== req.params.id);
+        writeDb(db);
+        res.status(204).send();
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to remove product' });
+    }
+  });
+
+  app.get('/api/sales', async (req, res) => {
+    try {
+      if (dbType === 'firebase') {
+        const sales = await firebaseDb.getSales();
+        res.json(sales);
+      } else {
+        const db = readDb();
+        res.json(db.sales || []);
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to fetch sales' });
+    }
+  });
+
+  app.post('/api/sales', async (req, res) => {
+    try {
+      const sale = { ...req.body, id: Math.random().toString(36).substring(2, 9) };
+      if (dbType === 'firebase') {
+        const newSale = await firebaseDb.addSale(sale);
+        res.status(201).json(newSale);
+      } else {
+        const db = readDb();
+        db.sales = db.sales || [];
+        db.sales.push(sale);
+        
+        db.products = db.products || [];
+        const index = db.products.findIndex(p => p.id === sale.productId);
+        if (index !== -1) {
+          db.products[index].stock = Math.max(0, db.products[index].stock - sale.quantity);
+        }
+
+        db.transactions = db.transactions || [];
+        db.transactions.push({
+          id: Math.random().toString(36).substring(2, 9),
+          description: `Venda na Loja: ${sale.quantity}x ${sale.productName}`,
+          amount: sale.totalPrice,
+          date: sale.date,
+          type: 'income'
+        });
+
+        writeDb(db);
+        res.status(201).json(sale);
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to add sale' });
+    }
+  });
+
   app.get('/api/system/db-status', async (req, res) => {
     try {
       if (dbType === 'firebase') {

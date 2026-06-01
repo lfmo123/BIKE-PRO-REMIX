@@ -54,6 +54,17 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
             </div>
             <p className="text-sm text-slate-500 mb-4">{vehicle.ownerName}</p>
             
+            <div className="grid grid-cols-2 gap-4 mb-4 text-sm bg-white p-3 rounded-xl border border-slate-100">
+              <div>
+                <span className="text-xs font-medium text-slate-500 block mb-0.5">Dia de Entrada</span>
+                <span className="font-medium text-slate-900">{new Date(vehicle.checkInTime).toLocaleString('pt-BR')}</span>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-slate-500 block mb-0.5">Dia de Saída</span>
+                <span className="font-medium text-slate-900">{new Date(now).toLocaleString('pt-BR')}</span>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white p-3 rounded-xl border border-slate-100 flex flex-col">
                 <span className="text-xs font-medium text-slate-500 mb-1 flex items-center">

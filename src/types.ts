@@ -38,3 +38,19 @@ export interface Transaction {
   date: number;
   type: 'expense' | 'income';
 }
+
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+}
+
+export interface Sale {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  totalPrice: number;
+  date: number;
+}

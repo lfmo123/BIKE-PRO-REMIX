@@ -11,10 +11,11 @@ import { History } from './components/History';
 import { Reports } from './components/Reports';
 import { Settings } from './components/Settings';
 import { SpotsGrid } from './components/SpotsGrid';
+import { Store } from './components/Store';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
 import { ResetAppModal } from './components/ResetAppModal';
-import { ParkedVehicle, Pricing, LostCard, Transaction } from './types';
+import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale } from './types';
 
 const defaultPricing: Pricing = {
   bicycle: 5,
@@ -29,6 +30,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [vehicles, setVehicles] = useState<ParkedVehicle[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
   const [pricing, setPricing] = useState<Pricing>(defaultPricing);
   const [lostCards, setLostCards] = useState<LostCard[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -186,6 +189,62 @@ export default function App() {
       }
     } catch (e) {
       console.error('Failed to fetch pricing', e);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/products');
+      if (res.ok) setProducts(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchSales = async () => {
+    try {
+      const res = await fetch('/api/sales');
+      if (res.ok) setSales(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+    fetchSales();
+  }, []);
+
+  const handleAddProduct = async (product: Omit<Product, 'id'>) => {
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(product)
+    });
+    if (res.ok) fetchProducts();
+  };
+
+  const handleUpdateProduct = async (product: Product) => {
+    const res = await fetch(`/api/products/${product.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(product)
+    });
+    if (res.ok) fetchProducts();
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    if (res.ok) fetchProducts();
+  };
+
+  const handleAddSale = async (sale: Omit<Sale, 'id'>) => {
+    const res = await fetch('/api/sales', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sale)
+    });
+    if (res.ok) {
+      fetchProducts();
+      fetchSales();
+      fetchTransactions();
+      alert('Venda realizada com sucesso!');
     }
   };
 
@@ -353,8 +412,9 @@ export default function App() {
                 )}
                 {activeTab === 'checkout' && <CheckOut vehicles={vehicles} pricing={pricing} onCheckOut={handleCheckOut} />}
                 {activeTab === 'cashbook' && <CashBook transactions={transactions} vehicles={vehicles} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} />}
+                {activeTab === 'store' && <Store products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} onAddSale={handleAddSale} />}
                 {activeTab === 'history' && <History vehicles={vehicles} />}
-                {activeTab === 'reports' && <Reports vehicles={vehicles} />}
+                {activeTab === 'reports' && <Reports vehicles={vehicles} sales={sales} />}
                 {activeTab === 'settings' && <Settings pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={fetchLostCards} onResetApp={() => setIsResetAppOpen(true)} />}
               </motion.div>
             </AnimatePresence>

@@ -167,6 +167,61 @@ export async function updatePricing(newPricing) {
   return updated;
 }
 
+// ------------------------------------
+// Store (Products & Sales)
+// ------------------------------------
+export async function getProducts() {
+  const snapshot = await getDocs(collection(db, 'products'));
+  const products = [];
+  snapshot.forEach(docSnap => products.push(docSnap.data()));
+  return products;
+}
+
+export async function addProduct(product) {
+  await setDoc(doc(db, 'products', product.id), product);
+  return product;
+}
+
+export async function updateProduct(product) {
+  await updateDoc(doc(db, 'products', product.id), product);
+  return product;
+}
+
+export async function removeProduct(id) {
+  await deleteDoc(doc(db, 'products', id));
+}
+
+export async function getSales() {
+  const snapshot = await getDocs(collection(db, 'sales'));
+  const sales = [];
+  snapshot.forEach(docSnap => sales.push(docSnap.data()));
+  return sales;
+}
+
+export async function addSale(sale) {
+  await setDoc(doc(db, 'sales', sale.id), sale);
+  
+  // Also update product stock
+  const productRef = doc(db, 'products', sale.productId);
+  const productSnap = await getDoc(productRef);
+  if (productSnap.exists()) {
+    const product = productSnap.data();
+    await updateDoc(productRef, { stock: Math.max(0, product.stock - sale.quantity) });
+  }
+
+  // And add to cashbook transactions
+  const transId = Math.random().toString(36).substring(2, 9);
+  await addTransaction({
+    id: transId,
+    description: `Venda na Loja: ${sale.quantity}x ${sale.productName}`,
+    amount: sale.totalPrice,
+    date: sale.date,
+    type: 'income'
+  });
+
+  return sale;
+}
+
 export async function resetDatabase() {
   const batch = writeBatch(db);
   

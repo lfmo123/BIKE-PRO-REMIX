@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { ParkedVehicle } from '../types';
+import { ParkedVehicle, Sale } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users, ShoppingCart } from 'lucide-react';
 
 interface ReportsProps {
   vehicles: ParkedVehicle[];
+  sales?: Sale[];
 }
 
-export function Reports({ vehicles }: ReportsProps) {
-  const [reportType, setReportType] = useState<'daily' | 'monthly' | 'custom' | 'cards'>('daily');
+export function Reports({ vehicles, sales = [] }: ReportsProps) {
+  const [reportType, setReportType] = useState<'daily' | 'monthly' | 'custom' | 'cards' | 'store'>('daily');
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
@@ -207,6 +208,24 @@ export function Reports({ vehicles }: ReportsProps) {
     };
   });
 
+  // Store Report Calculations (by the selected day, like daily)
+  const salesStoreDaily = sales.filter(s => s.date >= startOfDay && s.date <= endOfDay);
+  const totalStoreRevenueDaily = salesStoreDaily.reduce((sum, s) => sum + s.totalPrice, 0);
+  const totalStoreItemsDaily = salesStoreDaily.reduce((sum, s) => sum + s.quantity, 0);
+
+  const storeSalesByProduct = salesStoreDaily.reduce((acc, s) => {
+    if (!acc[s.productId]) {
+      acc[s.productId] = { name: s.productName, quantity: 0, revenue: 0 };
+    }
+    acc[s.productId].quantity += s.quantity;
+    acc[s.productId].revenue += s.totalPrice;
+    return acc;
+  }, {} as Record<string, { name: string; quantity: number; revenue: number }>);
+
+  const topProductsChartData = Object.values(storeSalesByProduct)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5); // top 5
+    
   return (
     <div className="space-y-6 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -257,9 +276,19 @@ export function Reports({ vehicles }: ReportsProps) {
             >
               Histórico
             </button>
+            <button
+              onClick={() => setReportType('store')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                reportType === 'store' 
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Loja
+            </button>
           </div>
 
-          {reportType === 'daily' && (
+          {(reportType === 'daily' || reportType === 'store') && (
             <div className="flex items-center space-x-2 bg-white rounded-xl shadow-sm border border-slate-200 p-1 pl-3 transition-shadow hover:shadow-md">
               <Calendar className="w-5 h-5 text-emerald-500" />
               <input 
@@ -814,6 +843,112 @@ export function Reports({ vehicles }: ReportsProps) {
             </div>
           </div>
         </>
+      )}
+
+      {reportType === 'store' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-emerald-100 p-3 rounded-xl">
+                <DollarSign className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Receita Lojinha</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">R$ {totalStoreRevenueDaily.toFixed(2)}</h3>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-blue-100 p-3 rounded-xl">
+                <ShoppingCart className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Itens Vendidos</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{totalStoreItemsDaily}</h3>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-indigo-100 p-3 rounded-xl">
+                <TrendingUp className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Op. Realizadas</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{salesStoreDaily.length}</h3>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Products */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
+                <ShoppingCart className="w-5 h-5 mr-2 text-blue-500" />
+                Produtos Mais Vendidos (Top 5)
+              </h3>
+              <div className="h-72">
+                {topProductsChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topProductsChartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                      <XAxis type="number" axisLine={false} tickLine={false} tickFormatter={(value) => "R$ " + value} />
+                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} />
+                      <Tooltip 
+                        cursor={{ fill: '#f8fafc' }}
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: number) => ["R$ " + value.toFixed(2), 'Faturamento']}
+                      />
+                      <Bar dataKey="revenue" fill="#3b82f6" radius={[0, 6, 6, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+                    Nenhuma venda de produto registrada.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sales Table */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
+                <Users className="w-5 h-5 mr-2 text-indigo-500" />
+                Últimas Vendas
+              </h3>
+              <div className="overflow-auto h-72">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-white">
+                    <tr className="border-b border-slate-100 text-sm font-bold text-slate-500">
+                      <th className="p-3">Horário</th>
+                      <th className="p-3">Produto</th>
+                      <th className="p-3">Qtd</th>
+                      <th className="p-3 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {salesStoreDaily.slice().reverse().map(sale => (
+                      <tr key={sale.id} className="hover:bg-slate-50">
+                        <td className="p-3 text-sm text-slate-600">
+                          {new Date(sale.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="p-3 font-medium text-slate-900">{sale.productName}</td>
+                        <td className="p-3 text-slate-600">{sale.quantity}</td>
+                        <td className="p-3 text-right font-bold text-emerald-600">
+                          R$ {sale.totalPrice.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    {salesStoreDaily.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-4 text-center text-slate-500">
+                          Nenhuma venda.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {reportType === 'cards' && (
