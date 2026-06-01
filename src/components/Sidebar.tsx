@@ -13,7 +13,7 @@ interface SidebarProps {
 export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIsOpen }: SidebarProps) {
   const navItems = [
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
-    { id: 'active', label: 'Estacionados', icon: Bike },
+    { id: 'active', label: 'Vagas Ativas', icon: Bike },
     { id: 'stored', label: 'Em Depósito', icon: PackageOpen },
     { id: 'spots', label: 'Grade de Cartões', icon: Grid },
     { id: 'cashbook', label: 'Livro Caixa', icon: Wallet },

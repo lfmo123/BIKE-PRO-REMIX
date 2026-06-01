@@ -232,10 +232,11 @@ export function History({ vehicles, onRevertCheckout }: HistoryProps) {
                             <td className="p-2 text-center text-xs">
                               <button 
                                 onClick={() => setRevertIntent(v.id)}
-                                className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors inline-block"
+                                className="px-2 py-1 bg-red-50 text-red-600 font-medium rounded hover:bg-red-100 transition-colors inline-flex items-center"
                                 title="Estornar Saída"
                               >
-                                <Undo2 className="w-3 h-3" />
+                                <Undo2 className="w-3 h-3 mr-1" />
+                                Estornar
                               </button>
                             </td>
                           )}
