@@ -66,7 +66,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
 
   const paymentDataDaily = [
     { name: 'PIX', value: revenueByPaymentDaily['pix'] || 0, color: '#10b981' }, 
-    { name: 'Cartão', value: revenueByPaymentDaily['card'] || 0, color: '#3b82f6' }, 
+    { name: 'Pré Pago', value: revenueByPaymentDaily['card'] || 0, color: '#3b82f6' }, 
     { name: 'Máquina', value: revenueByPaymentDaily['machine'] || 0, color: '#6366f1' }, 
     { name: 'Dinheiro', value: revenueByPaymentDaily['cash'] || 0, color: '#f59e0b' }, 
     { name: 'Pós-Pago', value: revenueByPaymentDaily['postpaid_card'] || 0, color: '#a855f7' }, 
@@ -114,7 +114,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
 
   const paymentDataMonthly = [
     { name: 'PIX', value: revenueByPaymentMonthly['pix'] || 0, color: '#10b981' }, 
-    { name: 'Cartão', value: revenueByPaymentMonthly['card'] || 0, color: '#3b82f6' }, 
+    { name: 'Pré Pago', value: revenueByPaymentMonthly['card'] || 0, color: '#3b82f6' }, 
     { name: 'Máquina', value: revenueByPaymentMonthly['machine'] || 0, color: '#6366f1' }, 
     { name: 'Dinheiro', value: revenueByPaymentMonthly['cash'] || 0, color: '#f59e0b' }, 
     { name: 'Pós-Pago', value: revenueByPaymentMonthly['postpaid_card'] || 0, color: '#a855f7' }, 
@@ -172,7 +172,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
 
   const paymentDataCustom = [
     { name: 'PIX', value: revenueByPaymentCustom['pix'] || 0, color: '#10b981' }, 
-    { name: 'Cartão', value: revenueByPaymentCustom['card'] || 0, color: '#3b82f6' }, 
+    { name: 'Pré Pago', value: revenueByPaymentCustom['card'] || 0, color: '#3b82f6' }, 
     { name: 'Máquina', value: revenueByPaymentCustom['machine'] || 0, color: '#6366f1' }, 
     { name: 'Dinheiro', value: revenueByPaymentCustom['cash'] || 0, color: '#f59e0b' }, 
     { name: 'Pós-Pago', value: revenueByPaymentCustom['postpaid_card'] || 0, color: '#a855f7' }, 
@@ -1028,7 +1028,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
                       {vehicle.checkOutTime ? new Date(vehicle.checkOutTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
                     </td>
                     <td className="p-4 text-sm font-medium text-slate-500 capitalize">
-                      {vehicle.paymentMethod === 'card' ? 'Cartão' : 
+                      {vehicle.paymentMethod === 'card' ? 'Pré Pago' : 
                        vehicle.paymentMethod === 'machine' ? 'Máquina' :
                        vehicle.paymentMethod === 'cash' ? 'Dinheiro' : 
                        vehicle.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : 
@@ -1104,7 +1104,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
               <div className="flex justify-between border-b border-slate-100 pb-2">
                 <span className="text-slate-500 font-medium">Forma de Pagto</span>
                 <span className="font-bold text-slate-900 capitalize">
-                  {selectedVehicleDetails.paymentMethod === 'card' ? 'Cartão' : 
+                  {selectedVehicleDetails.paymentMethod === 'card' ? 'Pré Pago' : 
                    selectedVehicleDetails.paymentMethod === 'machine' ? 'Máquina' :
                    selectedVehicleDetails.paymentMethod === 'cash' ? 'Dinheiro' : 
                    selectedVehicleDetails.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : 

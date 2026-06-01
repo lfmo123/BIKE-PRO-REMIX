@@ -36,7 +36,7 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
       id: v.id,
       description: `Check-out: ${v.identifier} (${
         v.paymentMethod === 'machine' ? 'MÁQUINA' :
-        v.paymentMethod === 'card' ? 'CARTÃO' : 
+        v.paymentMethod === 'card' ? 'PRÉ PAGO' : 
         v.paymentMethod === 'cash' ? 'DINHEIRO' : 
         v.paymentMethod === 'postpaid_card' ? 'PÓS-PAGO' : 
         v.paymentMethod === 'fiado' ? 'FIADO' : 

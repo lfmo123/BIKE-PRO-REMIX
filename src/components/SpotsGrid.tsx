@@ -140,7 +140,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-wrap gap-4 items-center justify-center md:justify-start">
         <div className="flex flex-wrap gap-4 text-sm font-medium justify-center">
           <div className="flex items-center">
-            <span className="w-4 h-4 rounded-full bg-slate-100 border border-slate-200 mr-2"></span>
+            <span className="w-4 h-4 rounded-full bg-white border border-slate-300 border-dashed mr-2"></span>
             <span className="text-slate-600">Livre</span>
           </div>
           <div className="flex items-center">
@@ -162,8 +162,8 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
             <span className="text-slate-600">Perdido</span>
           </div>
           <div className="flex items-center">
-            <span className="w-4 h-4 rounded-full bg-slate-200 border border-slate-400 mr-2 flex items-center justify-center">
-              <PackageOpen className="w-3 h-3 text-slate-500" />
+            <span className="w-4 h-4 rounded-full bg-yellow-100 border border-yellow-300 mr-2 flex items-center justify-center">
+              <PackageOpen className="w-3 h-3 text-yellow-700" />
             </span>
             <span className="text-slate-600">Depósito</span>
           </div>

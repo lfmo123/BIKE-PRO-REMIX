@@ -117,7 +117,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
                 }`}
               >
                 <CreditCard className={`w-5 h-5 mb-1 ${paymentMethod === 'card' ? 'text-blue-600' : ''}`} />
-                <span className="text-xs font-medium">Cartão</span>
+                <span className="text-xs font-medium">Pré Pago</span>
               </button>
               
               <button

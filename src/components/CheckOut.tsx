@@ -217,7 +217,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
                     }`}
                   >
                     <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'card' ? 'text-blue-600' : ''}`} />
-                    <span className="text-sm font-medium text-center">Cartão</span>
+                    <span className="text-sm font-medium text-center">Pré Pago</span>
                   </button>
                   
                   <button
