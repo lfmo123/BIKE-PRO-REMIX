@@ -64,6 +64,28 @@ export async function checkInVehicle(vehicle) {
   return vehicle;
 }
 
+export async function revertCheckOut(id) {
+  const vehicleRef = doc(db, 'vehicles', id);
+  const vehicleSnap = await getDoc(vehicleRef);
+  if (!vehicleSnap.exists()) return null;
+  const data = vehicleSnap.data();
+  
+  await updateDoc(vehicleRef, {
+    status: 'active',
+    checkOutTime: null,
+    price: null,
+    paymentMethod: null
+  });
+  
+  return { ...data, status: 'active', checkOutTime: null, price: null, paymentMethod: null };
+}
+
+export async function revertCheckIn(id) {
+  const vehicleRef = doc(db, 'vehicles', id);
+  await deleteDoc(vehicleRef);
+  return true;
+}
+
 export async function checkOutVehicle(id, price, paymentMethod, checkOutTime) {
   const vehicleRef = doc(db, 'vehicles', id);
   const vehicleSnap = await getDoc(vehicleRef);
@@ -219,9 +241,14 @@ export async function addSale(sale) {
 
   // And add to cashbook transactions
   const transId = Math.random().toString(36).substring(2, 9);
+  const paymentText = sale.paymentMethod === 'machine' ? 'MÁQUINA' :
+                      sale.paymentMethod === 'card' ? 'CARTÃO' :
+                      sale.paymentMethod === 'cash' ? 'DINHEIRO' :
+                      sale.paymentMethod === 'pix' ? 'PIX' :
+                      sale.paymentMethod ? sale.paymentMethod.toUpperCase() : 'N/A';
   await addTransaction({
     id: transId,
-    description: `Venda na Loja: ${sale.quantity}x ${sale.productName}`,
+    description: `Venda na Loja: ${sale.quantity}x ${sale.productName} (${paymentText})`,
     amount: sale.totalPrice,
     date: sale.date,
     type: 'income'

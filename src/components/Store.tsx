@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, Search, ShoppingCart, DollarSign, PackagePlus, Edit2, Trash2, X } from 'lucide-react';
 import { Product, Sale } from '../types';
+import { SaleModal } from './SaleModal';
 
 interface StoreProps {
   products: Product[];
@@ -20,7 +21,6 @@ export function Store({ products, onAddProduct, onUpdateProduct, onDeleteProduct
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
-  const [quantity, setQuantity] = useState('1');
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -44,30 +44,6 @@ export function Store({ products, onAddProduct, onUpdateProduct, onDeleteProduct
     setIsAddMode(false);
     setEditingProduct(null);
     clearForm();
-  };
-
-  const handleSell = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!saleProduct) return;
-
-    const qty = parseInt(quantity, 10);
-    if (qty > saleProduct.stock) {
-      alert('Estoque insuficiente');
-      return;
-    }
-
-    const newSale: Sale = {
-      id: '',
-      productId: saleProduct.id,
-      productName: saleProduct.name,
-      quantity: qty,
-      totalPrice: qty * saleProduct.price,
-      date: Date.now()
-    };
-
-    onAddSale(newSale);
-    setSaleProduct(null);
-    setQuantity('1');
   };
 
   const clearForm = () => {
@@ -167,56 +143,23 @@ export function Store({ products, onAddProduct, onUpdateProduct, onDeleteProduct
       )}
 
       {saleProduct && (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-blue-500">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-slate-800 flex items-center">
-              <ShoppingCart className="w-6 h-6 mr-2 text-blue-500" />
-              Vender Produto
-            </h3>
-            <button onClick={() => setSaleProduct(null)} className="text-slate-400 hover:text-slate-600">
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-          <p className="text-slate-600 mb-4">
-            Produto: <strong>{saleProduct.name}</strong> — Estoque Atual: <span className={saleProduct.stock > 0 ? "text-emerald-600" : "text-red-500"}>{saleProduct.stock}</span>
-          </p>
-          <form onSubmit={handleSell} className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Quantidade</label>
-              <input
-                type="number"
-                min="1"
-                max={saleProduct.stock}
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-700 mb-1">Total</p>
-              <div className="h-[42px] px-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center font-bold text-lg text-slate-900">
-                R$ {((parseInt(quantity, 10) || 0) * saleProduct.price).toFixed(2)}
-              </div>
-            </div>
-            <div className="sm:col-span-2 flex justify-end space-x-3 mt-2">
-              <button
-                type="button"
-                onClick={() => setSaleProduct(null)}
-                className="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl font-medium"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={saleProduct.stock === 0}
-                className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300 rounded-xl font-medium"
-              >
-                Confirmar Venda
-              </button>
-            </div>
-          </form>
-        </div>
+        <SaleModal
+          product={saleProduct}
+          onClose={() => setSaleProduct(null)}
+          onConfirm={(qty, paymentMethod) => {
+            const newSale: Sale = {
+              id: '',
+              productId: saleProduct.id,
+              productName: saleProduct.name,
+              quantity: qty,
+              totalPrice: qty * saleProduct.price,
+              date: Date.now(),
+              paymentMethod
+            };
+            onAddSale(newSale);
+            setSaleProduct(null);
+          }}
+        />
       )}
 
       {/* Product List */}

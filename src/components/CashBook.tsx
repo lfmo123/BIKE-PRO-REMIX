@@ -34,7 +34,14 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
     })),
     ...dailyCheckouts.map(v => ({
       id: v.id,
-      description: `Check-out: ${v.identifier} (${v.paymentMethod?.toUpperCase() || 'N/A'})`,
+      description: `Check-out: ${v.identifier} (${
+        v.paymentMethod === 'machine' ? 'MÁQUINA' :
+        v.paymentMethod === 'card' ? 'CARTÃO' : 
+        v.paymentMethod === 'cash' ? 'DINHEIRO' : 
+        v.paymentMethod === 'postpaid_card' ? 'PÓS-PAGO' : 
+        v.paymentMethod === 'fiado' ? 'FIADO' : 
+        v.paymentMethod?.toUpperCase() || 'N/A'
+      })`,
       amount: v.price || 0,
       date: v.checkOutTime || 0,
       type: 'income' as const,

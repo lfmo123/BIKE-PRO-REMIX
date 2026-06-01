@@ -210,6 +210,64 @@ async function startServer() {
     }
   });
 
+  // Revert checkout
+  app.put('/api/vehicles/:id/revert-checkout', async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (dbType === 'firebase') {
+        const updatedVehicle = await firebaseDb.revertCheckOut(id);
+        if (!updatedVehicle) return res.status(404).json({ error: 'Vehicle not found' });
+        res.json(updatedVehicle);
+      } else if (dbType === 'mysql') {
+        const { revertCheckOut } = await import('./src/db/mysqlDb.js');
+        const updatedVehicle = await revertCheckOut(id);
+        if (!updatedVehicle) return res.status(404).json({ error: 'Vehicle not found' });
+        res.json(updatedVehicle);
+      } else {
+        const db = readDb();
+        const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
+        if (vehicleIndex === -1) return res.status(404).json({ error: 'Vehicle not found' });
+        
+        delete db.vehicles[vehicleIndex].checkOutTime;
+        delete db.vehicles[vehicleIndex].price;
+        delete db.vehicles[vehicleIndex].paymentMethod;
+        db.vehicles[vehicleIndex].status = 'active';
+        
+        writeDb(db);
+        res.json(db.vehicles[vehicleIndex]);
+      }
+    } catch (error) {
+      console.error('Error reverting checkout:', error);
+      res.status(500).json({ error: error.message || 'Failed to revert checkout' });
+    }
+  });
+
+  // Revert checkin
+  app.delete('/api/vehicles/:id/revert-checkin', async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (dbType === 'firebase') {
+        await firebaseDb.revertCheckIn(id);
+        res.json({ success: true });
+      } else if (dbType === 'mysql') {
+        const { revertCheckIn } = await import('./src/db/mysqlDb.js');
+        await revertCheckIn(id);
+        res.json({ success: true });
+      } else {
+        const db = readDb();
+        const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
+        if (vehicleIndex === -1) return res.status(404).json({ error: 'Vehicle not found' });
+        
+        db.vehicles.splice(vehicleIndex, 1);
+        writeDb(db);
+        res.json({ success: true });
+      }
+    } catch (error) {
+      console.error('Error reverting checkin:', error);
+      res.status(500).json({ error: error.message || 'Failed to revert checkin' });
+    }
+  });
+
   // Get lost cards
   app.get('/api/lost-cards', async (req, res) => {
     try {
@@ -450,9 +508,14 @@ async function startServer() {
         }
 
         db.transactions = db.transactions || [];
+        const paymentText = sale.paymentMethod === 'machine' ? 'MÁQUINA' :
+                            sale.paymentMethod === 'card' ? 'CARTÃO' :
+                            sale.paymentMethod === 'cash' ? 'DINHEIRO' :
+                            sale.paymentMethod === 'pix' ? 'PIX' :
+                            sale.paymentMethod ? sale.paymentMethod.toUpperCase() : 'N/A';
         db.transactions.push({
           id: Math.random().toString(36).substring(2, 9),
-          description: `Venda na Loja: ${sale.quantity}x ${sale.productName}`,
+          description: `Venda na Loja: ${sale.quantity}x ${sale.productName} (${paymentText})`,
           amount: sale.totalPrice,
           date: sale.date,
           type: 'income'

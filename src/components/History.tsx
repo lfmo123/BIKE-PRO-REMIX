@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
-import { Bike, Zap, Motorbike, Search, Calendar, Clock, DollarSign, CreditCard, Banknote, Smartphone, X } from 'lucide-react';
+import { Bike, Zap, Motorbike, Search, Calendar, Clock, DollarSign, CreditCard, Banknote, Smartphone, X, Undo2 } from 'lucide-react';
 import { ParkedVehicle, VehicleType } from '../types';
 
 interface HistoryProps {
   vehicles: ParkedVehicle[];
+  onRevertCheckout?: (vehicleId: string) => void;
 }
 
-export function History({ vehicles }: HistoryProps) {
+export function History({ vehicles, onRevertCheckout }: HistoryProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<VehicleType | 'all'>('all');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedCardForHistory, setSelectedCardForHistory] = useState<string | null>(null);
+  
+  const [revertIntent, setRevertIntent] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const reportDate = new Date(selectedDate + 'T00:00:00');
   const startOfDay = reportDate.setHours(0, 0, 0, 0);
@@ -204,36 +209,92 @@ export function History({ vehicles }: HistoryProps) {
                       <tr className="bg-slate-50 border-b text-sm font-medium text-slate-500">
                         <th className="p-2">Veículo</th>
                         <th className="p-2">Tipo</th>
-                        <th className="p-2">Usos</th>
-                        <th className="p-2">Duração Total</th>
-                        <th className="p-2 text-right">Valor Total</th>
+                        <th className="p-2">Horário</th>
+                        <th className="p-2">Duração</th>
+                        <th className="p-2 text-right">Valor</th>
+                        {onRevertCheckout && <th className="p-2 text-center">Ações</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {groupedHistoryRows.map((v: any, index: number) => (
+                      {selectedCardHistory.map((v: any, index: number) => (
                         <tr key={index}>
                           <td className="p-2 font-medium">{v.identifier}</td>
                           <td className="p-2 capitalize">{v.type === 'bicycle' ? 'Bicicleta' : v.type === 'ebike' ? 'E-Bike' : 'Moto'}</td>
-                          <td className="p-2">{v.count}</td>
                           <td className="p-2 text-xs">
-                            {(() => {
-                              const diffHours = Math.floor(v.totalDurationMs / (1000 * 60 * 60));
-                              if (diffHours >= 24) {
-                                return `${Math.ceil(diffHours / 24)} diária(s)`;
-                              }
-                              return `${diffHours}h ${Math.floor((v.totalDurationMs % (1000 * 60 * 60)) / (1000 * 60))}m`;
-                            })()}
+                            In: {new Date(v.checkInTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}<br/>
+                            Out: {new Date(v.checkOutTime || 0).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </td>
-                          <td className="p-2 text-right">R$ {v.totalPrice.toFixed(2)}</td>
+                          <td className="p-2 text-xs">
+                            {formatDuration(v.checkInTime, v.checkOutTime)}
+                          </td>
+                          <td className="p-2 text-right">R$ {(v.price || 0).toFixed(2)}</td>
+                          {onRevertCheckout && (
+                            <td className="p-2 text-center text-xs">
+                              <button 
+                                onClick={() => setRevertIntent(v.id)}
+                                className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors inline-block"
+                                title="Estornar Saída"
+                              >
+                                <Undo2 className="w-3 h-3" />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
-                      {groupedHistoryRows.length === 0 && <tr><td colSpan={5} className="p-4 text-center">Nenhum uso para este cartão no dia.</td></tr>}
+                      {selectedCardHistory.length === 0 && <tr><td colSpan={onRevertCheckout ? 6 : 5} className="p-4 text-center">Nenhum uso para este cartão no dia.</td></tr>}
                     </tbody>
                   </table>
                 );
               })()}
               <div className="mt-4 pt-4 border-t font-bold text-lg text-right">
                 Total do dia: R$ {selectedCardHistory.reduce((s, v) => s + (v.price || 0), 0).toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {revertIntent && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-red-50">
+              <h2 className="text-lg font-bold text-red-900">Estornar Saída</h2>
+              <button onClick={() => { setRevertIntent(null); setPassword(''); setPasswordError(''); }} className="p-1 hover:bg-red-100 rounded-full">
+                <X className="w-5 h-5 text-red-500" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-600 mb-4">
+                Tem certeza que deseja estornar esta saída? Esta operação requer senha de administrador e removerá a transação financeira.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Senha</label>
+                  <input 
+                    type="password" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                    placeholder="Digite a senha"
+                  />
+                  {passwordError && <p className="text-red-500 text-xs mt-1">{passwordError}</p>}
+                </div>
+                <button 
+                  onClick={() => {
+                    if (password === 'Admin') {
+                      onRevertCheckout?.(revertIntent);
+                      setRevertIntent(null);
+                      setPassword('');
+                      setPasswordError('');
+                      setSelectedCardForHistory(null); // Fechar popup de detalhes do cartão tmb
+                    } else {
+                      setPasswordError('Senha incorreta');
+                    }
+                  }}
+                  className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Confirmar Estorno
+                </button>
               </div>
             </div>
           </div>

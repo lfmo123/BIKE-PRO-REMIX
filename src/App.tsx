@@ -270,7 +270,7 @@ export default function App() {
     }
   };
 
-  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado') => {
+  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine') => {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}/checkout`, {
         method: 'PUT',
@@ -284,6 +284,32 @@ export default function App() {
       }
     } catch (error) {
        console.error('Error during checkout', error);
+    }
+  };
+
+  const handleRevertCheckout = async (vehicleId: string) => {
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/revert-checkout`, { method: 'PUT' });
+      if (res.ok) {
+        fetchVehicles();
+      } else {
+        alert('Erro ao estornar saída.');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleRevertCheckin = async (vehicleId: string) => {
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/revert-checkin`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchVehicles();
+      } else {
+        alert('Erro ao estornar entrada.');
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -395,6 +421,8 @@ export default function App() {
                     vehicles={vehicles} 
                     pricing={pricing} 
                     lostCards={lostCards}
+                    products={products}
+                    onAddSale={handleAddSale}
                     onSpotClick={(spotNum, occupiedVehicle) => {
                       if (occupiedVehicle) {
                         setVehicleToCheckOut(occupiedVehicle);
@@ -405,7 +433,7 @@ export default function App() {
                     }}
                   />
                 )}
-                {activeTab === 'active' && <ActiveParking vehicles={vehicles} pricing={pricing} onCheckOut={setVehicleToCheckOut} />}
+                {activeTab === 'active' && <ActiveParking vehicles={vehicles} pricing={pricing} onCheckOut={setVehicleToCheckOut} onRevertCheckin={handleRevertCheckin} />}
                 {activeTab === 'stored' && <StoredVehicles vehicles={vehicles} pricing={pricing} onCheckOut={setVehicleToCheckOut} />}
                 {activeTab === 'spots' && (
                   <SpotsGrid 
@@ -425,7 +453,7 @@ export default function App() {
                 {activeTab === 'checkout' && <CheckOut vehicles={vehicles} pricing={pricing} onCheckOut={handleCheckOut} />}
                 {activeTab === 'cashbook' && <CashBook transactions={transactions} vehicles={vehicles} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} />}
                 {activeTab === 'store' && <Store products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} onAddSale={handleAddSale} />}
-                {activeTab === 'history' && <History vehicles={vehicles} />}
+                {activeTab === 'history' && <History vehicles={vehicles} onRevertCheckout={handleRevertCheckout} />}
                 {activeTab === 'reports' && <Reports vehicles={vehicles} sales={sales} />}
                 {activeTab === 'settings' && <Settings pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={fetchLostCards} onResetApp={() => setIsResetAppOpen(true)} />}
               </motion.div>

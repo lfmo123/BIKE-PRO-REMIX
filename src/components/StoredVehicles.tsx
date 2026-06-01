@@ -88,6 +88,10 @@ export function StoredVehicles({ vehicles, pricing, onCheckOut }: StoredVehicles
                 <div className="bg-slate-200 text-slate-800 font-bold px-3 py-1 rounded-lg text-sm border border-slate-300 flex items-center">
                   Cartão {vehicle.cardNumber}
                 </div>
+                <div className="bg-yellow-100 text-yellow-700 font-bold px-2 py-1 rounded-md text-xs flex items-center uppercase text-[10px] tracking-wider">
+                  <PackageOpen className="w-3 h-3 mr-1" />
+                  Depósito
+                </div>
               </div>
             </div>
             

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, DollarSign, CreditCard, Banknote, Smartphone, AlertTriangle } from 'lucide-react';
+import { X, Clock, DollarSign, CreditCard, Banknote, Smartphone, AlertTriangle, Terminal } from 'lucide-react';
 import { ParkedVehicle, Pricing } from '../types';
 import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/pricing';
 
@@ -7,12 +7,12 @@ interface CheckOutModalProps {
   vehicle: ParkedVehicle | null;
   pricing: Pricing;
   onClose: () => void;
-  onConfirm: (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado') => void;
+  onConfirm: (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine') => void;
   onReportLostCard?: (vehicleId: string, lostCardName: string, lostCardPhone: string) => void;
 }
 
 export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLostCard }: CheckOutModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado'>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine'>('pix');
   const [now, setNow] = useState(Date.now());
   const [showLostForm, setShowLostForm] = useState(false);
   const [lostName, setLostName] = useState('');
@@ -93,7 +93,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
           
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700">Método de Pagamento</label>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setPaymentMethod('pix')}
@@ -135,6 +135,19 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
 
               <button
                 type="button"
+                onClick={() => setPaymentMethod('machine')}
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
+                  paymentMethod === 'machine' 
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
+                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                }`}
+              >
+                <Terminal className={`w-5 h-5 mb-1 ${paymentMethod === 'machine' ? 'text-indigo-600' : ''}`} />
+                <span className="text-[10px] sm:text-xs font-medium">Máquina</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setPaymentMethod('postpaid_card')}
                 className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
                   paymentMethod === 'postpaid_card' 
@@ -143,7 +156,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
                 }`}
               >
                 <CreditCard className={`w-5 h-5 mb-1 ${paymentMethod === 'postpaid_card' ? 'text-purple-600' : ''}`} />
-                <span className="text-[10px] font-medium text-center">Pós-Pago</span>
+                <span className="text-[10px] sm:text-xs font-medium text-center">Pós-Pago</span>
               </button>
 
               <button
@@ -156,7 +169,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
                 }`}
               >
                 <AlertTriangle className={`w-5 h-5 mb-1 ${paymentMethod === 'fiado' ? 'text-red-600' : ''}`} />
-                <span className="text-[10px] font-medium text-center">Fiado</span>
+                <span className="text-[10px] sm:text-xs font-medium text-center">Fiado</span>
               </button>
             </div>
           </div>

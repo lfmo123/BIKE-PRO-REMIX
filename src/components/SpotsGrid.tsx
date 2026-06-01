@@ -68,7 +68,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
                   ? vehicle?.cardLost 
                     ? `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800 border-red-400 border-2` 
                     : isStored
-                      ? 'bg-slate-200 border-slate-300 hover:border-slate-400 hover:shadow-sm cursor-pointer text-slate-800 opacity-90'
+                      ? 'bg-yellow-100 border-yellow-300 hover:border-yellow-400 hover:shadow-sm cursor-pointer text-yellow-900'
                       : `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800 border-transparent`
                   : isLostCard
                     ? 'bg-red-100 border-red-400 opacity-80 cursor-not-allowed text-red-900' 
@@ -91,18 +91,24 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
               )}
               
               {isStored && !isLostCard && (
-                <div className="absolute top-1 right-1 text-slate-600 bg-slate-300 p-0.5 rounded-full" title="Em Depósito">
+                <div className="absolute top-1 right-1 text-yellow-700 bg-yellow-300 p-0.5 rounded-full" title="Em Depósito">
                   <PackageOpen className="w-3 h-3" />
                 </div>
               )}
               
               {isOccupied ? (
-                <>
-                  <div className="mt-4 text-slate-700 transform scale-75">{getIcon(vehicle.type)}</div>
-                  <span className="mt-0 font-medium text-slate-900 text-[10px] truncate w-full text-center px-1">
-                    {vehicle.identifier !== 'Não informada' ? vehicle.identifier : vehicle.ownerName.split(' ')[0]}
-                  </span>
-                </>
+                isStored ? (
+                  <div className="flex flex-col items-center justify-center mt-3">
+                    <div className="text-yellow-700 font-bold text-[10px] text-center px-1 leading-tight uppercase">DEPÓSITO</div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 text-slate-700 transform scale-75">{getIcon(vehicle.type)}</div>
+                    <span className="mt-0 font-medium text-slate-900 text-[10px] truncate w-full text-center px-1">
+                      {vehicle.identifier !== 'Não informada' ? vehicle.identifier : vehicle.ownerName.split(' ')[0]}
+                    </span>
+                  </>
+                )
               ) : isLostCard ? (
                  <div className="flex flex-col items-center justify-center mt-3">
                    <div className="text-red-400 font-bold text-[10px] text-center px-1 leading-tight">PERDIDO</div>
@@ -164,9 +170,9 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
         </div>
       </div>
 
-      {renderGrid(specialSpots, "E-Bikes e Motos (MT/BE)")}
-      
       {renderGrid(normalSpots, "Bicicletas Tradicionais")}
+      
+      {renderGrid(specialSpots, "E-Bikes e Motos (MT/BE)")}
       
       {/* List vehicles that have non-numeric spot numbers (fallback) */}
       {activeVehicles.find(v => !normalSpots.includes(v.cardNumber) && !specialSpots.includes(v.cardNumber)) && (
@@ -180,7 +186,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
                   key={vehicle.id}
                   onClick={() => onSpotClick && onSpotClick('', vehicle)}
                   className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all hover:shadow-md relative ${
-                    vehicle.cardLost ? `${getBgColor(vehicle.type)} border-red-500` : getBgColor(vehicle.type)
+                    vehicle.cardLost ? `${getBgColor(vehicle.type)} border-red-500` : vehicle.status === 'stored' ? 'bg-yellow-100 border-yellow-300 text-yellow-900' : getBgColor(vehicle.type)
                   }`}
                 >
                   <span className="absolute top-2 left-3 font-bold text-sm text-slate-700 bg-white/50 px-2 py-0.5 rounded-md">
@@ -191,13 +197,21 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
                       <AlertTriangle className="w-4 h-4" />
                     </div>
                   )}
-                  <div className="mt-2 text-slate-700">{getIcon(vehicle.type)}</div>
-                  <span className="mt-2 font-medium text-slate-900 text-sm truncate w-full text-center">
-                    {vehicle.identifier !== 'Não informada' ? vehicle.identifier : vehicle.ownerName.split(' ')[0]}
-                  </span>
-                  <span className="text-xs text-slate-500 mt-1 truncate w-full text-center">
-                    {vehicle.ownerName}
-                  </span>
+                  {vehicle.status === 'stored' ? (
+                    <div className="flex flex-col items-center justify-center mt-3">
+                      <div className="text-yellow-700 font-bold text-[10px] text-center px-1 leading-tight uppercase">DEPÓSITO</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-2 text-slate-700">{getIcon(vehicle.type)}</div>
+                      <span className="mt-2 font-medium text-slate-900 text-sm truncate w-full text-center">
+                        {vehicle.identifier !== 'Não informada' ? vehicle.identifier : vehicle.ownerName.split(' ')[0]}
+                      </span>
+                      <span className="text-xs text-slate-500 mt-1 truncate w-full text-center">
+                        {vehicle.ownerName}
+                      </span>
+                    </>
+                  )}
                 </button>
               ))}
           </div>

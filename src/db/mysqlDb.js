@@ -148,6 +148,26 @@ export async function checkInVehicle(vehicle) {
   ]);
 }
 
+export async function revertCheckOut(id) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const query = `
+    UPDATE vehicles 
+    SET status = 'active', checkOutTime = NULL, price = NULL, paymentMethod = NULL
+    WHERE id = ?
+  `;
+  await getPool().query(query, [id]);
+  
+  const [rows] = await getPool().query('SELECT * FROM vehicles WHERE id = ?', [id]);
+  if (!rows || rows.length === 0) return null;
+  return { ...rows[0], cardLost: !!rows[0].cardLost };
+}
+
+export async function revertCheckIn(id) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  await getPool().query('DELETE FROM vehicles WHERE id = ?', [id]);
+  return true;
+}
+
 export async function checkOutVehicle(id, price, paymentMethod, checkOutTime) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
   const query = `
