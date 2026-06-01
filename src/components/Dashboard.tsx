@@ -14,47 +14,7 @@ import { SpotsGrid } from './SpotsGrid';
 export function Dashboard({ vehicles, pricing, lostCards, onSpotClick }: DashboardProps) {
   const activeVehicles = vehicles.filter(v => v.status === 'active');
   const storedVehicles = vehicles.filter(v => v.status === 'stored');
-  const completedVehicles = vehicles.filter(v => v.status === 'completed');
   
-  const today = new Date().setHours(0, 0, 0, 0);
-  const todaysCompleted = completedVehicles.filter(v => v.checkOutTime && v.checkOutTime > today);
-  const todaysRevenue = todaysCompleted.reduce((acc, v) => acc + (v.price || 0), 0);
-
-  const stats = [
-    {
-      title: 'Total Estacionados',
-      value: activeVehicles.length,
-      icon: Bike,
-      color: 'bg-blue-500',
-      textColor: 'text-blue-500',
-      bgColor: 'bg-blue-500/10'
-    },
-    {
-      title: 'Receita Hoje',
-      value: `R$ ${todaysRevenue.toFixed(2)}`,
-      icon: DollarSign,
-      color: 'bg-emerald-500',
-      textColor: 'text-emerald-500',
-      bgColor: 'bg-emerald-500/10'
-    },
-    {
-      title: 'Atendimentos Hoje',
-      value: todaysCompleted.length,
-      icon: Users,
-      color: 'bg-purple-500',
-      textColor: 'text-purple-500',
-      bgColor: 'bg-purple-500/10'
-    },
-    {
-      title: 'Tempo Médio',
-      value: '2.5h', // Mocked for now
-      icon: Clock,
-      color: 'bg-amber-500',
-      textColor: 'text-amber-500',
-      bgColor: 'bg-amber-500/10'
-    }
-  ];
-
   const typeCount = {
     bicycle: activeVehicles.filter(v => v.type === 'bicycle').length,
     ebike: activeVehicles.filter(v => v.type === 'ebike').length,
@@ -68,25 +28,6 @@ export function Dashboard({ vehicles, pricing, lostCards, onSpotClick }: Dashboa
         <div className="text-sm text-slate-500 capitalize">
           {new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500 mb-1">{stat.title}</p>
-                  <p className="text-3xl font-bold text-slate-900">{stat.value}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.bgColor}`}>
-                  <Icon className={`w-6 h-6 ${stat.textColor}`} />
-                </div>
-              </div>
-            </div>
-          );
-        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

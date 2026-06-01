@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ParkedVehicle } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users } from 'lucide-react';
 
 interface ReportsProps {
   vehicles: ParkedVehicle[];
@@ -32,10 +32,25 @@ export function Reports({ vehicles }: ReportsProps) {
   const startOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1).getTime();
   const endOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
 
+  const calculateAverageTime = (completedV: ParkedVehicle[]) => {
+    if (completedV.length === 0) return '0m';
+    const totalMs = completedV.reduce((acc, v) => acc + ((v.checkOutTime || 0) - v.checkInTime), 0);
+    const avgMs = totalMs / completedV.length;
+    const hours = Math.floor(avgMs / (1000 * 60 * 60));
+    const mins = Math.floor((avgMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours === 0) return `${mins}m`;
+    if (mins === 0) return `${hours}h`;
+    return `${hours}h ${mins}m`;
+  };
+
+  const activeVehiclesCount = vehicles.filter(v => v.status === 'active').length;
+
   // Daily Calculations
   const completedVehiclesDaily = vehicles.filter(v => 
     v.status === 'completed' && v.price && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay
   );
+
+  const avgTimeDaily = calculateAverageTime(completedVehiclesDaily);
 
   const entriesDaily = vehicles.filter(v => v.checkInTime >= startOfDay && v.checkInTime <= endOfDay);
   const exitsDaily = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay);
@@ -80,6 +95,8 @@ export function Reports({ vehicles }: ReportsProps) {
   const completedVehiclesMonthly = vehicles.filter(v => 
     v.status === 'completed' && v.price && v.checkOutTime && v.checkOutTime >= startOfMonth && v.checkOutTime <= endOfMonth
   );
+
+  const avgTimeMonthly = calculateAverageTime(completedVehiclesMonthly);
 
   const entriesMonthly = vehicles.filter(v => v.checkInTime >= startOfMonth && v.checkInTime <= endOfMonth);
   const exitsMonthly = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= startOfMonth && v.checkOutTime <= endOfMonth);
@@ -137,6 +154,7 @@ export function Reports({ vehicles }: ReportsProps) {
   const completedVehiclesCustom = vehicles.filter(v => 
     v.status === 'completed' && v.price && v.checkOutTime && v.checkOutTime >= customStart && v.checkOutTime <= customEnd
   );
+  const avgTimeCustom = calculateAverageTime(completedVehiclesCustom);
   const entriesCustom = vehicles.filter(v => v.checkInTime >= customStart && v.checkInTime <= customEnd);
   const exitsCustom = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= customStart && v.checkOutTime <= customEnd);
   const totalRevenueCustom = completedVehiclesCustom.reduce((sum, v) => sum + (v.price || 0), 0);
@@ -302,43 +320,61 @@ export function Reports({ vehicles }: ReportsProps) {
       {reportType === 'daily' && (
         <>
           {/* Daily Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-emerald-100 p-3 rounded-xl">
                 <DollarSign className="w-6 h-6 text-emerald-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Faturamento</p>
-                <h3 className="text-2xl font-black text-slate-900">R$ {totalRevenueDaily.toFixed(2)}</h3>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Faturamento</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">R$ {totalRevenueDaily.toFixed(2)}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-blue-100 p-3 rounded-xl">
                 <TrendingUp className="w-6 h-6 text-blue-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Ticket Médio</p>
-                <h3 className="text-2xl font-black text-slate-900">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Ticket Médio</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">
                   R$ {completedVehiclesDaily.length > 0 ? (totalRevenueDaily / completedVehiclesDaily.length).toFixed(2) : '0.00'}
                 </h3>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-amber-100 p-3 rounded-xl">
+                <Clock className="w-6 h-6 text-amber-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Tempo Médio</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{avgTimeDaily}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-indigo-100 p-3 rounded-xl">
                 <ArrowRightLeft className="w-6 h-6 text-indigo-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Entradas do Dia</p>
-                <h3 className="text-2xl font-black text-slate-900">{entriesDaily.length}</h3>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Entradas (Dia)</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{entriesDaily.length}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-purple-100 p-3 rounded-xl">
                 <LogOut className="w-6 h-6 text-purple-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Saídas Concluídas</p>
-                <h3 className="text-2xl font-black text-slate-900">{exitsDaily.length}</h3>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Saídas</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{exitsDaily.length}</h3>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-slate-100 p-3 rounded-xl">
+                <Bike className="w-6 h-6 text-slate-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">No Pátio</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{activeVehiclesCount}</h3>
               </div>
             </div>
           </div>
@@ -503,43 +539,61 @@ export function Reports({ vehicles }: ReportsProps) {
       {reportType === 'monthly' && (
         <>
           {/* Monthly Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-emerald-100 p-3 rounded-xl">
                 <DollarSign className="w-6 h-6 text-emerald-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Faturamento (Mês)</p>
-                <h3 className="text-2xl font-black text-slate-900">R$ {totalRevenueMonthly.toFixed(2)}</h3>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Faturamento</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">R$ {totalRevenueMonthly.toFixed(2)}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-blue-100 p-3 rounded-xl">
                 <TrendingUp className="w-6 h-6 text-blue-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Ticket Médio (Mês)</p>
-                <h3 className="text-2xl font-black text-slate-900">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Ticket Médio</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">
                   R$ {completedVehiclesMonthly.length > 0 ? (totalRevenueMonthly / completedVehiclesMonthly.length).toFixed(2) : '0.00'}
                 </h3>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-amber-100 p-3 rounded-xl">
+                <Clock className="w-6 h-6 text-amber-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Tempo Médio</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{avgTimeMonthly}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-indigo-100 p-3 rounded-xl">
                 <ArrowRightLeft className="w-6 h-6 text-indigo-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Entradas do Mês</p>
-                <h3 className="text-2xl font-black text-slate-900">{entriesMonthly.length}</h3>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Entradas (Mês)</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{entriesMonthly.length}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-purple-100 p-3 rounded-xl">
                 <LogOut className="w-6 h-6 text-purple-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Saídas Concluídas</p>
-                <h3 className="text-2xl font-black text-slate-900">{exitsMonthly.length}</h3>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Saídas</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{exitsMonthly.length}</h3>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-slate-100 p-3 rounded-xl">
+                <Bike className="w-6 h-6 text-slate-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">No Pátio</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{activeVehiclesCount}</h3>
               </div>
             </div>
           </div>
@@ -640,43 +694,61 @@ export function Reports({ vehicles }: ReportsProps) {
       {reportType === 'custom' && (
         <>
           {/* Custom Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-emerald-100 p-3 rounded-xl">
                 <DollarSign className="w-6 h-6 text-emerald-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Faturamento</p>
-                <h3 className="text-2xl font-black text-slate-900">R$ {totalRevenueCustom.toFixed(2)}</h3>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Faturamento</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">R$ {totalRevenueCustom.toFixed(2)}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-blue-100 p-3 rounded-xl">
                 <TrendingUp className="w-6 h-6 text-blue-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Ticket Médio</p>
-                <h3 className="text-2xl font-black text-slate-900">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Ticket Médio</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">
                   R$ {completedVehiclesCustom.length > 0 ? (totalRevenueCustom / completedVehiclesCustom.length).toFixed(2) : '0.00'}
                 </h3>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-amber-100 p-3 rounded-xl">
+                <Clock className="w-6 h-6 text-amber-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Tempo Médio</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{avgTimeCustom}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-indigo-100 p-3 rounded-xl">
                 <ArrowRightLeft className="w-6 h-6 text-indigo-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Entradas do Período</p>
-                <h3 className="text-2xl font-black text-slate-900">{entriesCustom.length}</h3>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Entradas</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{entriesCustom.length}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
               <div className="bg-purple-100 p-3 rounded-xl">
                 <LogOut className="w-6 h-6 text-purple-600" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Saídas Concluídas</p>
-                <h3 className="text-2xl font-black text-slate-900">{exitsCustom.length}</h3>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Saídas</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{exitsCustom.length}</h3>
+              </div>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-slate-100 p-3 rounded-xl">
+                <Bike className="w-6 h-6 text-slate-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">No Pátio</p>
+                <h3 className="text-2xl font-black text-slate-900 truncate">{activeVehiclesCount}</h3>
               </div>
             </div>
           </div>
