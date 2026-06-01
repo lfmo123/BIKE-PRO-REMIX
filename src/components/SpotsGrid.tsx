@@ -6,16 +6,14 @@ interface SpotsGridProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
   lostCards?: LostCard[];
-  onSpotClick?: (spotNumber: number, occupiedVehicle?: ParkedVehicle) => void;
+  onSpotClick?: (spotNumber: string, occupiedVehicle?: ParkedVehicle) => void;
   hideTitle?: boolean;
 }
 
 export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hideTitle }: SpotsGridProps) {
-  const totalSpots = 300; 
   const activeVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
-  
-  // Creates an array of spot numbers
-  const spots = Array.from({ length: totalSpots }, (_, i) => i + 1);
+  const normalSpots = Array.from({ length: 300 }, (_, i) => (i + 1).toString());
+  const specialSpots = Array.from({ length: 50 }, (_, i) => `MT/BE ${i + 1}`);
 
   const spotMap = useMemo(() => {
     const map = new Map<string, ParkedVehicle>();
@@ -24,6 +22,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
     });
     return map;
   }, [activeVehicles]);
+
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -43,7 +42,83 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
     }
   };
 
-  const filteredSpots = spots;
+  const renderGrid = (spotsToRender: string[], title: string) => (
+    <div className="mb-8">
+      <h2 className="text-xl font-bold text-slate-800 mb-4">{title}</h2>
+      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-3">
+        {spotsToRender.map(spotNumStr => {
+          const spotNum = spotNumStr.toString();
+          const vehicle = spotMap.get(spotNum);
+          const isOccupied = !!vehicle;
+          const lostCardObj = lostCards?.find(c => c.cardNumber === spotNum);
+          const isLostCard = !!lostCardObj || (isOccupied && vehicle?.cardLost);
+          const isStored = isOccupied && vehicle && vehicle.status === 'stored';
+          
+          return (
+            <button
+              key={spotNum}
+              onClick={() => {
+                if (!(isLostCard && !isOccupied) && onSpotClick) {
+                  onSpotClick(spotNum, vehicle);
+                }
+              }}
+              disabled={isLostCard && !isOccupied}
+              className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all aspect-square relative ${
+                isOccupied 
+                  ? vehicle?.cardLost 
+                    ? 'bg-red-100 border-red-400 hover:border-red-500 hover:shadow-sm cursor-pointer text-red-900' 
+                    : isStored
+                      ? 'bg-slate-200 border-slate-300 hover:border-slate-400 hover:shadow-sm cursor-pointer text-slate-800 opacity-90'
+                      : `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800 border-transparent`
+                  : isLostCard
+                    ? 'bg-red-100 border-red-400 opacity-80 cursor-not-allowed text-red-900' 
+                    : 'bg-white border-slate-200 border-dashed hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm cursor-pointer group'
+              }`}
+            >
+              <span className={`absolute top-1 left-2 font-bold text-2xl ${spotNum.includes('MT/BE') ? 'text-lg' : ''} ${isLostCard ? 'text-red-900/30' : 'text-black'}`}>
+                {spotNum.replace('MT/BE ', '')}
+              </span>
+              {spotNum.includes('MT/BE') && (
+                <span className={`absolute top-6 left-2 font-bold text-[10px] ${isLostCard ? 'text-red-900/30' : 'text-slate-500'}`}>
+                  MT/BE
+                </span>
+              )}
+              
+              {isLostCard && (
+                <div className="absolute top-1 right-1 text-red-500 bg-red-100 p-0.5 rounded-full" title="Cartão Perdido">
+                  <AlertTriangle className="w-3 h-3" />
+                </div>
+              )}
+              
+              {isStored && !isLostCard && (
+                <div className="absolute top-1 right-1 text-slate-600 bg-slate-300 p-0.5 rounded-full" title="Em Depósito">
+                  <PackageOpen className="w-3 h-3" />
+                </div>
+              )}
+              
+              {isOccupied ? (
+                <>
+                  <div className="mt-4 text-slate-700 transform scale-75">{getIcon(vehicle.type)}</div>
+                  <span className="mt-0 font-medium text-slate-900 text-[10px] truncate w-full text-center px-1">
+                    {vehicle.identifier !== 'Não informada' ? vehicle.identifier : vehicle.ownerName.split(' ')[0]}
+                  </span>
+                </>
+              ) : isLostCard ? (
+                 <div className="flex flex-col items-center justify-center mt-3">
+                   <div className="text-red-400 font-bold text-[10px] text-center px-1 leading-tight">PERDIDO</div>
+                 </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center text-slate-300 group-hover:text-emerald-500 transition-colors mt-3">
+                  <Plus className="w-5 h-5 mb-0.5 opacity-50" />
+                  <span className="text-[10px] font-medium">Livre</span>
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -89,85 +164,21 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
         </div>
       </div>
 
-      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-3">
-        {filteredSpots.map(spotNumStr => {
-          const spotNum = spotNumStr.toString();
-          const vehicle = spotMap.get(spotNum);
-          const isOccupied = !!vehicle;
-          const lostCardObj = lostCards?.find(c => c.cardNumber === spotNum);
-          const isLostCard = !!lostCardObj || (isOccupied && vehicle?.cardLost);
-          const isStored = isOccupied && vehicle && vehicle.status === 'stored';
-          
-          return (
-            <button
-              key={spotNum}
-              onClick={() => {
-                if (!(isLostCard && !isOccupied) && onSpotClick) {
-                  onSpotClick(Number(spotNum), vehicle);
-                }
-              }}
-              disabled={isLostCard && !isOccupied}
-              className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all aspect-square relative ${
-                isOccupied 
-                  ? vehicle?.cardLost 
-                    ? 'bg-red-100 border-red-400 hover:border-red-500 hover:shadow-sm cursor-pointer text-red-900' 
-                    : isStored
-                      ? 'bg-slate-200 border-slate-300 hover:border-slate-400 hover:shadow-sm cursor-pointer text-slate-800 opacity-90'
-                      : `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800 border-transparent`
-                  : isLostCard
-                    ? 'bg-red-100 border-red-400 opacity-80 cursor-not-allowed text-red-900' 
-                    : 'bg-white border-slate-200 border-dashed hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm cursor-pointer group'
-              }`}
-            >
-              <span className={`absolute top-1 left-2 font-bold text-2xl ${isLostCard ? 'text-red-900/30' : 'text-black'}`}>
-                {spotNum}
-              </span>
-              
-              {isLostCard && (
-                <div className="absolute top-1 right-1 text-red-500 bg-red-100 p-0.5 rounded-full" title="Cartão Perdido">
-                  <AlertTriangle className="w-3 h-3" />
-                </div>
-              )}
-              
-              {isStored && !isLostCard && (
-                <div className="absolute top-1 right-1 text-slate-600 bg-slate-300 p-0.5 rounded-full" title="Em Depósito">
-                  <PackageOpen className="w-3 h-3" />
-                </div>
-              )}
-              
-              {isOccupied ? (
-                <>
-                  <div className="mt-4 text-slate-700 transform scale-75">{getIcon(vehicle.type)}</div>
-                  <span className="mt-0 font-medium text-slate-900 text-[10px] truncate w-full text-center px-1">
-                    {vehicle.identifier !== 'Não informada' ? vehicle.identifier : vehicle.ownerName.split(' ')[0]}
-                  </span>
-                </>
-              ) : isLostCard ? (
-                 <div className="flex flex-col items-center justify-center mt-3">
-                   <div className="text-red-400 font-bold text-[10px] text-center px-1 leading-tight">PERDIDO</div>
-                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center text-slate-300 group-hover:text-emerald-500 transition-colors mt-3">
-                  <Plus className="w-5 h-5 mb-0.5 opacity-50" />
-                  <span className="text-[10px] font-medium">Livre</span>
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {renderGrid(specialSpots, "E-Bikes e Motos (MT/BE)")}
+      
+      {renderGrid(normalSpots, "Bicicletas Tradicionais")}
       
       {/* List vehicles that have non-numeric spot numbers (fallback) */}
-      {activeVehicles.find(v => isNaN(parseInt(v.cardNumber, 10))) && (
+      {activeVehicles.find(v => !normalSpots.includes(v.cardNumber) && !specialSpots.includes(v.cardNumber)) && (
         <div className="mt-8">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Cartões Especiais / Extra</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {activeVehicles
-              .filter(v => isNaN(parseInt(v.cardNumber, 10)))
+              .filter(v => !normalSpots.includes(v.cardNumber) && !specialSpots.includes(v.cardNumber))
               .map(vehicle => (
                 <button
                   key={vehicle.id}
-                  onClick={() => onSpotClick && onSpotClick(0, vehicle)}
+                  onClick={() => onSpotClick && onSpotClick('', vehicle)}
                   className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all hover:shadow-md relative ${
                     vehicle.cardLost ? 'bg-red-100 border-red-500 hover:border-red-600 text-red-900' : getBgColor(vehicle.type)
                   }`}

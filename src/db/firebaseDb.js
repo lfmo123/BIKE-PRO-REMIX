@@ -121,6 +121,14 @@ export async function removeLostCard(cardNumber) {
   await deleteDoc(doc(db, 'lostCards', cardId));
 }
 
+export async function updateVehicleCard(id, newCardNumber) {
+  const vehicleRef = doc(db, 'vehicles', id);
+  const vehicleSnap = await getDoc(vehicleRef);
+  if (!vehicleSnap.exists()) return null;
+  await updateDoc(vehicleRef, { cardNumber: newCardNumber });
+  return { ...vehicleSnap.data(), cardNumber: newCardNumber };
+}
+
 export async function reportLostCard(vehicleId, lostCardName, lostCardPhone) {
   const vehicleRef = doc(db, 'vehicles', vehicleId);
   const vehicleSnap = await getDoc(vehicleRef);

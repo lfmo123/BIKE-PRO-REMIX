@@ -349,6 +349,35 @@ export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange,
       </div>
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
         <div className="flex items-center space-x-3 mb-6">
+           <div className="bg-blue-100 p-2 rounded-lg">
+             <Cloud className="w-5 h-5 text-blue-600" />
+           </div>
+           <h2 className="text-lg font-bold text-slate-900">Migração de Grade</h2>
+        </div>
+        <p className="text-sm text-slate-500 mb-6">
+          Move todas as motos e e-bikes hoje estacionadas na Grade Comum para a nova Grade Especial MT/BE (1 a 50).
+        </p>
+        <button
+            onClick={async () => {
+              if (window.confirm("Deseja migrar todas as Motos e E-Bikes para a nova grade MT/BE?")) {
+                try {
+                  const res = await fetch('/api/system/migrate-ebikes', { method: 'POST' });
+                  const data = await res.json();
+                  alert(data.message || 'Migração concluída.');
+                  window.location.reload();
+                } catch (e) {
+                  alert('Erro ao migrar.');
+                }
+              }
+            }}
+            className="flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-600/30"
+          >
+            Migrar Motos e E-Bikes
+        </button>
+      </div>
+
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex items-center space-x-3 mb-6">
           <div className="bg-red-100 p-2 rounded-lg">
             <Trash2 className="w-5 h-5 text-red-600" />
           </div>

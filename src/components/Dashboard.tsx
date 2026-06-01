@@ -6,7 +6,7 @@ export interface DashboardProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
   lostCards?: LostCard[];
-  onSpotClick?: (spotNumber: number, occupiedVehicle?: ParkedVehicle) => void;
+  onSpotClick?: (spotNumber: string, occupiedVehicle?: ParkedVehicle) => void;
 }
 
 import { SpotsGrid } from './SpotsGrid';

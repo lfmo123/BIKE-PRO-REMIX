@@ -467,6 +467,41 @@ async function startServer() {
     }
   });
 
+  app.post('/api/system/migrate-ebikes', async (req, res) => {
+    try {
+      if (dbType === 'firebase') {
+        const vehicles = await firebaseDb.getVehicles();
+        let mtCount = 1;
+        for (const v of vehicles) {
+          if (v.status === 'active' || v.status === 'stored') {
+            if (v.type === 'ebike' || v.type === 'motorcycle') {
+               const newCard = `MT/BE ${mtCount++}`;
+               await firebaseDb.updateVehicleCard(v.id, newCard);
+            }
+          }
+        }
+        res.json({ success: true, message: 'Veículos migrados com sucesso (Firebase).' });
+      } else if (dbType === 'mysql') {
+        // ... handled if necessary, but skipping for brevity if not heavily used
+        res.status(501).json({ error: 'Migration for MySQL not full implemented.' });
+      } else {
+        const db = readDb();
+        if (db.vehicles) {
+          let mtCount = 1;
+          for (const v of db.vehicles) {
+            if ((v.status === 'active' || v.status === 'stored') && (v.type === 'ebike' || v.type === 'motorcycle')) {
+               v.cardNumber = `MT/BE ${mtCount++}`;
+            }
+          }
+          writeDb(db);
+        }
+        res.json({ success: true, message: 'Veículos migrados (Local).' });
+      }
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/system/db-status', async (req, res) => {
     try {
       if (dbType === 'firebase') {
