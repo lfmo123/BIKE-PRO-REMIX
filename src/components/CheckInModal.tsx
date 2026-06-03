@@ -11,8 +11,6 @@ interface CheckInModalProps {
 
 export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: CheckInModalProps) {
   const [type, setType] = useState<VehicleType>('bicycle');
-  const [identifier, setIdentifier] = useState('');
-  const [ownerName, setOwnerName] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [customDate, setCustomDate] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -52,8 +50,8 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
     
     const res = await onCheckIn({
       type,
-      identifier: identifier || 'Não informada',
-      ownerName: ownerName || 'Não informado',
+      identifier: 'Não informada',
+      ownerName: 'Não informado',
       cardNumber,
       checkInTime: new Date(customDate).getTime(),
     });
@@ -132,36 +130,6 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
           </div>
           
           <div className="space-y-4">
-            <div>
-              <label htmlFor="identifier" className="block text-sm font-medium text-slate-700 mb-1">
-                {type === 'motorcycle' ? 'Placa' : 'Identificação (Cor, Modelo, etc)'}
-                <span className="text-slate-400 font-normal ml-1">(Opcional)</span>
-              </label>
-              <input
-                id="identifier"
-                type="text"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-                placeholder={type === 'motorcycle' ? 'ABC-1234' : 'Caloi Vermelha'}
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="ownerName" className="block text-sm font-medium text-slate-700 mb-1">
-                Nome do Proprietário
-                <span className="text-slate-400 font-normal ml-1">(Opcional)</span>
-              </label>
-              <input
-                id="ownerName"
-                type="text"
-                value={ownerName}
-                onChange={(e) => setOwnerName(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-                placeholder="João Silva"
-              />
-            </div>
-
             <div>
               <label htmlFor="cardNumber" className="block text-sm font-medium text-slate-700 mb-1">
                 Número do Cartão
