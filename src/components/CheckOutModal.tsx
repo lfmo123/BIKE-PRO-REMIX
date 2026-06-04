@@ -100,19 +100,6 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setPaymentMethod('card')}
-                className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
-                  paymentMethod === 'card' 
-                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                }`}
-              >
-                <CreditCard className={`w-5 h-5 mb-1 ${paymentMethod === 'card' ? 'text-blue-600' : ''}`} />
-                <span className="text-xs font-medium">Pré Pago</span>
-              </button>
-              
-              <button
-                type="button"
                 onClick={() => setPaymentMethod('cash')}
                 className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
                   paymentMethod === 'cash' 
@@ -135,6 +122,19 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
               >
                 <Terminal className={`w-5 h-5 mb-1 ${paymentMethod === 'machine' ? 'text-indigo-600' : ''}`} />
                 <span className="text-[10px] sm:text-xs font-medium">Máquina</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('card')}
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
+                  paymentMethod === 'card' 
+                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                }`}
+              >
+                <CreditCard className={`w-5 h-5 mb-1 ${paymentMethod === 'card' ? 'text-blue-600' : ''}`} />
+                <span className="text-xs font-medium">Pré Pago</span>
               </button>
 
               <button

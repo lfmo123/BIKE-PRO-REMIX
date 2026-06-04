@@ -6,13 +6,13 @@ import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/prici
 interface CheckOutProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
-  onCheckOut: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card') => void;
+  onCheckOut: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'machine') => void;
 }
 
 export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<ParkedVehicle | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'machine'>('cash');
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -193,20 +193,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
               
               <div className="space-y-4 mb-8">
                 <label className="block text-sm font-medium text-slate-700">Selecione o Método de Pagamento</label>
-                <div className="grid grid-cols-3 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('card')}
-                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                      paymentMethod === 'card' 
-                        ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                        : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                    }`}
-                  >
-                    <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'card' ? 'text-blue-600' : ''}`} />
-                    <span className="text-sm font-medium text-center">Pré Pago</span>
-                  </button>
-                  
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cash')}
@@ -220,6 +207,32 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
                     <span className="text-sm font-medium">Dinheiro</span>
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('machine')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                      paymentMethod === 'machine' 
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
+                        : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                    }`}
+                  >
+                    <Terminal className={`w-6 h-6 mb-2 ${paymentMethod === 'machine' ? 'text-indigo-600' : ''}`} />
+                    <span className="text-sm font-medium">Máquina</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('card')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                      paymentMethod === 'card' 
+                        ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                        : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                    }`}
+                  >
+                    <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'card' ? 'text-blue-600' : ''}`} />
+                    <span className="text-sm font-medium text-center">Pré Pago</span>
+                  </button>
+                  
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('postpaid_card')}
