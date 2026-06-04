@@ -270,7 +270,7 @@ export default function App() {
     }
   };
 
-  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine') => {
+  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine') => {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}/checkout`, {
         method: 'PUT',

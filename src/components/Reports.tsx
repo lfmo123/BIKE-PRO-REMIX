@@ -65,7 +65,6 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
   }, {} as Record<string, number>);
 
   const paymentDataDaily = [
-    { name: 'PIX', value: revenueByPaymentDaily['pix'] || 0, color: '#10b981' }, 
     { name: 'Pré Pago', value: revenueByPaymentDaily['card'] || 0, color: '#3b82f6' }, 
     { name: 'Máquina', value: revenueByPaymentDaily['machine'] || 0, color: '#6366f1' }, 
     { name: 'Dinheiro', value: revenueByPaymentDaily['cash'] || 0, color: '#f59e0b' }, 
@@ -113,7 +112,6 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
   }, {} as Record<string, number>);
 
   const paymentDataMonthly = [
-    { name: 'PIX', value: revenueByPaymentMonthly['pix'] || 0, color: '#10b981' }, 
     { name: 'Pré Pago', value: revenueByPaymentMonthly['card'] || 0, color: '#3b82f6' }, 
     { name: 'Máquina', value: revenueByPaymentMonthly['machine'] || 0, color: '#6366f1' }, 
     { name: 'Dinheiro', value: revenueByPaymentMonthly['cash'] || 0, color: '#f59e0b' }, 
@@ -171,7 +169,6 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
   }, {} as Record<string, number>);
 
   const paymentDataCustom = [
-    { name: 'PIX', value: revenueByPaymentCustom['pix'] || 0, color: '#10b981' }, 
     { name: 'Pré Pago', value: revenueByPaymentCustom['card'] || 0, color: '#3b82f6' }, 
     { name: 'Máquina', value: revenueByPaymentCustom['machine'] || 0, color: '#6366f1' }, 
     { name: 'Dinheiro', value: revenueByPaymentCustom['cash'] || 0, color: '#f59e0b' }, 
@@ -1031,8 +1028,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
                       {vehicle.paymentMethod === 'card' ? 'Pré Pago' : 
                        vehicle.paymentMethod === 'machine' ? 'Máquina' :
                        vehicle.paymentMethod === 'cash' ? 'Dinheiro' : 
-                       vehicle.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : 
-                       vehicle.paymentMethod === 'pix' ? 'PIX' : '-'}
+                       vehicle.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : '-'}
                     </td>
                     <td className="p-4 text-right font-black text-emerald-600">
                       {vehicle.price ? "R$ " + vehicle.price.toFixed(2) : '-'}
@@ -1107,8 +1103,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
                   {selectedVehicleDetails.paymentMethod === 'card' ? 'Pré Pago' : 
                    selectedVehicleDetails.paymentMethod === 'machine' ? 'Máquina' :
                    selectedVehicleDetails.paymentMethod === 'cash' ? 'Dinheiro' : 
-                   selectedVehicleDetails.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : 
-                   selectedVehicleDetails.paymentMethod === 'pix' ? 'PIX' : '-'}
+                   selectedVehicleDetails.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : '-'}
                 </span>
               </div>
               <div className="flex justify-between pt-2">

@@ -6,13 +6,13 @@ import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/prici
 interface CheckOutProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
-  onCheckOut: (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card') => void;
+  onCheckOut: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card') => void;
 }
 
 export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<ParkedVehicle | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash' | 'postpaid_card'>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card'>('cash');
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -193,20 +193,7 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
               
               <div className="space-y-4 mb-8">
                 <label className="block text-sm font-medium text-slate-700">Selecione o Método de Pagamento</label>
-                <div className="grid grid-cols-4 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('pix')}
-                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                      paymentMethod === 'pix' 
-                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
-                        : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                    }`}
-                  >
-                    <Smartphone className={`w-6 h-6 mb-2 ${paymentMethod === 'pix' ? 'text-emerald-600' : ''}`} />
-                    <span className="text-sm font-medium">PIX</span>
-                  </button>
-                  
+                <div className="grid grid-cols-3 gap-4">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('card')}

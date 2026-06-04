@@ -5,12 +5,12 @@ import { Product } from '../types';
 interface SaleModalProps {
   product: Product;
   onClose: () => void;
-  onConfirm: (quantity: number, paymentMethod: 'machine' | 'pix' | 'cash') => void;
+  onConfirm: (quantity: number, paymentMethod: 'machine' | 'cash') => void;
 }
 
 export function SaleModal({ product, onClose, onConfirm }: SaleModalProps) {
   const [quantity, setQuantity] = useState('1');
-  const [paymentMethod, setPaymentMethod] = useState<'machine' | 'pix' | 'cash'>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<'machine' | 'cash'>('machine');
 
   const handleConfirm = () => {
     const qty = parseInt(quantity, 10);
@@ -68,20 +68,7 @@ export function SaleModal({ product, onClose, onConfirm }: SaleModalProps) {
 
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700">Método de Pagamento</label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('pix')}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
-                  paymentMethod === 'pix' 
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
-                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                }`}
-              >
-                <Smartphone className={`w-5 h-5 mb-1 ${paymentMethod === 'pix' ? 'text-emerald-600' : ''}`} />
-                <span className="text-xs font-medium">PIX</span>
-              </button>
-              
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setPaymentMethod('machine')}

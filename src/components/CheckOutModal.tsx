@@ -7,12 +7,12 @@ interface CheckOutModalProps {
   vehicle: ParkedVehicle | null;
   pricing: Pricing;
   onClose: () => void;
-  onConfirm: (vehicleId: string, price: number, paymentMethod: 'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine') => void;
+  onConfirm: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine') => void;
   onReportLostCard?: (vehicleId: string, lostCardName: string, lostCardPhone: string) => void;
 }
 
 export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLostCard }: CheckOutModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine'>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine'>('machine');
   const [now, setNow] = useState(Date.now());
   const [showLostForm, setShowLostForm] = useState(false);
   const [lostName, setLostName] = useState('');
@@ -97,20 +97,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
           
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700">Método de Pagamento</label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('pix')}
-                className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
-                  paymentMethod === 'pix' 
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
-                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                }`}
-              >
-                <Smartphone className={`w-5 h-5 mb-1 ${paymentMethod === 'pix' ? 'text-emerald-600' : ''}`} />
-                <span className="text-xs font-medium">PIX</span>
-              </button>
-              
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setPaymentMethod('card')}
