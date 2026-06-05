@@ -69,7 +69,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-900">Nova Entrada</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Nova Entrada</h2>
           <button 
             onClick={onClose}
             className="p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-500"
@@ -80,7 +80,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
         
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-3">
-            <label className="block text-sm font-medium text-slate-700">Tipo de Veículo</label>
+            <label className="block text-base font-medium text-slate-700">Tipo de Veículo</label>
             <div className={`grid ${isSpecialGrid ? 'grid-cols-2' : (isTraditionalGrid ? 'grid-cols-1' : 'grid-cols-3')} gap-3`}>
               {!isSpecialGrid && (
                 <button
@@ -93,7 +93,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                   }`}
                 >
                   <Bike className={`w-6 h-6 mb-2 ${type === 'bicycle' ? 'text-blue-600' : ''}`} />
-                  <span className="text-xs font-medium">Bicicleta</span>
+                  <span className="text-sm font-medium">Bicicleta</span>
                 </button>
               )}
               
@@ -108,7 +108,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                   }`}
                 >
                   <Motorbike className={`w-6 h-6 mb-2 ${type === 'motorcycle' ? 'text-purple-600' : ''}`} />
-                  <span className="text-xs font-medium">Moto</span>
+                  <span className="text-sm font-medium">Moto</span>
                 </button>
               )}
 
@@ -123,7 +123,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                   }`}
                 >
                   <Zap className={`w-6 h-6 mb-2 ${type === 'ebike' ? 'text-emerald-600' : ''}`} />
-                  <span className="text-xs font-medium">E-Bike</span>
+                  <span className="text-sm font-medium">E-Bike</span>
                 </button>
               )}
             </div>
@@ -131,7 +131,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
           
           <div className="space-y-4">
             <div>
-              <label htmlFor="cardNumber" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="cardNumber" className="block text-base font-medium text-slate-700 mb-1">
                 Número do Cartão
               </label>
               <input
@@ -140,13 +140,13 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                 required
                 value={cardNumber}
                 onChange={(e) => setCardNumber(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-base"
                 placeholder="Ex: 12"
               />
             </div>
 
             <div>
-              <label htmlFor="checkInDate" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="checkInDate" className="block text-base font-medium text-slate-700 mb-1">
                 Data e Hora de Entrada
               </label>
               <input
@@ -155,21 +155,21 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                 required
                 value={customDate}
                 onChange={(e) => setCustomDate(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-slate-700"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-slate-700 text-base"
               />
             </div>
           </div>
           
           <div className="pt-4">
             {errorMsg && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100 flex items-center">
+              <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-base font-medium border border-red-100 flex items-center">
                 <span className="mr-2">⚠️</span>
                 {errorMsg}
               </div>
             )}
             <button
               type="submit"
-              className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-emerald-500/30"
+              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xl transition-colors shadow-lg shadow-emerald-500/30"
             >
               Confirmar Entrada
             </button>
