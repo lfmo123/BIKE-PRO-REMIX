@@ -23,7 +23,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
       if (initialCardNumber) {
         setCardNumber(initialCardNumber);
         if (initialCardNumber.includes('MT/BE')) {
-          setType('ebike');
+          setType('motorcycle');
         } else {
           setType('bicycle');
         }
@@ -100,21 +100,6 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
               {!isTraditionalGrid && (
                 <button
                   type="button"
-                  onClick={() => setType('ebike')}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                    type === 'ebike' 
-                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
-                      : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                  }`}
-                >
-                  <Zap className={`w-6 h-6 mb-2 ${type === 'ebike' ? 'text-emerald-600' : ''}`} />
-                  <span className="text-xs font-medium">E-Bike</span>
-                </button>
-              )}
-              
-              {!isTraditionalGrid && (
-                <button
-                  type="button"
                   onClick={() => setType('motorcycle')}
                   className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
                     type === 'motorcycle' 
@@ -124,6 +109,21 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                 >
                   <Motorbike className={`w-6 h-6 mb-2 ${type === 'motorcycle' ? 'text-purple-600' : ''}`} />
                   <span className="text-xs font-medium">Moto</span>
+                </button>
+              )}
+
+              {!isTraditionalGrid && (
+                <button
+                  type="button"
+                  onClick={() => setType('ebike')}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                    type === 'ebike' 
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
+                      : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                  }`}
+                >
+                  <Zap className={`w-6 h-6 mb-2 ${type === 'ebike' ? 'text-emerald-600' : ''}`} />
+                  <span className="text-xs font-medium">E-Bike</span>
                 </button>
               )}
             </div>
