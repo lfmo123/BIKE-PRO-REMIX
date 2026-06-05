@@ -34,8 +34,8 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-900">Finalizar Estacionamento</h2>
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900">Finalizar Estacionamento</h2>
           <button 
             onClick={onClose}
             className="p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-500"
@@ -44,58 +44,58 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
           </button>
         </div>
         
-        <div className="p-6 space-y-6">
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+        <div className="p-4 sm:p-5 space-y-3">
+          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
             <div className="flex justify-between items-start mb-1">
-              <h3 className="font-bold text-slate-900 text-lg">{vehicle.identifier}</h3>
-              <span className="bg-slate-200 text-slate-700 font-bold px-2 py-1 rounded text-xs">
+              <h3 className="font-bold text-slate-900 text-lg leading-none">{vehicle.identifier}</h3>
+              <span className="bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px]">
                 Cartão {vehicle.cardNumber}
               </span>
             </div>
-            <p className="text-sm text-slate-500 mb-4">{vehicle.ownerName}</p>
+            <p className="text-xs text-slate-500 mb-2">{vehicle.ownerName}</p>
             
-            <div className="grid grid-cols-2 gap-4 mb-4 text-sm bg-white p-3 rounded-xl border border-slate-100">
+            <div className="grid grid-cols-2 gap-2 mb-2 text-xs bg-white p-2 rounded-xl border border-slate-100">
               <div>
-                <span className="text-xs font-medium text-slate-500 block mb-0.5">Dia de Entrada</span>
-                <span className="font-medium text-slate-900">{new Date(vehicle.checkInTime).toLocaleString('pt-BR')}</span>
+                <span className="font-medium text-slate-500 block">Entrada</span>
+                <span className="font-bold text-slate-900">{new Date(vehicle.checkInTime).toLocaleString('pt-BR')}</span>
               </div>
               <div>
-                <span className="text-xs font-medium text-slate-500 block mb-0.5">Dia de Saída</span>
-                <span className="font-medium text-slate-900">{new Date(now).toLocaleString('pt-BR')}</span>
+                <span className="font-medium text-slate-500 block">Saída</span>
+                <span className="font-bold text-slate-900">{new Date(now).toLocaleString('pt-BR')}</span>
               </div>
-              <div className="col-span-2 pt-2 border-t border-slate-50 mt-1 flex justify-between items-center">
-                <span className="text-xs font-medium text-slate-500">Tempo Total Estacionado:</span>
+              <div className="col-span-2 pt-1 border-t border-slate-50 mt-1 flex justify-between items-center">
+                <span className="font-medium text-slate-500">Tempo:</span>
                 <span className="font-bold text-slate-900">{formatDuration(vehicle.checkInTime, now)}</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white p-3 rounded-xl border border-slate-100 flex flex-col">
-                <span className="text-xs font-medium text-slate-500 mb-1 flex items-center">
-                  <Clock className="w-3 h-3 mr-1" /> Tempo Cobrado
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-white p-2 rounded-xl border border-slate-100 flex flex-col justify-center">
+                <span className="text-[10px] font-medium text-slate-500 flex items-center">
+                  <Clock className="w-3 h-3 mr-1" /> Cobrado
                 </span>
-                <span className="font-bold text-slate-900">
+                <span className="font-bold text-slate-900 text-sm">
                   {(() => {
                     const breakdown = getBilledBreakdown(vehicle, pricing, now);
                     return `${breakdown.days} diária${breakdown.days > 1 ? 's' : ''}`;
                   })()}
                 </span>
               </div>
-              <div className="bg-white p-3 rounded-xl border border-slate-100 flex flex-col">
-                <span className="text-xs font-medium text-slate-500 mb-1 flex items-center">
+              <div className="bg-white p-2 rounded-xl border border-slate-100 flex flex-col justify-center">
+                <span className="text-[10px] font-medium text-slate-500 flex items-center">
                   <DollarSign className="w-3 h-3 mr-1" /> Total
                 </span>
-                <span className="font-bold text-emerald-600 text-lg">R$ {price.toFixed(2)}</span>
+                <span className="font-bold text-emerald-600 text-base">R$ {price.toFixed(2)}</span>
                 {vehicle.cardLost && pricing.lostCardFee && (
-                  <span className="text-[10px] text-red-500 mt-1 leading-tight">
-                    + {pricing.lostCardFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} taxa
+                  <span className="text-[9px] text-red-500 leading-tight">
+                    + {pricing.lostCardFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </span>
                 )}
               </div>
             </div>
           </div>
           
-          <div className="space-y-3">
+          <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-700">Método de Pagamento</label>
             <div className="grid grid-cols-3 gap-2">
               <button
@@ -166,14 +166,14 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
           </div>
           
           {/* Lost Card Section */}
-          <div className="pt-2 border-t border-slate-100">
+          <div className="pt-1 border-t border-slate-100 mt-1">
             {vehicle.cardLost ? (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex flex-col">
                 <div className="flex items-center text-red-600 font-bold text-sm mb-1">
                   <AlertTriangle className="w-4 h-4 mr-1" />
                   Cartão Marcado como Perdido
                 </div>
-                <div className="text-xs text-red-700">
+                <div className="text-xs text-red-700 leading-tight mt-0.5">
                   <span className="font-semibold">Nome:</span> {vehicle.lostCardName || 'Não informado'} <br/>
                   <span className="font-semibold">Telefone:</span> {vehicle.lostCardPhone || 'Não informado'}
                 </div>
@@ -228,7 +228,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
             )}
           </div>
 
-          <div className="pt-2">
+          <div>
             <button
               onClick={() => onConfirm(vehicle.id, price, paymentMethod)}
               className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-slate-900/20"
