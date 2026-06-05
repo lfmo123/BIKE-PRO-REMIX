@@ -97,7 +97,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
           
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700">Método de Pagamento</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setPaymentMethod('cash')}
