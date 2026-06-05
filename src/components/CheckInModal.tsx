@@ -69,18 +69,18 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h2 className="text-2xl font-bold text-slate-900">Nova Entrada</h2>
+          <h2 className="text-3xl font-bold text-slate-900">Nova Entrada</h2>
           <button 
             onClick={onClose}
             className="p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-500"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-3">
-            <label className="block text-base font-medium text-slate-700">Tipo de Veículo</label>
+            <label className="block text-lg font-medium text-slate-700">Tipo de Veículo</label>
             <div className={`grid ${isSpecialGrid ? 'grid-cols-2' : (isTraditionalGrid ? 'grid-cols-1' : 'grid-cols-3')} gap-3`}>
               {!isSpecialGrid && (
                 <button
@@ -92,8 +92,8 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                       : 'border-slate-100 hover:border-slate-200 text-slate-500'
                   }`}
                 >
-                  <Bike className={`w-6 h-6 mb-2 ${type === 'bicycle' ? 'text-blue-600' : ''}`} />
-                  <span className="text-sm font-medium">Bicicleta</span>
+                  <Bike className={`w-8 h-8 mb-2 ${type === 'bicycle' ? 'text-blue-600' : ''}`} />
+                  <span className="text-base font-medium">Bicicleta</span>
                 </button>
               )}
               
@@ -107,8 +107,8 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                       : 'border-slate-100 hover:border-slate-200 text-slate-500'
                   }`}
                 >
-                  <Motorbike className={`w-6 h-6 mb-2 ${type === 'motorcycle' ? 'text-purple-600' : ''}`} />
-                  <span className="text-sm font-medium">Moto</span>
+                  <Motorbike className={`w-8 h-8 mb-2 ${type === 'motorcycle' ? 'text-purple-600' : ''}`} />
+                  <span className="text-base font-medium">Moto</span>
                 </button>
               )}
 
@@ -122,8 +122,8 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                       : 'border-slate-100 hover:border-slate-200 text-slate-500'
                   }`}
                 >
-                  <Zap className={`w-6 h-6 mb-2 ${type === 'ebike' ? 'text-emerald-600' : ''}`} />
-                  <span className="text-sm font-medium">E-Bike</span>
+                  <Zap className={`w-8 h-8 mb-2 ${type === 'ebike' ? 'text-emerald-600' : ''}`} />
+                  <span className="text-base font-medium">E-Bike</span>
                 </button>
               )}
             </div>
@@ -131,7 +131,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
           
           <div className="space-y-4">
             <div>
-              <label htmlFor="cardNumber" className="block text-base font-medium text-slate-700 mb-1">
+              <label htmlFor="cardNumber" className="block text-lg font-medium text-slate-700 mb-2">
                 Número do Cartão
               </label>
               <input
@@ -140,13 +140,13 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                 required
                 value={cardNumber}
                 onChange={(e) => setCardNumber(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-base"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-xl"
                 placeholder="Ex: 12"
               />
             </div>
 
             <div>
-              <label htmlFor="checkInDate" className="block text-base font-medium text-slate-700 mb-1">
+              <label htmlFor="checkInDate" className="block text-lg font-medium text-slate-700 mb-2">
                 Data e Hora de Entrada
               </label>
               <input
@@ -155,21 +155,21 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                 required
                 value={customDate}
                 onChange={(e) => setCustomDate(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-slate-700 text-base"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-slate-700 text-xl"
               />
             </div>
           </div>
           
           <div className="pt-4">
             {errorMsg && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-base font-medium border border-red-100 flex items-center">
+              <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-lg font-medium border border-red-100 flex items-center">
                 <span className="mr-2">⚠️</span>
                 {errorMsg}
               </div>
             )}
             <button
               type="submit"
-              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xl transition-colors shadow-lg shadow-emerald-500/30"
+              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-2xl transition-colors shadow-lg shadow-emerald-500/30"
             >
               Confirmar Entrada
             </button>
