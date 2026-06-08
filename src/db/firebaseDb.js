@@ -165,6 +165,30 @@ export async function removeCustomerCard(id) {
 }
 
 // ------------------------------------
+// Shifts
+// ------------------------------------
+export async function getShifts() {
+  const snapshot = await getDocs(collection(db, 'shifts'));
+  const shifts = [];
+  snapshot.forEach(docSnap => shifts.push(docSnap.data()));
+  return shifts;
+}
+
+export async function addShift(shift) {
+  await setDoc(doc(db, 'shifts', shift.id), shift);
+  return shift;
+}
+
+export async function updateShift(id, data) {
+  const shiftRef = doc(db, 'shifts', id);
+  const shiftSnap = await getDoc(shiftRef);
+  if (!shiftSnap.exists()) return null;
+  const updatedData = { ...shiftSnap.data(), ...data };
+  await updateDoc(shiftRef, updatedData);
+  return updatedData;
+}
+
+// ------------------------------------
 // Lost Cards
 // ------------------------------------
 export async function getLostCards() {

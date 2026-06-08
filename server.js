@@ -457,6 +457,73 @@ async function startServer() {
     }
   });
 
+  // Shifts endpoints
+  app.get('/api/shifts', async (req, res) => {
+    try {
+      if (dbType === 'firebase') {
+        res.json(await firebaseDb.getShifts());
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        res.json(await mysqlDb.getShifts());
+      } else {
+        const db = readDb();
+        res.json(db.shifts || []);
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to fetch shifts' });
+    }
+  });
+
+  app.post('/api/shifts', async (req, res) => {
+    try {
+      const shift = req.body;
+      let newShift;
+      if (dbType === 'firebase') {
+        newShift = await firebaseDb.addShift(shift);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        newShift = await mysqlDb.addShift(shift);
+      } else {
+        const db = readDb();
+        if (!db.shifts) db.shifts = [];
+        db.shifts.push(shift);
+        writeDb(db);
+        newShift = shift;
+      }
+      res.status(201).json(newShift);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to add shift' });
+    }
+  });
+
+  app.put('/api/shifts/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+      let updatedShift;
+      if (dbType === 'firebase') {
+         updatedShift = await firebaseDb.updateShift(id, data);
+      } else if (dbType === 'mysql') {
+         const mysqlDb = await import('./src/db/mysqlDb.js');
+         updatedShift = await mysqlDb.updateShift(id, data);
+      } else {
+         const db = readDb();
+         const index = (db.shifts || []).findIndex(s => s.id === id);
+         if (index > -1) {
+           db.shifts[index] = { ...db.shifts[index], ...data };
+           writeDb(db);
+           updatedShift = db.shifts[index];
+         }
+      }
+      res.json(updatedShift || {});
+    } catch (error) {
+       console.error(error);
+       res.status(500).json({ error: error.message || 'Failed to update shift' });
+    }
+  });
+
   // Get lost cards
   app.get('/api/lost-cards', async (req, res) => {
     try {

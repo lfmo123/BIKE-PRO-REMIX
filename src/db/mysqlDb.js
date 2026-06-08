@@ -82,6 +82,19 @@ export async function initMySQL() {
     )
   `;
 
+  const createShiftsQuery = `
+    CREATE TABLE IF NOT EXISTS shifts (
+      id VARCHAR(50) PRIMARY KEY,
+      operatorName VARCHAR(255) NOT NULL,
+      startTime BIGINT NOT NULL,
+      endTime BIGINT,
+      initialChange DECIMAL(10, 2) NOT NULL,
+      finalChange DECIMAL(10, 2),
+      status VARCHAR(50) NOT NULL,
+      summary JSON
+    )
+  `;
+
   try {
     const currentPool = getPool();
     await currentPool.query('SELECT 1'); // Testa a conexão primeiro
@@ -90,6 +103,7 @@ export async function initMySQL() {
     await currentPool.query(createLostCardsQuery);
     await currentPool.query(createTransactionsQuery);
     await currentPool.query(createCustomerCardsQuery);
+    await currentPool.query(createShiftsQuery);
     
     // Inserir preços padrão se a tabela estiver vazia
     const [rows] = await currentPool.query('SELECT COUNT(*) as count FROM pricing');
@@ -305,6 +319,57 @@ export async function updateCustomerCard(id, data) {
 export async function removeCustomerCard(id) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
   await getPool().query('DELETE FROM customer_cards WHERE id = ?', [id]);
+}
+
+export async function getShifts() {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const [rows] = await getPool().query('SELECT * FROM shifts ORDER BY startTime DESC');
+  return rows.map(r => ({
+    ...r,
+    initialChange: r.initialChange ? parseFloat(r.initialChange) : 0,
+    finalChange: r.finalChange ? parseFloat(r.finalChange) : undefined,
+    summary: r.summary ? (typeof r.summary === 'string' ? JSON.parse(r.summary) : r.summary) : undefined
+  }));
+}
+
+export async function addShift(shift) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const query = `
+    INSERT INTO shifts (id, operatorName, startTime, endTime, initialChange, finalChange, status, summary)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+  await getPool().query(query, [
+    shift.id, shift.operatorName, shift.startTime, shift.endTime || null, 
+    shift.initialChange, shift.finalChange || null, shift.status, 
+    shift.summary ? JSON.stringify(shift.summary) : null
+  ]);
+  return shift;
+}
+
+export async function updateShift(id, data) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  
+  const [existing] = await getPool().query('SELECT * FROM shifts WHERE id = ?', [id]);
+  if (!existing || existing.length === 0) return null;
+  const currentItem = existing[0];
+  
+  const updatedData = {
+     ...currentItem,
+     ...data
+  };
+
+  const query = `
+    UPDATE shifts 
+    SET operatorName = ?, startTime = ?, endTime = ?, initialChange = ?, finalChange = ?, status = ?, summary = ?
+    WHERE id = ?
+  `;
+  await getPool().query(query, [
+    updatedData.operatorName, updatedData.startTime, updatedData.endTime || null, 
+    updatedData.initialChange, updatedData.finalChange || null, updatedData.status, 
+    updatedData.summary ? JSON.stringify(updatedData.summary) : null,
+    id
+  ]);
+  return updatedData;
 }
 
 export async function getTransactions() {

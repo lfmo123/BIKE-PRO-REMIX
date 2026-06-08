@@ -8,6 +8,7 @@ import { StoredVehicles } from './components/StoredVehicles';
 import { CashBook } from './components/CashBook';
 import { CheckOut } from './components/CheckOut';
 import { CustomerCards } from './components/CustomerCards';
+import { ShiftControl } from './components/ShiftControl';
 import { History } from './components/History';
 import { Reports } from './components/Reports';
 import { Settings } from './components/Settings';
@@ -16,7 +17,7 @@ import { Store } from './components/Store';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
 import { ResetAppModal } from './components/ResetAppModal';
-import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard } from './types';
+import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard, Shift } from './types';
 
 const defaultPricing: Pricing = {
   bicycle: 5,
@@ -34,6 +35,8 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [customerCards, setCustomerCards] = useState<CustomerCard[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const activeShift = shifts.find(s => s.status === 'open');
   const [pricing, setPricing] = useState<Pricing>(defaultPricing);
   const [lostCards, setLostCards] = useState<LostCard[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -50,6 +53,7 @@ export default function App() {
     fetchLostCards();
     fetchTransactions();
     fetchCustomerCards();
+    fetchShifts();
 
     // Auto backup local check
     const performAutoBackup = async () => {
@@ -195,6 +199,28 @@ export default function App() {
     try {
       const res = await fetch(`/api/customer-cards/${id}`, { method: 'DELETE' });
       if (res.ok) fetchCustomerCards();
+    } catch (error) { console.error(error); }
+  };
+
+  const fetchShifts = async () => {
+    try {
+      const res = await fetch('/api/shifts');
+      if (res.ok) setShifts(await res.json());
+    } catch (e) { console.error('Failed to fetch shifts', e); }
+  };
+
+  const handleOpenShift = async (operatorName: string, initialChange: number) => {
+    try {
+      const newShift: Omit<Shift, 'id'> = { operatorName, initialChange, startTime: Date.now(), status: 'open' };
+      const res = await fetch('/api/shifts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...newShift, id: Date.now().toString() }) });
+      if (res.ok) fetchShifts();
+    } catch (error) { console.error(error); }
+  };
+
+  const handleCloseShift = async (shift: Shift) => {
+    try {
+      const res = await fetch(`/api/shifts/${shift.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(shift) });
+      if (res.ok) fetchShifts();
     } catch (error) { console.error(error); }
   };
 
@@ -502,6 +528,7 @@ export default function App() {
                 )}
                 {activeTab === 'checkout' && <CheckOut vehicles={vehicles} pricing={pricing} onCheckOut={handleCheckOut} />}
                 {activeTab === 'cashbook' && <CashBook transactions={transactions} vehicles={vehicles} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} onPayFiado={handlePayFiado} />}
+                {activeTab === 'shifts' && <ShiftControl shifts={shifts} transactions={transactions} vehicles={vehicles} sales={sales} activeShift={activeShift} user={user as any} onOpenShift={handleOpenShift} onCloseShift={handleCloseShift} />}
                 {activeTab === 'cards' && <CustomerCards cards={customerCards} onAddCard={handleAddCard} onUpdateCard={handleUpdateCard} onDeleteCard={handleDeleteCard} onAddTransaction={handleAddTransaction} />}
                 {activeTab === 'store' && <Store products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} onAddSale={handleAddSale} />}
                 {activeTab === 'history' && <History vehicles={vehicles} onRevertCheckout={handleRevertCheckout} />}

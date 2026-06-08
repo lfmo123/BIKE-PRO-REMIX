@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Bike, History, Settings, BarChart3, LogOut, LogOutIcon, Grid, PackageOpen, Wallet, StoreIcon, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Bike, History, Settings, BarChart3, LogOut, LogOutIcon, Grid, PackageOpen, Wallet, StoreIcon, CreditCard, LockIcon } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -15,8 +15,9 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'active', label: 'Vagas Ativas', icon: Bike },
     { id: 'stored', label: 'Em Depósito', icon: PackageOpen },
-    { id: 'spots', label: 'Grade de Cartões', icon: Grid },
-    { id: 'cards', label: 'Cartões Mensalistas', icon: CreditCard },
+    { id: 'spots', label: 'Grade de Vagas', icon: Grid },
+    { id: 'cards', label: 'Cartões', icon: CreditCard },
+    { id: 'shifts', label: 'Fechamento de Caixa', icon: LockIcon },
     { id: 'cashbook', label: 'Livro Caixa', icon: Wallet },
     { id: 'store', label: 'Loja', icon: StoreIcon },
     { id: 'history', label: 'Histórico', icon: History },

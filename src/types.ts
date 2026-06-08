@@ -66,3 +66,22 @@ export interface Sale {
   date: number;
   paymentMethod?: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine';
 }
+
+export interface Shift {
+  id: string;
+  operatorName: string;
+  startTime: number;
+  endTime?: number;
+  initialChange: number;
+  finalChange?: number;
+  status: 'open' | 'closed';
+  summary?: {
+     totalIncome: number;
+     totalExpense: number;
+     totalCash: number;
+     totalCard: number;
+     totalPix: number;
+     totalMachine: number;
+     overnightCount: number;
+  };
+}
