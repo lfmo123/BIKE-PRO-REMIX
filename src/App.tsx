@@ -7,6 +7,7 @@ import { ActiveParking } from './components/ActiveParking';
 import { StoredVehicles } from './components/StoredVehicles';
 import { CashBook } from './components/CashBook';
 import { CheckOut } from './components/CheckOut';
+import { CustomerCards } from './components/CustomerCards';
 import { History } from './components/History';
 import { Reports } from './components/Reports';
 import { Settings } from './components/Settings';
@@ -15,7 +16,7 @@ import { Store } from './components/Store';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
 import { ResetAppModal } from './components/ResetAppModal';
-import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale } from './types';
+import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard } from './types';
 
 const defaultPricing: Pricing = {
   bicycle: 5,
@@ -32,6 +33,7 @@ export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [customerCards, setCustomerCards] = useState<CustomerCard[]>([]);
   const [pricing, setPricing] = useState<Pricing>(defaultPricing);
   const [lostCards, setLostCards] = useState<LostCard[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -47,6 +49,7 @@ export default function App() {
     fetchPricing();
     fetchLostCards();
     fetchTransactions();
+    fetchCustomerCards();
 
     // Auto backup local check
     const performAutoBackup = async () => {
@@ -146,6 +149,53 @@ export default function App() {
     } catch (e) {
       console.error('Failed to delete transaction', e);
     }
+  };
+
+  const handlePayFiado = async (vehicleId: string, paymentMethod: string) => {
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/pay-fiado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentMethod })
+      });
+      if (res.ok) {
+        fetchVehicles();
+        fetchTransactions();
+      } else {
+        alert('Erro ao realizar baixa do fiado.');
+      }
+    } catch (error) {
+       console.error('Error paying fiado', error);
+    }
+  };
+
+  const fetchCustomerCards = async () => {
+    try {
+      const res = await fetch('/api/customer-cards');
+      if (res.ok) setCustomerCards(await res.json());
+    } catch (e) { console.error('Failed to fetch customer cards', e); }
+  };
+
+  const handleAddCard = async (card: Omit<CustomerCard, 'id'>) => {
+    try {
+      const id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
+      const res = await fetch('/api/customer-cards', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...card, id }) });
+      if (res.ok) fetchCustomerCards();
+    } catch (error) { console.error(error); }
+  };
+
+  const handleUpdateCard = async (id: string, card: Partial<CustomerCard>) => {
+    try {
+      const res = await fetch(`/api/customer-cards/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(card) });
+      if (res.ok) fetchCustomerCards();
+    } catch (error) { console.error(error); }
+  };
+
+  const handleDeleteCard = async (id: string) => {
+    try {
+      const res = await fetch(`/api/customer-cards/${id}`, { method: 'DELETE' });
+      if (res.ok) fetchCustomerCards();
+    } catch (error) { console.error(error); }
   };
 
   const fetchLostCards = async () => {
@@ -451,7 +501,8 @@ export default function App() {
                   />
                 )}
                 {activeTab === 'checkout' && <CheckOut vehicles={vehicles} pricing={pricing} onCheckOut={handleCheckOut} />}
-                {activeTab === 'cashbook' && <CashBook transactions={transactions} vehicles={vehicles} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} />}
+                {activeTab === 'cashbook' && <CashBook transactions={transactions} vehicles={vehicles} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} onPayFiado={handlePayFiado} />}
+                {activeTab === 'cards' && <CustomerCards cards={customerCards} onAddCard={handleAddCard} onUpdateCard={handleUpdateCard} onDeleteCard={handleDeleteCard} onAddTransaction={handleAddTransaction} />}
                 {activeTab === 'store' && <Store products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} onAddSale={handleAddSale} />}
                 {activeTab === 'history' && <History vehicles={vehicles} onRevertCheckout={handleRevertCheckout} />}
                 {activeTab === 'reports' && <Reports vehicles={vehicles} sales={sales} />}

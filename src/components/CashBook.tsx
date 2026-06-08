@@ -1,27 +1,36 @@
 import React, { useState } from 'react';
 import { Transaction, ParkedVehicle } from '../types';
-import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar } from 'lucide-react';
+import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface CashBookProps {
   transactions: Transaction[];
   vehicles: ParkedVehicle[];
   onAddTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   onDeleteTransaction: (id: string) => Promise<void>;
+  onPayFiado: (id: string, paymentMethod: string) => Promise<void>;
 }
 
-export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTransaction }: CashBookProps) {
+export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTransaction, onPayFiado }: CashBookProps) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [payingFiadoId, setPayingFiadoId] = useState<string | null>(null);
+  const [fiadoPaymentMethod, setFiadoPaymentMethod] = useState<'cash'|'machine'|'card'|'pix'>('cash');
 
   // Derived today's timestamp bounds
   const [year, month, day] = selectedDate.split('-').map(Number);
   const startOfDay = new Date(year, month - 1, day, 0, 0, 0).getTime();
   const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999).getTime();
 
-  // Combine manual transactions (expenses only) + vehicle checkouts for the selected day
-  const dailyTransactions = transactions.filter(t => t.type === 'expense' && t.date >= startOfDay && t.date <= endOfDay);
-  const dailyCheckouts = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay);
+  // Combine manual transactions + vehicle checkouts for the selected day
+  const dailyTransactions = transactions.filter(t => t.date >= startOfDay && t.date <= endOfDay);
+  const dailyCheckouts = vehicles.filter(v => 
+    v.status === 'completed' && 
+    !['fiado', 'card', 'postpaid_card'].includes(v.paymentMethod || '') && 
+    v.checkOutTime && 
+    v.checkOutTime >= startOfDay && 
+    v.checkOutTime <= endOfDay
+  );
 
   const combinedEntries = [
     ...dailyTransactions.map(t => ({
@@ -39,7 +48,6 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
         v.paymentMethod === 'card' ? 'PRÉ PAGO' : 
         v.paymentMethod === 'cash' ? 'DINHEIRO' : 
         v.paymentMethod === 'postpaid_card' ? 'PÓS-PAGO' : 
-        v.paymentMethod === 'fiado' ? 'FIADO' : 
         v.paymentMethod?.toUpperCase() || 'N/A'
       })`,
       amount: v.price || 0,
@@ -53,6 +61,8 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
   const totalExpense = combinedEntries.filter(e => e.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
   const balance = totalIncome - totalExpense;
 
+  const unpaidFiados = vehicles.filter(v => v.status === 'completed' && v.paymentMethod === 'fiado' && !v.isFiadoPaid);
+  
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description || !amount) return;
@@ -125,7 +135,78 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 flex flex-col gap-6">
+          {/* Caixa de Fiado Section */}
+          <div className="bg-white rounded-2xl shadow-sm border border-orange-200 overflow-hidden">
+             <div className="p-6 border-b border-orange-100 bg-orange-50/50">
+               <div className="flex items-center gap-2">
+                 <AlertTriangle className="w-5 h-5 text-orange-500" />
+                 <h2 className="text-lg font-bold text-orange-900">Caixa do Fiado</h2>
+               </div>
+               <p className="text-sm text-orange-700 mt-1">
+                 Total em haver: <span className="font-bold">R$ {unpaidFiados.reduce((acc, v) => acc + (v.price || 0), 0).toFixed(2)}</span> ({unpaidFiados.length})
+               </p>
+             </div>
+             
+             <div className="p-4 max-h-[300px] overflow-y-auto space-y-3 bg-white">
+               {unpaidFiados.length === 0 ? (
+                 <p className="text-sm text-slate-500 text-center py-4">Nenhum fiado pendente.</p>
+               ) : (
+                 unpaidFiados.map(v => (
+                   <div key={v.id} className="p-3 border border-slate-100 rounded-xl bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                     <div className="flex justify-between items-start mb-2">
+                       <div>
+                         <p className="font-semibold text-slate-900 text-sm">{v.identifier}</p>
+                         <p className="text-xs text-slate-500">{new Date(v.checkOutTime || 0).toLocaleDateString('pt-BR')} • {v.ownerName}</p>
+                       </div>
+                       <span className="font-bold text-orange-600">R$ {(v.price || 0).toFixed(2)}</span>
+                     </div>
+                     
+                     {payingFiadoId === v.id ? (
+                        <div className="mt-3 space-y-2">
+                           <select 
+                             value={fiadoPaymentMethod}
+                             onChange={(e) => setFiadoPaymentMethod(e.target.value as any)}
+                             className="w-full text-sm p-2 rounded-lg border border-slate-200 bg-white"
+                           >
+                              <option value="cash">Dinheiro</option>
+                              <option value="machine">Cartão D/C (Máquina)</option>
+                           </select>
+                           <div className="flex gap-2">
+                             <button
+                               onClick={() => setPayingFiadoId(null)}
+                               className="flex-1 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                             >
+                               Cancelar
+                             </button>
+                             <button
+                               onClick={async () => {
+                                 await onPayFiado(v.id, fiadoPaymentMethod);
+                                 setPayingFiadoId(null);
+                               }}
+                               className="flex-1 py-1.5 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors flex justify-center items-center gap-1"
+                             >
+                               <CheckCircle className="w-3 h-3" /> Pagar
+                             </button>
+                           </div>
+                        </div>
+                     ) : (
+                       <button 
+                         onClick={() => {
+                           setPayingFiadoId(v.id);
+                           setFiadoPaymentMethod('cash');
+                         }}
+                         className="w-full mt-2 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
+                       >
+                         Dar Baixa
+                       </button>
+                     )}
+                   </div>
+                 ))
+               )}
+             </div>
+          </div>
+
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4">Nova Despesa</h2>
             <form onSubmit={handleAddTransaction} className="space-y-4">

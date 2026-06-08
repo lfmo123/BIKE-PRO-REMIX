@@ -21,6 +21,8 @@ export interface ParkedVehicle {
   cardLost?: boolean;
   lostCardName?: string;
   lostCardPhone?: string;
+  isFiadoPaid?: boolean;
+  fiadoPaymentDate?: number;
 }
 
 export interface Pricing {
@@ -44,6 +46,15 @@ export interface Product {
   name: string;
   price: number;
   stock: number;
+}
+
+export interface CustomerCard {
+  id: string;
+  cardNumber: string;
+  ownerName: string;
+  phone: string;
+  type: 'prepaid' | 'postpaid';
+  balance: number; // Positive if prepaid has credits, negative if postpaid has debt
 }
 
 export interface Sale {

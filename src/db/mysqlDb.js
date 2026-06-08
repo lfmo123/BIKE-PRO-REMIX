@@ -71,6 +71,17 @@ export async function initMySQL() {
     )
   `;
 
+  const createCustomerCardsQuery = `
+    CREATE TABLE IF NOT EXISTS customer_cards (
+      id VARCHAR(50) PRIMARY KEY,
+      cardNumber VARCHAR(50) NOT NULL,
+      ownerName VARCHAR(255) NOT NULL,
+      phone VARCHAR(50),
+      type VARCHAR(50) NOT NULL,
+      balance DECIMAL(10, 2) DEFAULT 0
+    )
+  `;
+
   try {
     const currentPool = getPool();
     await currentPool.query('SELECT 1'); // Testa a conexão primeiro
@@ -78,6 +89,7 @@ export async function initMySQL() {
     await currentPool.query(createPricingQuery);
     await currentPool.query(createLostCardsQuery);
     await currentPool.query(createTransactionsQuery);
+    await currentPool.query(createCustomerCardsQuery);
     
     // Inserir preços padrão se a tabela estiver vazia
     const [rows] = await currentPool.query('SELECT COUNT(*) as count FROM pricing');
@@ -182,6 +194,30 @@ export async function checkOutVehicle(id, price, paymentMethod, checkOutTime) {
   return { ...rows[0], price: rows[0].price ? parseFloat(rows[0].price) : undefined, cardLost: !!rows[0].cardLost };
 }
 
+export async function payFiado(id, paymentMethod, paymentDate) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  
+  // try to add columns if they don't exist
+  try {
+    await getPool().query('ALTER TABLE vehicles ADD COLUMN isFiadoPaid BOOLEAN DEFAULT FALSE');
+    await getPool().query('ALTER TABLE vehicles ADD COLUMN fiadoPaymentDate BIGINT');
+    await getPool().query('ALTER TABLE vehicles ADD COLUMN fiadoPaymentMethod VARCHAR(50)');
+  } catch (e) {
+    // ignores
+  }
+
+  const query = `
+    UPDATE vehicles 
+    SET isFiadoPaid = TRUE, fiadoPaymentDate = ?, fiadoPaymentMethod = ?
+    WHERE id = ?
+  `;
+  await getPool().query(query, [paymentDate, paymentMethod, id]);
+  
+  const [rows] = await getPool().query('SELECT * FROM vehicles WHERE id = ?', [id]);
+  if (!rows || rows.length === 0) return null;
+  return { ...rows[0], price: rows[0].price ? parseFloat(rows[0].price) : undefined };
+}
+
 export async function reportLostCard(id, lostCardName, lostCardPhone) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
   const query = `
@@ -235,6 +271,40 @@ export async function addLostCard(cardNumber, name, phone) {
 export async function removeLostCard(cardNumber) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
   await getPool().query('DELETE FROM lost_cards WHERE card_number = ?', [cardNumber]);
+}
+
+export async function getCustomerCards() {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const [rows] = await getPool().query('SELECT * FROM customer_cards');
+  return rows.map(r => ({ ...r, balance: r.balance ? parseFloat(r.balance) : 0 }));
+}
+
+export async function addCustomerCard(card) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const query = `
+    INSERT INTO customer_cards (id, cardNumber, ownerName, phone, type, balance)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+  await getPool().query(query, [
+    card.id, card.cardNumber, card.ownerName, card.phone || '', card.type, card.balance || 0
+  ]);
+  return card;
+}
+
+export async function updateCustomerCard(id, data) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const query = `
+    UPDATE customer_cards 
+    SET cardNumber = ?, ownerName = ?, phone = ?, type = ?, balance = ?
+    WHERE id = ?
+  `;
+  await getPool().query(query, [data.cardNumber, data.ownerName, data.phone || '', data.type, data.balance || 0, id]);
+  return { id, ...data };
+}
+
+export async function removeCustomerCard(id) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  await getPool().query('DELETE FROM customer_cards WHERE id = ?', [id]);
 }
 
 export async function getTransactions() {

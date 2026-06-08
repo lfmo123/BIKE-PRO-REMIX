@@ -17,6 +17,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
   const [showLostForm, setShowLostForm] = useState(false);
   const [lostName, setLostName] = useState('');
   const [lostPhone, setLostPhone] = useState('');
+  const [customPrice, setCustomPrice] = useState<string>('');
 
   useEffect(() => {
     if (vehicle) {
@@ -24,6 +25,8 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
       setShowLostForm(false);
       setLostName(vehicle.lostCardName || '');
       setLostPhone(vehicle.lostCardPhone || '');
+      const calcPrice = calculatePrice(vehicle, pricing, Date.now());
+      setCustomPrice(calcPrice.toFixed(2));
     }
   }, [vehicle]);
 
@@ -83,12 +86,19 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
               </div>
               <div className="bg-white p-2.5 rounded-lg border border-slate-100 flex flex-col justify-center">
                 <span className="text-sm font-medium text-slate-500 flex items-center mb-0.5">
-                  <DollarSign className="w-4 h-4 mr-1" /> Total
+                  <DollarSign className="w-4 h-4 mr-1" /> Total (R$)
                 </span>
-                <span className="font-bold text-emerald-600 text-xl leading-none">R$ {price.toFixed(2)}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={customPrice}
+                  onChange={(e) => setCustomPrice(e.target.value)}
+                  className="font-bold text-emerald-600 text-xl leading-none w-full bg-transparent outline-none p-0 border-b border-emerald-200 focus:border-emerald-500 transition-colors"
+                />
                 {vehicle.cardLost && pricing.lostCardFee && (
-                  <span className="text-xs text-red-500 leading-tight mt-1">
-                    + {pricing.lostCardFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  <span className="text-xs text-red-500 leading-tight mt-1 mb-0.5">
+                    + {pricing.lostCardFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (Cartão)
                   </span>
                 )}
               </div>
@@ -234,7 +244,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
 
           <div className="pt-2">
             <button
-              onClick={() => onConfirm(vehicle.id, price, paymentMethod)}
+              onClick={() => onConfirm(vehicle.id, parseFloat(customPrice) || 0, paymentMethod)}
               className="w-full py-3 sm:py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-lg sm:text-xl transition-colors shadow-lg shadow-slate-900/20 mt-1"
             >
               Confirmar Pagamento

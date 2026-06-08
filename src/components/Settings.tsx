@@ -213,7 +213,7 @@ export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange,
                 type="number"
                 min="0"
                 step="0.5"
-                value={localPricing.lostCardFee !== undefined ? localPricing.lostCardFee : ''}
+                value={localPricing.lostCardFee || ''}
                 onChange={(e) => setLocalPricing({ ...localPricing, lostCardFee: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                 className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all"
                 placeholder="0"

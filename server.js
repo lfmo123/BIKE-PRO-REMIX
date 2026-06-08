@@ -181,32 +181,132 @@ async function startServer() {
       const { price, paymentMethod } = req.body;
       const checkOutTime = Date.now();
       
+      let updatedVehicle;
+      
       if (dbType === 'firebase') {
-        const updatedVehicle = await firebaseDb.checkOutVehicle(id, price, paymentMethod, checkOutTime);
-        if (!updatedVehicle) return res.status(404).json({ error: 'Vehicle not found' });
-        res.json(updatedVehicle);
+        updatedVehicle = await firebaseDb.checkOutVehicle(id, price, paymentMethod, checkOutTime);
       } else if (dbType === 'mysql') {
-        const updatedVehicle = await mySqlCheckOutVehicle(id, price, paymentMethod, checkOutTime);
-        if (!updatedVehicle) return res.status(404).json({ error: 'Vehicle not found' });
-        res.json(updatedVehicle);
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        updatedVehicle = await mysqlDb.checkOutVehicle(id, price, paymentMethod, checkOutTime);
+      } else {
+        const db = readDb();
+        const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
+        if (vehicleIndex > -1) {
+          db.vehicles[vehicleIndex] = {
+            ...db.vehicles[vehicleIndex],
+            status: 'completed',
+            checkOutTime,
+            price,
+            paymentMethod
+          };
+          writeDb(db);
+          updatedVehicle = db.vehicles[vehicleIndex];
+        }
+      }
+      
+      if (!updatedVehicle) return res.status(404).json({ error: 'Vehicle not found' });
+
+      // Process Customer Card deduction if applicable
+      if (paymentMethod === 'card' || paymentMethod === 'postpaid_card') {
+        let cards = [];
+        if (dbType === 'firebase') {
+          cards = await firebaseDb.getCustomerCards();
+        } else if (dbType === 'mysql') {
+          const mysqlDb = await import('./src/db/mysqlDb.js');
+          cards = await mysqlDb.getCustomerCards();
+        } else {
+          cards = readDb().customerCards || [];
+        }
+
+        const card = cards.find(c => c.cardNumber === updatedVehicle.cardNumber);
+        if (card) {
+          const newBalance = paymentMethod === 'card' 
+            ? card.balance - parseFloat(price) 
+            : card.balance + parseFloat(price); // prepay deducts from credits, postpay adds to debt
+          
+          if (dbType === 'firebase') {
+            await firebaseDb.updateCustomerCard(card.id, { balance: newBalance });
+          } else if (dbType === 'mysql') {
+            const mysqlDb = await import('./src/db/mysqlDb.js');
+            await mysqlDb.updateCustomerCard(card.id, { ...card, balance: newBalance });
+          } else {
+            const db = readDb();
+            const cIndex = (db.customerCards || []).findIndex(c => c.id === card.id);
+            if (cIndex > -1) {
+              db.customerCards[cIndex].balance = newBalance;
+              writeDb(db);
+            }
+          }
+        }
+      }
+
+      res.json(updatedVehicle);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to check-out vehicle' });
+    }
+  });
+
+  // Pay fiado
+  app.put('/api/vehicles/:id/pay-fiado', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentMethod } = req.body;
+      const paymentDate = Date.now();
+      
+      let vehicle;
+      
+      if (dbType === 'firebase') {
+        vehicle = await firebaseDb.payFiado(id, paymentMethod, paymentDate);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        vehicle = await mysqlDb.payFiado(id, paymentMethod, paymentDate);
       } else {
         const db = readDb();
         const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
         if (vehicleIndex === -1) return res.status(404).json({ error: 'Vehicle not found' });
         
-        db.vehicles[vehicleIndex] = {
-          ...db.vehicles[vehicleIndex],
-          status: 'completed',
-          checkOutTime,
-          price,
-          paymentMethod
-        };
+        db.vehicles[vehicleIndex].isFiadoPaid = true;
+        db.vehicles[vehicleIndex].fiadoPaymentDate = paymentDate;
+        db.vehicles[vehicleIndex].fiadoPaymentMethod = paymentMethod;
         writeDb(db);
-        res.json(db.vehicles[vehicleIndex]);
+        vehicle = db.vehicles[vehicleIndex];
       }
+      
+      if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+      
+      // Also add transaction
+      const transId = Math.random().toString(36).substring(2, 9);
+      const paymentText = paymentMethod === 'machine' ? 'MÁQUINA' :
+                          paymentMethod === 'card' ? 'CARTÃO' :
+                          paymentMethod === 'cash' ? 'DINHEIRO' :
+                          paymentMethod === 'pix' ? 'PIX' :
+                          paymentMethod ? paymentMethod.toUpperCase() : 'N/A';
+                          
+      const newTransaction = {
+        id: transId,
+        description: `Baixa de Fiado: ${vehicle.identifier} (${paymentText})`,
+        amount: vehicle.price || 0,
+        date: paymentDate,
+        type: 'income'
+      };
+      
+      if (dbType === 'firebase') {
+        await firebaseDb.addTransaction(newTransaction);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        await mysqlDb.addTransaction(newTransaction);
+      } else {
+        const db = readDb();
+        if (!db.transactions) db.transactions = [];
+        db.transactions.push(newTransaction);
+        writeDb(db);
+      }
+      
+      res.json(vehicle);
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: error.message || 'Failed to check-out vehicle' });
+      res.status(500).json({ error: error.message || 'Failed to pay fiado' });
     }
   });
 
@@ -265,6 +365,95 @@ async function startServer() {
     } catch (error) {
       console.error('Error reverting checkin:', error);
       res.status(500).json({ error: error.message || 'Failed to revert checkin' });
+    }
+  });
+
+  // Customer Cards endpoints
+  app.get('/api/customer-cards', async (req, res) => {
+    try {
+      if (dbType === 'firebase') {
+        res.json(await firebaseDb.getCustomerCards());
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        res.json(await mysqlDb.getCustomerCards());
+      } else {
+        const db = readDb();
+        res.json(db.customerCards || []);
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to fetch customer cards' });
+    }
+  });
+
+  app.post('/api/customer-cards', async (req, res) => {
+    try {
+      const card = req.body;
+      let newCard;
+      if (dbType === 'firebase') {
+        newCard = await firebaseDb.addCustomerCard(card);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        newCard = await mysqlDb.addCustomerCard(card);
+      } else {
+        const db = readDb();
+        if (!db.customerCards) db.customerCards = [];
+        db.customerCards.push(card);
+        writeDb(db);
+        newCard = card;
+      }
+      res.status(201).json(newCard);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to add customer card' });
+    }
+  });
+
+  app.put('/api/customer-cards/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+      let updatedCard;
+      if (dbType === 'firebase') {
+         updatedCard = await firebaseDb.updateCustomerCard(id, data);
+      } else if (dbType === 'mysql') {
+         const mysqlDb = await import('./src/db/mysqlDb.js');
+         updatedCard = await mysqlDb.updateCustomerCard(id, data);
+      } else {
+         const db = readDb();
+         const index = (db.customerCards || []).findIndex(c => c.id === id);
+         if (index > -1) {
+           db.customerCards[index] = { ...db.customerCards[index], ...data };
+           writeDb(db);
+           updatedCard = db.customerCards[index];
+         }
+      }
+      res.json(updatedCard || {});
+    } catch (error) {
+       console.error(error);
+       res.status(500).json({ error: error.message || 'Failed to update customer card' });
+    }
+  });
+
+  app.delete('/api/customer-cards/:id', async (req, res) => {
+    try {
+       const { id } = req.params;
+       if (dbType === 'firebase') {
+         await firebaseDb.removeCustomerCard(id);
+       } else if (dbType === 'mysql') {
+         const mysqlDb = await import('./src/db/mysqlDb.js');
+         await mysqlDb.removeCustomerCard(id);
+       } else {
+         const db = readDb();
+         if (db.customerCards) {
+           db.customerCards = db.customerCards.filter(c => c.id !== id);
+           writeDb(db);
+         }
+       }
+       res.status(204).send();
+    } catch (error) {
+       console.error(error);
+       res.status(500).json({ error: error.message || 'Failed to remove customer card' });
     }
   });
 

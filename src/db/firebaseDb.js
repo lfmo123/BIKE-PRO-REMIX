@@ -102,6 +102,21 @@ export async function checkOutVehicle(id, price, paymentMethod, checkOutTime) {
   return { ...vehicleSnap.data(), ...updatedData };
 }
 
+export async function payFiado(id, paymentMethod, paymentDate) {
+  const vehicleRef = doc(db, 'vehicles', id);
+  const vehicleSnap = await getDoc(vehicleRef);
+  if (!vehicleSnap.exists()) return null;
+  
+  const updatedData = {
+    isFiadoPaid: true,
+    fiadoPaymentDate: paymentDate,
+    fiadoPaymentMethod: paymentMethod
+  };
+  
+  await updateDoc(vehicleRef, updatedData);
+  return { ...vehicleSnap.data(), ...updatedData };
+}
+
 // ------------------------------------
 // Transactions
 // ------------------------------------
@@ -119,6 +134,34 @@ export async function addTransaction(transaction) {
 
 export async function removeTransaction(id) {
   await deleteDoc(doc(db, 'transactions', id));
+}
+
+// ------------------------------------
+// Customer Cards
+// ------------------------------------
+export async function getCustomerCards() {
+  const snapshot = await getDocs(collection(db, 'customerCards'));
+  const cards = [];
+  snapshot.forEach(docSnap => cards.push(docSnap.data()));
+  return cards;
+}
+
+export async function addCustomerCard(card) {
+  await setDoc(doc(db, 'customerCards', card.id), card);
+  return card;
+}
+
+export async function updateCustomerCard(id, data) {
+  const cardRef = doc(db, 'customerCards', id);
+  const cardSnap = await getDoc(cardRef);
+  if (!cardSnap.exists()) return null;
+  const updatedData = { ...cardSnap.data(), ...data };
+  await updateDoc(cardRef, updatedData);
+  return updatedData;
+}
+
+export async function removeCustomerCard(id) {
+  await deleteDoc(doc(db, 'customerCards', id));
 }
 
 // ------------------------------------
