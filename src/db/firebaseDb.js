@@ -165,6 +165,25 @@ export async function removeCustomerCard(id) {
 }
 
 // ------------------------------------
+// Operators
+// ------------------------------------
+export async function getOperators() {
+  const snapshot = await getDocs(collection(db, 'operators'));
+  const operators = [];
+  snapshot.forEach(docSnap => operators.push(docSnap.data()));
+  return operators;
+}
+
+export async function addOperator(operator) {
+  await setDoc(doc(db, 'operators', operator.id), operator);
+  return operator;
+}
+
+export async function removeOperator(id) {
+  await deleteDoc(doc(db, 'operators', id));
+}
+
+// ------------------------------------
 // Shifts
 // ------------------------------------
 export async function getShifts() {

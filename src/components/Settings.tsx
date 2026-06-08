@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Save, DollarSign, Download, Upload, Database, Cloud, Trash2 } from 'lucide-react';
-import { ParkedVehicle, Pricing, LostCard } from '../types';
+import { ParkedVehicle, Pricing, LostCard, Operator } from '../types';
 
 interface SettingsProps {
+  operators: Operator[];
+  onAddOperator: (name: string) => Promise<void>;
+  onDeleteOperator: (id: string) => Promise<void>;
   pricing: Pricing;
   vehicles: ParkedVehicle[];
   lostCards?: LostCard[];
@@ -11,11 +14,12 @@ interface SettingsProps {
   onResetApp: () => void;
 }
 
-export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange, onSavePricing, onResetApp }: SettingsProps) {
+export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, vehicles, lostCards = [], onLostCardsChange, onSavePricing, onResetApp }: SettingsProps) {
   const [localPricing, setLocalPricing] = useState<Pricing>(pricing);
   const [localAutoBackupEnabled, setLocalAutoBackupEnabled] = useState(localStorage.getItem('autoBackupEnabled') === 'true');
   const [isSaving, setIsSaving] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [operatorName, setOperatorName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -274,6 +278,47 @@ export function Settings({ pricing, vehicles, lostCards = [], onLostCardsChange,
             ))}
           </div>
         )}
+      </div>
+
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <h2 className="text-lg font-bold text-slate-900 mb-4">Cadastro de Operadores</h2>
+        <p className="text-sm text-slate-500 mb-4">Gerencie os operadores que podem abrir e fechar o caixa.</p>
+        
+        <div className="flex gap-2 mb-4">
+          <input 
+            type="text" 
+            placeholder="Nome do operador" 
+            className="flex-1 px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+            value={operatorName}
+            onChange={e => setOperatorName(e.target.value)}
+          />
+          <button 
+            onClick={() => {
+              if (operatorName.trim()) {
+                onAddOperator(operatorName.trim());
+                setOperatorName('');
+              }
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold"
+          >
+            Adicionar
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {operators.map(op => (
+            <div key={op.id} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-xl">
+              <span className="font-medium text-slate-700">{op.name}</span>
+              <button 
+                onClick={() => onDeleteOperator(op.id)}
+                className="text-red-500 hover:text-red-700 p-2"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+          {operators.length === 0 && <p className="text-slate-400 text-sm">Nenhum operador cadastrado.</p>}
+        </div>
       </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">

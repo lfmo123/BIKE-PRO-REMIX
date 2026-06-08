@@ -105,6 +105,14 @@ export async function initMySQL() {
     await currentPool.query(createCustomerCardsQuery);
     await currentPool.query(createShiftsQuery);
     
+    const createOperatorsQuery = `
+      CREATE TABLE IF NOT EXISTS operators (
+        id VARCHAR(50) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL
+      )
+    `;
+    await currentPool.query(createOperatorsQuery);
+    
     // Inserir preços padrão se a tabela estiver vazia
     const [rows] = await currentPool.query('SELECT COUNT(*) as count FROM pricing');
     if (rows[0].count === 0) {
@@ -319,6 +327,23 @@ export async function updateCustomerCard(id, data) {
 export async function removeCustomerCard(id) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
   await getPool().query('DELETE FROM customer_cards WHERE id = ?', [id]);
+}
+
+export async function getOperators() {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const [rows] = await getPool().query('SELECT * FROM operators');
+  return rows;
+}
+
+export async function addOperator(operator) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  await getPool().query('INSERT INTO operators (id, name) VALUES (?, ?)', [operator.id, operator.name]);
+  return operator;
+}
+
+export async function removeOperator(id) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  await getPool().query('DELETE FROM operators WHERE id = ?', [id]);
 }
 
 export async function getShifts() {

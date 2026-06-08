@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Shift, Transaction, ParkedVehicle, Sale } from '../types';
+import { Shift, Transaction, ParkedVehicle, Sale, Operator } from '../types';
 import { CheckSquare, LockIcon, Loader2, ArrowUpRight, ArrowDownRight, Clock, User, Banknote } from 'lucide-react';
 
 interface ShiftControlProps {
+  operators: Operator[];
   shifts: Shift[];
   transactions: Transaction[];
   vehicles: ParkedVehicle[];
@@ -13,8 +14,8 @@ interface ShiftControlProps {
   onCloseShift: (shift: Shift) => Promise<void>;
 }
 
-export function ShiftControl({ shifts, transactions, vehicles, sales, activeShift, user, onOpenShift, onCloseShift }: ShiftControlProps) {
-  const [operatorName, setOperatorName] = useState(user?.displayName || 'Operador');
+export function ShiftControl({ operators, shifts, transactions, vehicles, sales, activeShift, user, onOpenShift, onCloseShift }: ShiftControlProps) {
+  const [operatorName, setOperatorName] = useState('');
   const [initialChange, setInitialChange] = useState('');
   const [finalChange, setFinalChange] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -141,13 +142,17 @@ export function ShiftControl({ shifts, transactions, vehicles, sales, activeShif
                           <label className="block text-sm font-medium text-slate-700 mb-1">Operador Responsável</label>
                           <div className="relative">
                               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-                              <input 
-                                  type="text" 
+                              <select 
                                   required 
-                                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500" 
+                                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 appearance-none bg-white" 
                                   value={operatorName} 
                                   onChange={e => setOperatorName(e.target.value)} 
-                              />
+                              >
+                                  <option value="">Selecione um operador...</option>
+                                  {operators.map(op => (
+                                    <option key={op.id} value={op.name}>{op.name}</option>
+                                  ))}
+                              </select>
                           </div>
                       </div>
                       <div>

@@ -17,7 +17,7 @@ import { Store } from './components/Store';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
 import { ResetAppModal } from './components/ResetAppModal';
-import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard, Shift } from './types';
+import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard, Shift, Operator } from './types';
 
 const defaultPricing: Pricing = {
   bicycle: 5,
@@ -36,6 +36,7 @@ export default function App() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [customerCards, setCustomerCards] = useState<CustomerCard[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [operators, setOperators] = useState<Operator[]>([]);
   const activeShift = shifts.find(s => s.status === 'open');
   const [pricing, setPricing] = useState<Pricing>(defaultPricing);
   const [lostCards, setLostCards] = useState<LostCard[]>([]);
@@ -47,6 +48,33 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [vehicleToCheckOut, setVehicleToCheckOut] = useState<ParkedVehicle | null>(null);
 
+  const fetchOperators = async () => {
+    try {
+      const res = await fetch('/api/operators');
+      if (res.ok) setOperators(await res.json());
+    } catch (e) {
+      console.error('Failed to fetch operators', e);
+    }
+  };
+
+  const handleAddOperator = async (name: string) => {
+    try {
+      const res = await fetch('/api/operators', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: Date.now().toString(), name })
+      });
+      if (res.ok) fetchOperators();
+    } catch (e) { console.error('Failed to add operator', e); }
+  };
+
+  const handleDeleteOperator = async (id: string) => {
+    try {
+      const res = await fetch(`/api/operators/${id}`, { method: 'DELETE' });
+      if (res.ok) fetchOperators();
+    } catch (e) { console.error('Failed to delete operator', e); }
+  };
+
   useEffect(() => {
     fetchVehicles();
     fetchPricing();
@@ -54,6 +82,7 @@ export default function App() {
     fetchTransactions();
     fetchCustomerCards();
     fetchShifts();
+    fetchOperators();
 
     // Auto backup local check
     const performAutoBackup = async () => {
@@ -528,12 +557,12 @@ export default function App() {
                 )}
                 {activeTab === 'checkout' && <CheckOut vehicles={vehicles} pricing={pricing} onCheckOut={handleCheckOut} />}
                 {activeTab === 'cashbook' && <CashBook transactions={transactions} vehicles={vehicles} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} onPayFiado={handlePayFiado} />}
-                {activeTab === 'shifts' && <ShiftControl shifts={shifts} transactions={transactions} vehicles={vehicles} sales={sales} activeShift={activeShift} user={user as any} onOpenShift={handleOpenShift} onCloseShift={handleCloseShift} />}
+                {activeTab === 'shifts' && <ShiftControl operators={operators} shifts={shifts} transactions={transactions} vehicles={vehicles} sales={sales} activeShift={activeShift} user={user as any} onOpenShift={handleOpenShift} onCloseShift={handleCloseShift} />}
                 {activeTab === 'cards' && <CustomerCards cards={customerCards} onAddCard={handleAddCard} onUpdateCard={handleUpdateCard} onDeleteCard={handleDeleteCard} onAddTransaction={handleAddTransaction} />}
                 {activeTab === 'store' && <Store products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} onAddSale={handleAddSale} />}
                 {activeTab === 'history' && <History vehicles={vehicles} onRevertCheckout={handleRevertCheckout} />}
                 {activeTab === 'reports' && <Reports vehicles={vehicles} sales={sales} />}
-                {activeTab === 'settings' && <Settings pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={fetchLostCards} onResetApp={() => setIsResetAppOpen(true)} />}
+                {activeTab === 'settings' && <Settings operators={operators} onAddOperator={handleAddOperator} onDeleteOperator={handleDeleteOperator} pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={fetchLostCards} onResetApp={() => setIsResetAppOpen(true)} />}
               </motion.div>
             </AnimatePresence>
           </div>

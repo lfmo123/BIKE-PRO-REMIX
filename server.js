@@ -524,6 +524,72 @@ async function startServer() {
     }
   });
 
+  // Operators endpoints
+  app.get('/api/operators', async (req, res) => {
+    try {
+      if (dbType === 'firebase') {
+        const firebaseDb = await import('./src/db/firebaseDb.js');
+        res.json(await firebaseDb.getOperators());
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        res.json(await mysqlDb.getOperators());
+      } else {
+        const db = readDb();
+        res.json(db.operators || []);
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to fetch operators' });
+    }
+  });
+
+  app.post('/api/operators', async (req, res) => {
+    try {
+      const operator = req.body;
+      let newOperator;
+      if (dbType === 'firebase') {
+        const firebaseDb = await import('./src/db/firebaseDb.js');
+        newOperator = await firebaseDb.addOperator(operator);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        newOperator = await mysqlDb.addOperator(operator);
+      } else {
+        const db = readDb();
+        if (!db.operators) db.operators = [];
+        db.operators.push(operator);
+        writeDb(db);
+        newOperator = operator;
+      }
+      res.status(201).json(newOperator);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to add operator' });
+    }
+  });
+
+  app.delete('/api/operators/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (dbType === 'firebase') {
+        const firebaseDb = await import('./src/db/firebaseDb.js');
+        await firebaseDb.removeOperator(id);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        await mysqlDb.removeOperator(id);
+      } else {
+        const db = readDb();
+        if (db.operators) {
+          db.operators = db.operators.filter(o => o.id !== id);
+          writeDb(db);
+        }
+      }
+      res.json({ success: true });
+    } catch (error) {
+       console.error(error);
+       res.status(500).json({ error: error.message || 'Failed to delete operator' });
+    }
+  });
+
   // Get lost cards
   app.get('/api/lost-cards', async (req, res) => {
     try {

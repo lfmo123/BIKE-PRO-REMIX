@@ -85,3 +85,8 @@ export interface Shift {
      overnightCount: number;
   };
 }
+
+export interface Operator {
+  id: string;
+  name: string;
+}
