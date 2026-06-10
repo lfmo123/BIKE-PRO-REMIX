@@ -19,11 +19,12 @@ export function Dashboard({ vehicles, pricing, lostCards, products = [], onAddSa
 
   const activeVehicles = vehicles.filter(v => v.status === 'active');
   const storedVehicles = vehicles.filter(v => v.status === 'stored');
+  const occupyingVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
   
   const typeCount = {
-    bicycle: activeVehicles.filter(v => v.type === 'bicycle').length,
-    ebike: activeVehicles.filter(v => v.type === 'ebike').length,
-    motorcycle: activeVehicles.filter(v => v.type === 'motorcycle').length,
+    bicycle: occupyingVehicles.filter(v => v.type === 'bicycle').length,
+    ebike: occupyingVehicles.filter(v => v.type === 'ebike').length,
+    motorcycle: occupyingVehicles.filter(v => v.type === 'motorcycle').length,
   };
 
   return (

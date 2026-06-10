@@ -1061,7 +1061,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Total Estacionados</p>
-                <p className="text-2xl font-black text-slate-900">{vehicles.filter(v => v.status === 'active').length}</p>
+                <p className="text-2xl font-black text-slate-900">{vehicles.filter(v => v.status === 'active' || v.status === 'stored').length}</p>
               </div>
             </div>
           </div>
@@ -1082,7 +1082,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {vehicles.filter(v => v.status === 'active')
+                  {vehicles.filter(v => v.status === 'active' || v.status === 'stored')
                     .sort((a,b) => b.checkInTime - a.checkInTime)
                     .map((vehicle, index) => (
                     <tr key={vehicle.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
@@ -1097,11 +1097,11 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
                         {vehicle.ownerName || '-'}
                       </td>
                       <td className="p-4 text-sm font-medium text-slate-700 capitalize">
-                        {vehicle.type === 'bicycle' ? 'Bicicleta' : vehicle.type === 'motorcycle' ? 'Moto' : 'Carro'}
+                        {vehicle.type === 'bicycle' ? 'Bicicleta' : vehicle.type === 'ebike' ? 'Bicicleta Elétrica' : vehicle.type === 'motorcycle' ? 'Moto' : 'Carro'}
                       </td>
                     </tr>
                   ))}
-                  {vehicles.filter(v => v.status === 'active').length === 0 && (
+                  {vehicles.filter(v => v.status === 'active' || v.status === 'stored').length === 0 && (
                     <tr>
                       <td colSpan={4} className="p-8 text-center text-slate-500">
                         Nenhum veículo estacionado no momento.
