@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ParkedVehicle, Sale } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users, ShoppingCart } from 'lucide-react';
+import { getLocalDateString } from '../lib/dateUtils';
 
 interface ReportsProps {
   vehicles: ParkedVehicle[];
@@ -9,18 +10,18 @@ interface ReportsProps {
 }
 
 export function Reports({ vehicles, sales = [] }: ReportsProps) {
-  const [reportType, setReportType] = useState<'daily' | 'monthly' | 'custom' | 'cards' | 'store'>('daily');
+  const [reportType, setReportType] = useState<'daily' | 'monthly' | 'custom' | 'cards' | 'store' | 'parked'>('daily');
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    getLocalDateString()
   );
   const [selectedMonth, setSelectedMonth] = useState<string>(
-    new Date().toISOString().slice(0, 7) // YYYY-MM
+    getLocalDateString().slice(0, 7) // YYYY-MM
   );
   const [startDate, setStartDate] = useState<string>(
-    new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0]
+    getLocalDateString(Date.now() - 7 * 24 * 60 * 60 * 1000)
   );
   const [endDate, setEndDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    getLocalDateString()
   );
   const [searchCard, setSearchCard] = useState<string>('');
   const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<ParkedVehicle | null>(null);
@@ -288,6 +289,16 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
               }`}
             >
               Loja
+            </button>
+            <button
+              onClick={() => setReportType('parked')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                reportType === 'parked' 
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Estacionados
             </button>
           </div>
 
@@ -1037,6 +1048,69 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {reportType === 'parked' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+              <div className="bg-blue-100 p-3 rounded-xl">
+                <Bike className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Total Estacionados</p>
+                <p className="text-2xl font-black text-slate-900">{vehicles.filter(v => v.status === 'active').length}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[calc(100vh-250px)]">
+            <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center shrink-0">
+              <Clock className="w-5 h-5 mr-2 text-blue-500" />
+              Veículos Atualmente Estacionados
+            </h3>
+            <div className="overflow-auto border border-slate-100 rounded-xl flex-1 relative">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead className="sticky top-0 z-10">
+                  <tr>
+                    <th className="p-4 border-b border-slate-100 bg-slate-50 text-sm font-bold text-slate-500 rounded-tl-xl whitespace-nowrap">Entrada</th>
+                    <th className="p-4 border-b border-slate-100 bg-slate-50 text-sm font-bold text-slate-500">Cartão / ID</th>
+                    <th className="p-4 border-b border-slate-100 bg-slate-50 text-sm font-bold text-slate-500">Cliente</th>
+                    <th className="p-4 border-b border-slate-100 bg-slate-50 text-sm font-bold text-slate-500 rounded-tr-xl">Tipo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vehicles.filter(v => v.status === 'active')
+                    .sort((a,b) => b.checkInTime - a.checkInTime)
+                    .map((vehicle, index) => (
+                    <tr key={vehicle.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                      <td className="p-4 text-sm font-medium text-slate-700 whitespace-nowrap">
+                        {new Date(vehicle.checkInTime).toLocaleString('pt-BR')}
+                      </td>
+                      <td className="p-4 text-sm">
+                        {vehicle.cardNumber && <span className="inline-block px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-bold mr-2">C: {vehicle.cardNumber}</span>}
+                        {vehicle.identifier && <span className="font-bold text-indigo-600 uppercase">{vehicle.identifier}</span>}
+                      </td>
+                      <td className="p-4 text-sm font-medium text-slate-900 capitalize truncate max-w-[200px]">
+                        {vehicle.ownerName || '-'}
+                      </td>
+                      <td className="p-4 text-sm font-medium text-slate-700 capitalize">
+                        {vehicle.type === 'bicycle' ? 'Bicicleta' : vehicle.type === 'motorcycle' ? 'Moto' : 'Carro'}
+                      </td>
+                    </tr>
+                  ))}
+                  {vehicles.filter(v => v.status === 'active').length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-slate-500">
+                        Nenhum veículo estacionado no momento.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

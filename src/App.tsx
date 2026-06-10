@@ -18,6 +18,7 @@ import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
 import { ResetAppModal } from './components/ResetAppModal';
 import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard, Shift, Operator } from './types';
+import { getLocalDateString } from './lib/dateUtils';
 
 const defaultPricing: Pricing = {
   bicycle: 5,
@@ -101,8 +102,8 @@ export default function App() {
             const res = await fetch('/api/backup/export');
             if (res.ok) {
               const backupData = await res.json();
-              const dateStr = new Date().toISOString().split('T')[0];
-              const timeStr = new Date().toISOString().split('T')[1].replace(/:/g, '-').split('.')[0];
+              const dateStr = getLocalDateString();
+              const timeStr = new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-');
               const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
               const downloadAnchorNode = document.createElement('a');
               downloadAnchorNode.setAttribute("href", dataStr);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Bike, Zap, Motorbike, Search, Calendar, Clock, DollarSign, CreditCard, Banknote, Smartphone, X, Undo2 } from 'lucide-react';
 import { ParkedVehicle, VehicleType } from '../types';
+import { getLocalDateString } from '../lib/dateUtils';
 
 interface HistoryProps {
   vehicles: ParkedVehicle[];
@@ -10,7 +11,7 @@ interface HistoryProps {
 export function History({ vehicles, onRevertCheckout }: HistoryProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<VehicleType | 'all'>('all');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [selectedCardForHistory, setSelectedCardForHistory] = useState<string | null>(null);
   
   const [revertIntent, setRevertIntent] = useState<string | null>(null);

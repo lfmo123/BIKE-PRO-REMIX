@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Transaction, ParkedVehicle } from '../types';
 import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle } from 'lucide-react';
+import { getLocalDateString } from '../lib/dateUtils';
 
 interface CashBookProps {
   transactions: Transaction[];
@@ -13,7 +14,7 @@ interface CashBookProps {
 export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTransaction, onPayFiado }: CashBookProps) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [payingFiadoId, setPayingFiadoId] = useState<string | null>(null);
   const [fiadoPaymentMethod, setFiadoPaymentMethod] = useState<'cash'|'machine'|'card'|'pix'>('cash');
 

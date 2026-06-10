@@ -52,7 +52,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
       type,
       identifier: 'Não informada',
       ownerName: 'Não informado',
-      cardNumber,
+      cardNumber: cardNumber.trim().toUpperCase(),
       checkInTime: new Date(customDate).getTime(),
     });
     

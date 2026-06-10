@@ -73,7 +73,10 @@ async function startServer() {
   // Check-in a new vehicle
   app.post('/api/vehicles', async (req, res) => {
     try {
-      const { type, identifier, ownerName, cardNumber, checkInTime: reqCheckInTime } = req.body;
+      let { type, identifier, ownerName, cardNumber, checkInTime: reqCheckInTime } = req.body;
+      cardNumber = (cardNumber || '').trim().toUpperCase();
+      identifier = (identifier || '').trim().toUpperCase();
+      
       const id = Math.random().toString(36).substring(2, 9);
       const checkInTime = reqCheckInTime || Date.now();
       const status = 'active';

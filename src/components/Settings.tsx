@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Save, DollarSign, Download, Upload, Database, Cloud, Trash2 } from 'lucide-react';
 import { ParkedVehicle, Pricing, LostCard, Operator } from '../types';
+import { getLocalDateString } from '../lib/dateUtils';
 
 interface SettingsProps {
   operators: Operator[];
@@ -84,7 +85,7 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `bikepark_backup_completo_${new Date().toISOString().split('T')[0]}.json`);
+      downloadAnchorNode.setAttribute("download", `bikepark_backup_completo_${getLocalDateString()}.json`);
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
