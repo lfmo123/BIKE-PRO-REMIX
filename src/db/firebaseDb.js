@@ -29,20 +29,41 @@ try {
 export async function getVehicles() {
   const q = query(collection(db, 'vehicles')); // Optionally add orderBy('checkInTime', 'desc') if indexed
   const snapshot = await getDocs(q);
-  const vehicles = [];
+  let vehicles = [];
   
   const thirtyDaysAgo = Date.now() - 2592000000;
-  let hasUpdates = false;
+  const activeSpotMap = new Map();
 
   snapshot.forEach(docSnap => {
     const v = docSnap.data();
     if (v.status === 'active' && v.checkInTime <= thirtyDaysAgo) {
       v.status = 'stored';
-      hasUpdates = true;
-      // We could update it in Firestore here
       updateDoc(docSnap.ref, { status: 'stored' }).catch(console.error);
     }
+    
+    if ((v.status === 'active' || v.status === 'stored') && v.cardNumber) {
+      const existing = activeSpotMap.get(v.cardNumber);
+      if (existing) {
+        if (v.checkInTime > existing.checkInTime) {
+          deleteDoc(doc(db, 'vehicles', existing.id)).catch(console.error);
+          activeSpotMap.set(v.cardNumber, v);
+        } else {
+          deleteDoc(doc(db, 'vehicles', v.id)).catch(console.error);
+          return;
+        }
+      } else {
+        activeSpotMap.set(v.cardNumber, v);
+      }
+    }
     vehicles.push(v);
+  });
+
+  // Filter out any we marked for deletion
+  vehicles = vehicles.filter(v => {
+    if ((v.status === 'active' || v.status === 'stored') && v.cardNumber) {
+      return activeSpotMap.get(v.cardNumber).id === v.id;
+    }
+    return true;
   });
   
   return vehicles.sort((a, b) => b.checkInTime - a.checkInTime);
