@@ -27,7 +27,8 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
   checkedOutVehicles.forEach(v => {
       const p = v.price || 0;
       if (v.paymentMethod === 'cash') cash += p;
-      else if (v.paymentMethod === 'card' || v.paymentMethod === 'machine') card += p;
+      else if (v.paymentMethod === 'machine') card += p;
+      else if (v.paymentMethod === 'card') prepaid += p;
       else if (v.paymentMethod === 'fiado') fiado += p;
       else if (v.paymentMethod === 'postpaid_card') postpaid += p;
       else cash += p; // default
@@ -37,7 +38,8 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
   shiftSales.forEach(s => {
       const p = s.totalPrice || 0;
       if (s.paymentMethod === 'cash') cash += p;
-      else if (s.paymentMethod === 'card' || s.paymentMethod === 'machine') card += p;
+      else if (s.paymentMethod === 'machine') card += p;
+      else if (s.paymentMethod === 'card') prepaid += p;
       else if (s.paymentMethod === 'fiado') fiado += p;
       else if (s.paymentMethod === 'postpaid_card') postpaid += p;
       else cash += p; // default
@@ -54,6 +56,7 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
 
   const totalIncomeReal = cash + card; 
   const totalPending = fiado + postpaid;
+  const totalInternalBalances = prepaid;
 
   const handlePrint = () => {
     // We launch print using an iframe just like before, but with the detailed layout
@@ -112,6 +115,11 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
     <h2>Valores a Receber Futuramente</h2>
     <div class="row"><span class="label">Cartões Pós-pagos (Fechamento)</span> <span class="value text-orange">R$ ${postpaid.toFixed(2)}</span></div>
     <div class="total-row" style="font-size:16px"><span class="label">Total Pós-pagos</span> <span class="value text-orange">R$ ${postpaid.toFixed(2)}</span></div>
+  </div>
+
+  <div class="section">
+    <h2>Abatimentos de Saldo</h2>
+    <div class="row"><span class="label">Uso de Cartões Pré-pago</span> <span class="value text-blue">R$ ${prepaid.toFixed(2)}</span></div>
   </div>
 
   <div class="section">
@@ -235,6 +243,20 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
                  <div className="flex justify-between">
                    <span className="text-orange-800">Cartões Pós-Pagos (Acrescentado à conta)</span>
                    <span className="font-semibold text-orange-900">R$ {postpaid.toFixed(2)}</span>
+                 </div>
+               </div>
+            </div>
+          )}
+
+          {prepaid > 0 && (
+            <div className="bg-blue-50 border text-sm border-blue-200 rounded-xl overflow-hidden">
+               <div className="bg-blue-100 px-4 py-3 border-b border-blue-200">
+                 <h3 className="font-bold text-blue-900">Uso de Saldo de Clientes</h3>
+               </div>
+               <div className="p-4 space-y-3">
+                 <div className="flex justify-between">
+                   <span className="text-blue-800">Estacionamento Pago com Pré-pago</span>
+                   <span className="font-semibold text-blue-900">R$ {prepaid.toFixed(2)}</span>
                  </div>
                </div>
             </div>

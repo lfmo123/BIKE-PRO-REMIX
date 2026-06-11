@@ -69,14 +69,14 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
     };
 
     checkedOutVehicles.forEach(v => {
-        if (v.price && !['fiado', 'postpaid_card'].includes(v.paymentMethod || '')) {
+        if (v.price && !['fiado', 'postpaid_card', 'card'].includes(v.paymentMethod || '')) {
             totalIncome += v.price;
             addPayment(v.price, v.paymentMethod);
         }
     });
 
     shiftSales.forEach(s => {
-       if (!['fiado', 'postpaid_card'].includes(s.paymentMethod || '')) {
+       if (!['fiado', 'postpaid_card', 'card'].includes(s.paymentMethod || '')) {
            totalIncome += s.totalPrice;
            addPayment(s.totalPrice, s.paymentMethod);
        }
