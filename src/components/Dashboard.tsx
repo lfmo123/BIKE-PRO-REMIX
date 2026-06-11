@@ -22,9 +22,15 @@ export function Dashboard({ vehicles, pricing, lostCards, products = [], onAddSa
   const occupyingVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
   
   const typeCount = {
-    bicycle: occupyingVehicles.filter(v => v.type === 'bicycle').length,
-    ebike: occupyingVehicles.filter(v => v.type === 'ebike').length,
-    motorcycle: occupyingVehicles.filter(v => v.type === 'motorcycle').length,
+    bicycle: activeVehicles.filter(v => v.type === 'bicycle').length,
+    ebike: activeVehicles.filter(v => v.type === 'ebike').length,
+    motorcycle: activeVehicles.filter(v => v.type === 'motorcycle').length,
+  };
+
+  const storedCount = {
+    bicycle: storedVehicles.filter(v => v.type === 'bicycle').length,
+    ebike: storedVehicles.filter(v => v.type === 'ebike').length,
+    motorcycle: storedVehicles.filter(v => v.type === 'motorcycle').length,
   };
 
   return (
@@ -85,36 +91,78 @@ export function Dashboard({ vehicles, pricing, lostCards, products = [], onAddSa
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Ocupação por Tipo</h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <Bike className="w-5 h-5 text-blue-600" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Veículos no Pátio (Ativos)</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-blue-100 p-2 rounded-lg">
+                      <Bike className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <span className="font-medium text-slate-700">Bicicletas</span>
+                  </div>
+                  <span className="text-xl font-bold text-slate-900">{typeCount.bicycle}</span>
                 </div>
-                <span className="font-medium text-slate-700">Bicicletas</span>
-              </div>
-              <span className="text-xl font-bold text-slate-900">{typeCount.bicycle}</span>
-            </div>
-            
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-              <div className="flex items-center space-x-3">
-                <div className="bg-emerald-100 p-2 rounded-lg">
-                  <Zap className="w-5 h-5 text-emerald-600" />
+                
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-emerald-100 p-2 rounded-lg">
+                      <Zap className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <span className="font-medium text-slate-700">Bikes Elétricas</span>
+                  </div>
+                  <span className="text-xl font-bold text-slate-900">{typeCount.ebike}</span>
                 </div>
-                <span className="font-medium text-slate-700">Bicicletas Elétricas</span>
-              </div>
-              <span className="text-xl font-bold text-slate-900">{typeCount.ebike}</span>
-            </div>
-            
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-              <div className="flex items-center space-x-3">
-                <div className="bg-purple-100 p-2 rounded-lg">
-                  <Motorbike className="w-5 h-5 text-purple-600" />
+                
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-purple-100 p-2 rounded-lg">
+                      <Motorbike className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <span className="font-medium text-slate-700">Motos</span>
+                  </div>
+                  <span className="text-xl font-bold text-slate-900">{typeCount.motorcycle}</span>
                 </div>
-                <span className="font-medium text-slate-700">Motos</span>
               </div>
-              <span className="text-xl font-bold text-slate-900">{typeCount.motorcycle}</span>
             </div>
+
+            {storedVehicles.length > 0 && (
+              <div>
+                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Veículos em Depósito</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl opacity-80">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-slate-200 p-2 rounded-lg">
+                        <Bike className="w-5 h-5 text-slate-500" />
+                      </div>
+                      <span className="font-medium text-slate-700">Bicicletas</span>
+                    </div>
+                    <span className="text-xl font-bold text-slate-700">{storedCount.bicycle}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl opacity-80">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-slate-200 p-2 rounded-lg">
+                        <Zap className="w-5 h-5 text-slate-500" />
+                      </div>
+                      <span className="font-medium text-slate-700">Bikes Elétricas</span>
+                    </div>
+                    <span className="text-xl font-bold text-slate-700">{storedCount.ebike}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl opacity-80">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-slate-200 p-2 rounded-lg">
+                        <Motorbike className="w-5 h-5 text-slate-500" />
+                      </div>
+                      <span className="font-medium text-slate-700">Motos</span>
+                    </div>
+                    <span className="text-xl font-bold text-slate-700">{storedCount.motorcycle}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
