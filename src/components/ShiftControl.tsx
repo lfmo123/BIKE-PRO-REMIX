@@ -263,8 +263,82 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
                                     <button 
                                         className="text-xs font-bold text-blue-600 bg-white border border-blue-200 px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-50"
                                         onClick={() => {
-                                           // We could launch a print view here
-                                           window.print();
+                                            const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Fechamento de Turno - ${shift.operatorName}</title>
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333; line-height: 1.6; max-width: 800px; margin: 0 auto; }
+    h1 { font-size: 24px; font-weight: bold; margin-bottom: 20px; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; text-transform: uppercase; }
+    .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 8px; }
+    .section h2 { font-size: 16px; font-weight: bold; background: #f8f9fa; padding: 8px; margin: -15px -15px 15px -15px; border-bottom: 1px solid #ddd; border-top-left-radius: 8px; border-top-right-radius: 8px; text-transform: uppercase; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px dotted #ccc; padding-bottom: 4px; }
+    .row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .label { font-weight: bold; color: #555; }
+    .value { font-weight: bold; font-family: monospace; font-size: 14px; }
+    .header-info { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 14px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
+    .header-info div { text-align: center; }
+    .header-info .label { display: block; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; border-bottom: none; }
+    .total-row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #000; font-size: 18px; font-weight: bold; }
+    .text-emerald { color: #10b981; }
+    .text-rose { color: #ef4444; }
+    .text-blue { color: #3b82f6; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body onload="window.print();">
+  <h1>Fechamento de Turno</h1>
+  
+  <div class="header-info">
+    <div><span class="label">Operador</span> <span class="value" style="font-size: 16px;">${shift.operatorName}</span></div>
+    <div><span class="label">Abertura</span> <span class="value" style="font-size: 12px;">${new Date(shift.startTime).toLocaleString('pt-BR')}</span></div>
+    <div><span class="label">Fechamento</span> <span class="value" style="font-size: 12px;">${shift.endTime ? new Date(shift.endTime).toLocaleString('pt-BR') : 'Em aberto'}</span></div>
+  </div>
+
+  <div class="section">
+    <h2>Resumo Financeiro</h2>
+    <div class="row"><span class="label">Fundo de Caixa (Abertura)</span> <span class="value">R$ ${shift.initialChange.toFixed(2)}</span></div>
+    <div class="row"><span class="label">Entradas (Vendas / Estacionamento)</span> <span class="value text-emerald">+ R$ ${shift.summary?.totalIncome?.toFixed(2) || '0.00'}</span></div>
+    <div class="row"><span class="label">Saídas (Despesas / Pagamentos)</span> <span class="value text-rose">- R$ ${shift.summary?.totalExpense?.toFixed(2) || '0.00'}</span></div>
+    <div class="total-row"><span class="label">Saldo Estimado / Total do Caixa</span> <span class="value text-blue">R$ ${((shift.initialChange) + (shift.summary?.totalIncome || 0) - (shift.summary?.totalExpense || 0)).toFixed(2)}</span></div>
+    <div class="row" style="margin-top: 10px; padding-top: 10px; border-top: 1px dotted #ccc;"><span class="label">Troco Final Retirado / Repassado</span> <span class="value text-blue">R$ ${shift.finalCash?.toFixed(2) || '0.00'}</span></div>
+  </div>
+
+  <div class="section">
+    <h2>Resumo Operacional</h2>
+    <div class="row"><span class="label">Veículos Check-ins Lançados</span> <span class="value">${shift.summary?.checkIns || 0}</span></div>
+    <div class="row"><span class="label">Veículos Check-outs Finalizados</span> <span class="value">${shift.summary?.checkOuts || 0}</span></div>
+    <div class="row"><span class="label">Pernoites Encerradas Inclusas</span> <span class="value">${shift.summary?.overnightCount || 0}</span></div>
+    <div class="row"><span class="label">Cartões Perdidos (Lançados)</span> <span class="value">${shift.summary?.lostCardsCount || 0}</span></div>
+  </div>
+  
+  <div style="text-align: center; margin-top: 80px; font-size: 12px; color: #888;">
+    <p>_________________________________________________</p>
+    <p style="font-weight: bold; color: #333;">Assinatura do Operador (${shift.operatorName})</p>
+    <p style="margin-top: 20px;">Relatório gerado em ${new Date().toLocaleString('pt-BR')}</p>
+    <p style="margin-top: 5px;">Sistema Bikepark - Gestão de Estacionamento</p>
+  </div>
+</body>
+</html>
+                                            `;
+                                            
+                                            const printIframe = document.createElement('iframe');
+                                            printIframe.style.position = 'absolute';
+                                            printIframe.style.top = '-10000px';
+                                            printIframe.style.left = '-10000px';
+                                            document.body.appendChild(printIframe);
+                                            
+                                            const doc = printIframe.contentWindow?.document;
+                                            if (doc) {
+                                              doc.open();
+                                              doc.write(html);
+                                              doc.close();
+                                              setTimeout(() => {
+                                                  document.body.removeChild(printIframe);
+                                              }, 2000);
+                                            }
                                         }}
                                     >
                                         Imprimir
