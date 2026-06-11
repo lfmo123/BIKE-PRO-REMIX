@@ -18,7 +18,6 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
 
   let cash = 0;
   let card = 0; // or machine
-  let pix = 0;
   let fiado = 0;
   let postpaid = 0;
   let expenses = 0;
@@ -29,7 +28,6 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
       const p = v.price || 0;
       if (v.paymentMethod === 'cash') cash += p;
       else if (v.paymentMethod === 'card' || v.paymentMethod === 'machine') card += p;
-      else if (v.paymentMethod === 'pix') pix += p;
       else if (v.paymentMethod === 'fiado') fiado += p;
       else if (v.paymentMethod === 'postpaid_card') postpaid += p;
       else cash += p; // default
@@ -40,7 +38,6 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
       const p = s.totalPrice || 0;
       if (s.paymentMethod === 'cash') cash += p;
       else if (s.paymentMethod === 'card' || s.paymentMethod === 'machine') card += p;
-      else if (s.paymentMethod === 'pix') pix += p;
       else if (s.paymentMethod === 'fiado') fiado += p;
       else if (s.paymentMethod === 'postpaid_card') postpaid += p;
       else cash += p; // default
@@ -55,7 +52,7 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
       }
   });
 
-  const totalIncomeReal = cash + card + pix; 
+  const totalIncomeReal = cash + card; 
   const totalPending = fiado + postpaid;
 
   const handlePrint = () => {
@@ -104,18 +101,17 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
   </div>
 
   <div class="section">
-    <h2>Detalhamento de Entradas (Receitas)</h2>
+    <h2>Detalhamento de Entradas</h2>
     <div class="row"><span class="label">Dinheiro (Espécie)</span> <span class="value">R$ ${cash.toFixed(2)}</span></div>
-    <div class="row"><span class="label">Cartão (Máquina)</span> <span class="value">R$ ${card.toFixed(2)}</span></div>
-    <div class="row"><span class="label">PIX</span> <span class="value">R$ ${pix.toFixed(2)}</span></div>
-    <div class="total-row" style="font-size:16px"><span class="label">Total Entradas Efetivadas</span> <span class="value">R$ ${totalIncomeReal.toFixed(2)}</span></div>
+    <div class="row"><span class="label">Máquina</span> <span class="value">R$ ${card.toFixed(2)}</span></div>
+    <div class="row"><span class="label">Fiado</span> <span class="value text-orange">R$ ${fiado.toFixed(2)}</span></div>
+    <div class="total-row" style="font-size:16px"><span class="label">Total Entradas (Incluindo Fiado)</span> <span class="value">R$ ${(totalIncomeReal + fiado).toFixed(2)}</span></div>
   </div>
 
   <div class="section">
-    <h2>Valores a Receber (Não Efetivados no Caixa)</h2>
-    <div class="row"><span class="label">Fiado</span> <span class="value text-orange">R$ ${fiado.toFixed(2)}</span></div>
-    <div class="row"><span class="label">Cartões Pós-pagos (Fechamento Futuro)</span> <span class="value text-orange">R$ ${postpaid.toFixed(2)}</span></div>
-    <div class="total-row" style="font-size:16px"><span class="label">Total a Receber</span> <span class="value text-orange">R$ ${totalPending.toFixed(2)}</span></div>
+    <h2>Valores a Receber Futuramente</h2>
+    <div class="row"><span class="label">Cartões Pós-pagos (Fechamento)</span> <span class="value text-orange">R$ ${postpaid.toFixed(2)}</span></div>
+    <div class="total-row" style="font-size:16px"><span class="label">Total Pós-pagos</span> <span class="value text-orange">R$ ${postpaid.toFixed(2)}</span></div>
   </div>
 
   <div class="section">
@@ -209,45 +205,37 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
               <h3 className="font-bold text-slate-800">Detalhamento de Entradas</h3>
             </div>
             <div className="p-4 space-y-3">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="border border-slate-100 p-3 rounded-xl text-center">
-                  <span className="block text-xs font-bold text-slate-500 mb-1">MÁQ/CARTÃO</span>
+                  <span className="block text-xs font-bold text-slate-500 mb-1">MÁQUINA</span>
                   <span className="font-black text-lg text-slate-800">R$ {card.toFixed(2)}</span>
-                </div>
-                <div className="border border-slate-100 p-3 rounded-xl text-center">
-                  <span className="block text-xs font-bold text-slate-500 mb-1">PIX</span>
-                  <span className="font-black text-lg text-slate-800">R$ {pix.toFixed(2)}</span>
                 </div>
                 <div className="border border-slate-100 p-3 rounded-xl text-center">
                   <span className="block text-xs font-bold text-slate-500 mb-1">DINHEIRO</span>
                   <span className="font-black text-lg text-slate-800">R$ {cash.toFixed(2)}</span>
                 </div>
+                <div className="border border-slate-100 p-3 rounded-xl text-center">
+                  <span className="block text-xs font-bold text-slate-500 mb-1">FIADO</span>
+                  <span className="font-black text-lg text-slate-800 text-orange-600">R$ {fiado.toFixed(2)}</span>
+                </div>
               </div>
-              <div className="pt-3 flex justify-between items-center text-base">
-                <span className="font-bold text-slate-700">Total Faturado Real</span>
-                <span className="font-black text-emerald-700">R$ {totalIncomeReal.toFixed(2)}</span>
+              <div className="pt-3 flex justify-between items-center text-base border-t border-slate-100 mt-2">
+                <span className="font-bold text-slate-700">Total Faturado (Incluindo Fiado)</span>
+                <span className="font-black text-emerald-700">R$ {(totalIncomeReal + fiado).toFixed(2)}</span>
               </div>
             </div>
           </div>
 
-          {(fiado > 0 || postpaid > 0) && (
+          {postpaid > 0 && (
             <div className="bg-orange-50 border text-sm border-orange-200 rounded-xl overflow-hidden">
                <div className="bg-orange-100 px-4 py-3 border-b border-orange-200">
                  <h3 className="font-bold text-orange-900">Pagamentos Pendentes (A Receber)</h3>
                </div>
                <div className="p-4 space-y-3">
-                 {fiado > 0 && (
-                 <div className="flex justify-between">
-                   <span className="text-orange-800">Fiado (Registrado no turno)</span>
-                   <span className="font-semibold text-orange-900">R$ {fiado.toFixed(2)}</span>
-                 </div>
-                 )}
-                 {postpaid > 0 && (
                  <div className="flex justify-between">
                    <span className="text-orange-800">Cartões Pós-Pagos (Acrescentado à conta)</span>
                    <span className="font-semibold text-orange-900">R$ {postpaid.toFixed(2)}</span>
                  </div>
-                 )}
                </div>
             </div>
           )}
