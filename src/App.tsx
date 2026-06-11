@@ -239,9 +239,9 @@ export default function App() {
     } catch (e) { console.error('Failed to fetch shifts', e); }
   };
 
-  const handleOpenShift = async (operatorName: string, initialChange: number) => {
+  const handleOpenShift = async (operatorName: string, initialChange: number, startTime?: number) => {
     try {
-      const newShift: Omit<Shift, 'id'> = { operatorName, initialChange, startTime: Date.now(), status: 'open' };
+      const newShift: Omit<Shift, 'id'> = { operatorName, initialChange, startTime: startTime || Date.now(), status: 'open' };
       const res = await fetch('/api/shifts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...newShift, id: Date.now().toString() }) });
       if (res.ok) fetchShifts();
     } catch (error) { console.error(error); }

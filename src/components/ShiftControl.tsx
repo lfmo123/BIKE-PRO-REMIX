@@ -11,7 +11,7 @@ interface ShiftControlProps {
   sales: Sale[];
   activeShift: Shift | undefined;
   user: { email: string; displayName: string };
-  onOpenShift: (operatorName: string, initialChange: number) => Promise<void>;
+  onOpenShift: (operatorName: string, initialChange: number, startTime?: number) => Promise<void>;
   onCloseShift: (shift: Shift) => Promise<void>;
 }
 
@@ -21,6 +21,7 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
   const [finalChange, setFinalChange] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedShiftForPrint, setSelectedShiftForPrint] = useState<Shift | null>(null);
+  const [retroactiveStart, setRetroactiveStart] = useState('');
   
   // Calculate potential summary if shift is open
   const calculateCurrentSummary = () => {
@@ -92,8 +93,13 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
     const change = parseFloat(initialChange);
     if (isNaN(change)) return;
     setIsProcessing(true);
-    await onOpenShift(operatorName, change);
+    let startTimestamp: number | undefined = undefined;
+    if (retroactiveStart) {
+      startTimestamp = new Date(retroactiveStart).getTime();
+    }
+    await onOpenShift(operatorName, change, startTimestamp);
     setInitialChange('');
+    setRetroactiveStart('');
     setIsProcessing(false);
   };
 
@@ -170,6 +176,17 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
                                   value={initialChange} 
                                   onChange={e => setInitialChange(e.target.value)} 
                                   placeholder="Ex: 50.00"
+                              />
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Abertura Retroativa (Opcional)</label>
+                          <div className="relative">
+                              <input 
+                                  type="datetime-local" 
+                                  className="w-full pl-4 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 bg-white" 
+                                  value={retroactiveStart} 
+                                  onChange={e => setRetroactiveStart(e.target.value)}
                               />
                           </div>
                       </div>
