@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Bike, Zap, Motorbike, Clock, DollarSign, CreditCard, Banknote, Smartphone, ChevronRight, LogOut, ArrowLeft } from 'lucide-react';
-import { ParkedVehicle, Pricing, VehicleType } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Bike, Zap, Motorbike, Clock, DollarSign, CreditCard, Banknote, Smartphone, ChevronRight, LogOut, ArrowLeft, AlertCircle } from 'lucide-react';
+import { ParkedVehicle, Pricing, VehicleType, CustomerCard } from '../types';
 import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/pricing';
 
 interface CheckOutProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
-  onCheckOut: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'machine') => void;
+  customerCards: CustomerCard[];
+  onCheckOut: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'machine', customerCardId?: string) => void;
 }
 
-export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
+export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: CheckOutProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<ParkedVehicle | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'machine'>('cash');
+  const [selectedCardId, setSelectedCardId] = useState<string>('');
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -29,6 +31,16 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
       }
     }
   }, [vehicles, selectedVehicle]);
+
+  // Optionally auto-select a card if the vehicle has a matching one by chance
+  useEffect(() => {
+    if (selectedVehicle && (paymentMethod === 'card' || paymentMethod === 'postpaid_card')) {
+       // try to guess the card by spot/badge number if it matches a card exactly
+       const match = customerCards.find(c => c.cardNumber === selectedVehicle.cardNumber && c.type === (paymentMethod === 'card' ? 'prepaid' : 'postpaid'));
+       if (match) setSelectedCardId(match.id);
+       else setSelectedCardId('');
+    }
+  }, [selectedVehicle, paymentMethod, customerCards]);
 
   const activeVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
   
@@ -58,12 +70,20 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
 
   const handleConfirm = () => {
     if (selectedVehicle) {
-      const price = calculatePrice(selectedVehicle, pricing, now);
-      onCheckOut(selectedVehicle.id, price, paymentMethod);
+      let price = calculatePrice(selectedVehicle, pricing, now);
+      if (selectedVehicle.cardLost && pricing.lostCardFee) {
+        price += pricing.lostCardFee;
+      }
+      onCheckOut(selectedVehicle.id, price, paymentMethod, selectedCardId || undefined);
       setSelectedVehicle(null);
       setSearchTerm('');
+      setSelectedCardId('');
     }
   };
+
+  const availableCards = useMemo(() => {
+    return customerCards.filter(c => c.type === (paymentMethod === 'card' ? 'prepaid' : 'postpaid'));
+  }, [customerCards, paymentMethod]);
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -248,10 +268,51 @@ export function CheckOut({ vehicles, pricing, onCheckOut }: CheckOutProps) {
                 </div>
               </div>
               
+              {(paymentMethod === 'card' || paymentMethod === 'postpaid_card') && (
+                <div className="mb-8 space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Selecione o Cartão Cliente</label>
+                  <select
+                    value={selectedCardId}
+                    onChange={(e) => setSelectedCardId(e.target.value)}
+                    className="w-full py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Selecione um cartão...</option>
+                    {availableCards.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.cardNumber} - {c.ownerName} (Saldo: R$ {c.balance.toFixed(2)})
+                      </option>
+                    ))}
+                  </select>
+                  {paymentMethod === 'card' && selectedCardId && (
+                    <div className="text-sm">
+                      {(() => {
+                        const card = availableCards.find(c => c.id === selectedCardId);
+                        const price = calculatePrice(selectedVehicle, pricing, now);
+                        const fee = (selectedVehicle.cardLost && pricing.lostCardFee) ? pricing.lostCardFee : 0;
+                        const total = price + fee;
+                        if (card && card.balance < total) {
+                          return <span className="text-red-500 flex items-center mt-1"><AlertCircle className="w-4 h-4 mr-1"/> Saldo insuficiente.</span>;
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <div className="mt-auto">
                 <button
                   onClick={handleConfirm}
-                  className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-slate-900/20 flex items-center justify-center"
+                  disabled={
+                    (paymentMethod === 'card' || paymentMethod === 'postpaid_card') && 
+                    (!selectedCardId || (paymentMethod === 'card' && (() => {
+                      const card = availableCards.find(c => c.id === selectedCardId);
+                      const price = calculatePrice(selectedVehicle, pricing, now);
+                      const fee = (selectedVehicle.cardLost && pricing.lostCardFee) ? pricing.lostCardFee : 0;
+                      return !card || card.balance < (price + fee);
+                    })()))
+                  }
+                  className="w-full py-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-slate-900/20 flex items-center justify-center"
                 >
                   <LogOut className="w-5 h-5 mr-2" />
                   Confirmar Pagamento

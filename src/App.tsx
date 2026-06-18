@@ -376,12 +376,12 @@ export default function App() {
     }
   };
 
-  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine') => {
+  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine', customerCardId?: string) => {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}/checkout`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ price, paymentMethod })
+        body: JSON.stringify({ price, paymentMethod, customerCardId })
       });
       if (res.ok) {
         fetchVehicles(); // refresh list
@@ -556,7 +556,7 @@ export default function App() {
                     }} 
                   />
                 )}
-                {activeTab === 'checkout' && <CheckOut vehicles={vehicles} pricing={pricing} onCheckOut={handleCheckOut} />}
+                {activeTab === 'checkout' && <CheckOut vehicles={vehicles} pricing={pricing} onCheckOut={handleCheckOut} customerCards={customerCards} />}
                 {activeTab === 'cashbook' && <CashBook transactions={transactions} vehicles={vehicles} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} onPayFiado={handlePayFiado} />}
                 {activeTab === 'shifts' && <ShiftControl operators={operators} shifts={shifts} transactions={transactions} vehicles={vehicles} sales={sales} activeShift={activeShift} user={user as any} onOpenShift={handleOpenShift} onCloseShift={handleCloseShift} />}
                 {activeTab === 'cards' && <CustomerCards cards={customerCards} onAddCard={handleAddCard} onUpdateCard={handleUpdateCard} onDeleteCard={handleDeleteCard} onAddTransaction={handleAddTransaction} />}

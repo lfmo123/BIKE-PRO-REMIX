@@ -181,16 +181,16 @@ async function startServer() {
   app.put('/api/vehicles/:id/checkout', async (req, res) => {
     try {
       const { id } = req.params;
-      const { price, paymentMethod } = req.body;
+      const { price, paymentMethod, customerCardId } = req.body;
       const checkOutTime = Date.now();
       
       let updatedVehicle;
       
       if (dbType === 'firebase') {
-        updatedVehicle = await firebaseDb.checkOutVehicle(id, price, paymentMethod, checkOutTime);
+        updatedVehicle = await firebaseDb.checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId);
       } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
-        updatedVehicle = await mysqlDb.checkOutVehicle(id, price, paymentMethod, checkOutTime);
+        updatedVehicle = await mysqlDb.checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId);
       } else {
         const db = readDb();
         const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
@@ -200,7 +200,8 @@ async function startServer() {
             status: 'completed',
             checkOutTime,
             price,
-            paymentMethod
+            paymentMethod,
+            customerCardId // save it inside the vehicle history too
           };
           writeDb(db);
           updatedVehicle = db.vehicles[vehicleIndex];
@@ -221,7 +222,13 @@ async function startServer() {
           cards = readDb().customerCards || [];
         }
 
-        const card = cards.find(c => c.cardNumber === updatedVehicle.cardNumber);
+        let card;
+        if (customerCardId) {
+          card = cards.find(c => c.id === customerCardId);
+        } else {
+          card = cards.find(c => c.cardNumber === updatedVehicle.cardNumber);
+        }
+
         if (card) {
           const newBalance = paymentMethod === 'card' 
             ? card.balance - parseFloat(price) 

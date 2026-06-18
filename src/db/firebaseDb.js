@@ -107,7 +107,7 @@ export async function revertCheckIn(id) {
   return true;
 }
 
-export async function checkOutVehicle(id, price, paymentMethod, checkOutTime) {
+export async function checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId) {
   const vehicleRef = doc(db, 'vehicles', id);
   const vehicleSnap = await getDoc(vehicleRef);
   if (!vehicleSnap.exists()) return null;
@@ -118,6 +118,10 @@ export async function checkOutVehicle(id, price, paymentMethod, checkOutTime) {
     paymentMethod,
     checkOutTime
   };
+  
+  if (customerCardId) {
+    updatedData.customerCardId = customerCardId;
+  }
   
   await updateDoc(vehicleRef, updatedData);
   return { ...vehicleSnap.data(), ...updatedData };
