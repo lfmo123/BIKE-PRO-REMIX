@@ -22,6 +22,7 @@ export function CustomerCards({ cards, onAddCard, onUpdateCard, onDeleteCard, on
   const [transactionCard, setTransactionCard] = useState<CustomerCard | null>(null);
   const [transactionAmount, setTransactionAmount] = useState('');
   const [transactionType, setTransactionType] = useState<'add' | 'refund'>('add');
+  const [transactionPaymentMethod, setTransactionPaymentMethod] = useState<'cash' | 'machine' | 'fiado'>('cash');
 
   // Handle save
   const handleSave = async (e: React.FormEvent) => {
@@ -174,13 +175,39 @@ export function CustomerCards({ cards, onAddCard, onUpdateCard, onDeleteCard, on
               step="0.01"
               value={transactionAmount}
               onChange={e => setTransactionAmount(e.target.value)}
-              className="w-full px-4 py-3 border rounded-xl mb-6 text-lg focus:ring-2 focus:ring-blue-500" 
+              className="w-full px-4 py-3 border rounded-xl mb-4 text-lg focus:ring-2 focus:ring-blue-500" 
               placeholder="0.00"
             />
             
+            {transactionType === 'add' && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Forma de Pagamento</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setTransactionPaymentMethod('cash')}
+                    className={`py-2 px-3 border rounded-xl font-bold text-sm transition-colors ${transactionPaymentMethod === 'cash' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    Dinheiro
+                  </button>
+                  <button
+                    onClick={() => setTransactionPaymentMethod('machine')}
+                    className={`py-2 px-3 border rounded-xl font-bold text-sm transition-colors ${transactionPaymentMethod === 'machine' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    Máquina
+                  </button>
+                  <button
+                    onClick={() => setTransactionPaymentMethod('fiado')}
+                    className={`py-2 px-3 border rounded-xl font-bold text-sm transition-colors ${transactionPaymentMethod === 'fiado' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    Fiado
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <button 
-                onClick={() => { setTransactionCard(null); setTransactionAmount(''); }}
+                onClick={() => { setTransactionCard(null); setTransactionAmount(''); setTransactionPaymentMethod('cash'); }}
                 className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
               >
                 Cancelar
@@ -202,9 +229,11 @@ export function CustomerCards({ cards, onAddCard, onUpdateCard, onDeleteCard, on
                   
                   await onUpdateCard(transactionCard.id, { balance: newBalance });
                   
+                  const paymentStr = transactionPaymentMethod === 'cash' ? 'DINHEIRO' : transactionPaymentMethod === 'machine' ? 'MÁQUINA' : 'FIADO';
+                  
                   await onAddTransaction({
                      description: transactionType === 'add'
-                       ? `${transactionCard.type === 'prepaid' ? 'Recarga Pré-pago' : 'Pgto. Conta Pós-pago'}: Cartão ${transactionCard.cardNumber} (${transactionCard.ownerName})`
+                       ? `${transactionCard.type === 'prepaid' ? 'Recarga Pré-pago' : 'Pgto. Conta Pós-pago'}: Cartão ${transactionCard.cardNumber} (${transactionCard.ownerName}) (${paymentStr})`
                        : `Estorno ${transactionCard.type === 'prepaid' ? 'Pré-pago' : 'Pós-pago'}: Cartão ${transactionCard.cardNumber} (${transactionCard.ownerName})`,
                      amount: amt,
                      date: Date.now(),
@@ -213,6 +242,7 @@ export function CustomerCards({ cards, onAddCard, onUpdateCard, onDeleteCard, on
                   
                   setTransactionCard(null);
                   setTransactionAmount('');
+                  setTransactionPaymentMethod('cash');
                 }}
                 className={`flex-1 py-3 text-white font-bold rounded-xl transition-colors ${
                   transactionType === 'refund' ? 'bg-red-600 hover:bg-red-700' 

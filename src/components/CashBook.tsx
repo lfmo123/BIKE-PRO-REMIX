@@ -58,6 +58,37 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
     }))
   ].sort((a, b) => b.date - a.date);
 
+  // Calculate breakdown
+  let incomeCash = 0;
+  let incomeMachine = 0;
+  let incomePix = 0;
+  let incomeFiado = 0; // Fiado generated today
+
+  dailyCheckouts.forEach(v => {
+      const p = v.price || 0;
+      if (v.paymentMethod === 'cash') incomeCash += p;
+      else if (v.paymentMethod === 'machine') incomeMachine += p;
+      else if (v.paymentMethod === 'pix') incomePix += p;
+      else incomeCash += p; // fallback
+  });
+
+  const manualIncomes = dailyTransactions.filter(t => t.type === 'income');
+  manualIncomes.forEach(t => {
+      const amount = t.amount;
+      const desc = (t.description || '').toUpperCase();
+      if (desc.includes('MÁQUINA')) incomeMachine += amount;
+      else if (desc.includes('PIX')) incomePix += amount;
+      else if (desc.includes('CARTÃO')) incomeMachine += amount;
+      else if (desc.includes('FIADO')) incomeFiado += amount;
+      else incomeCash += amount;
+  });
+
+  vehicles.forEach(v => {
+      if (v.status === 'completed' && v.paymentMethod === 'fiado' && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay) {
+          incomeFiado += (v.price || 0);
+      }
+  });
+
   const totalIncome = combinedEntries.filter(e => e.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpense = combinedEntries.filter(e => e.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
   const balance = totalIncome - totalExpense;
@@ -102,13 +133,23 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Entradas (Dia)</p>
-            <p className="text-2xl font-bold text-emerald-600">R$ {totalIncome.toFixed(2)}</p>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-medium text-slate-500 mb-1">Entradas (Dia)</p>
+              <p className="text-2xl font-bold text-emerald-600">R$ {totalIncome.toFixed(2)}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+              <ArrowUpRight className="w-6 h-6 text-emerald-500" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center">
-            <ArrowUpRight className="w-6 h-6 text-emerald-500" />
+          <div className="mt-auto grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-600 border-t border-slate-100 pt-3">
+            <div className="flex justify-between"><span>Dinheiro:</span> <span className="font-semibold text-slate-800">R$ {incomeCash.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span>Máquina:</span> <span className="font-semibold text-slate-800">R$ {incomeMachine.toFixed(2)}</span></div>
+            {incomePix > 0 && <div className="flex justify-between"><span>PIX:</span> <span className="font-semibold text-slate-800">R$ {incomePix.toFixed(2)}</span></div>}
+            <div className="flex justify-between col-span-2 border-t border-slate-50 pt-1 mt-1 text-orange-600 text-[11px]">
+              <span>Fiado Gerado Hoje (Pendente):</span> <span className="font-bold">R$ {incomeFiado.toFixed(2)}</span>
+            </div>
           </div>
         </div>
         
