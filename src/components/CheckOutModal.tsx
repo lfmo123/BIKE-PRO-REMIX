@@ -1,23 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { X, Clock, DollarSign, CreditCard, Banknote, Smartphone, AlertTriangle, Terminal } from 'lucide-react';
-import { ParkedVehicle, Pricing } from '../types';
+import { ParkedVehicle, Pricing, CustomerCard } from '../types';
 import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/pricing';
 
 interface CheckOutModalProps {
   vehicle: ParkedVehicle | null;
   pricing: Pricing;
+  customerCards?: CustomerCard[];
   onClose: () => void;
-  onConfirm: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine') => void;
+  onConfirm: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine', customerCardId?: string) => void;
   onReportLostCard?: (vehicleId: string, lostCardName: string, lostCardPhone: string) => void;
 }
 
-export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLostCard }: CheckOutModalProps) {
+export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, onConfirm, onReportLostCard }: CheckOutModalProps) {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine'>('machine');
   const [now, setNow] = useState(Date.now());
   const [showLostForm, setShowLostForm] = useState(false);
   const [lostName, setLostName] = useState('');
   const [lostPhone, setLostPhone] = useState('');
   const [customPrice, setCustomPrice] = useState<string>('');
+  const [customerCardId, setCustomerCardId] = useState<string>('');
+  const [showCardSelector, setShowCardSelector] = useState<'prepaid' | 'postpaid' | null>(null);
 
   useEffect(() => {
     if (vehicle) {
@@ -27,6 +30,7 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
       setLostPhone(vehicle.lostCardPhone || '');
       const calcPrice = calculatePrice(vehicle, pricing, Date.now());
       setCustomPrice(calcPrice.toFixed(2));
+      setCustomerCardId('');
     }
   }, [vehicle]);
 
@@ -136,7 +140,10 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
 
               <button
                 type="button"
-                onClick={() => setPaymentMethod('card')}
+                onClick={() => {
+                  setPaymentMethod('card');
+                  setShowCardSelector('prepaid');
+                }}
                 className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border-2 transition-all ${
                   paymentMethod === 'card' 
                     ? 'border-blue-500 bg-blue-50 text-blue-700' 
@@ -149,7 +156,10 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
 
               <button
                 type="button"
-                onClick={() => setPaymentMethod('postpaid_card')}
+                onClick={() => {
+                  setPaymentMethod('postpaid_card');
+                  setShowCardSelector('postpaid');
+                }}
                 className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border-2 transition-all ${
                   paymentMethod === 'postpaid_card' 
                     ? 'border-purple-500 bg-purple-50 text-purple-700' 
@@ -243,15 +253,98 @@ export function CheckOutModal({ vehicle, pricing, onClose, onConfirm, onReportLo
           )}
 
           <div className="pt-2">
+            {(paymentMethod === 'card' || paymentMethod === 'postpaid_card') && customerCardId && (
+              <div className="mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
+                <div>
+                  <div className="text-xs text-slate-500 font-semibold uppercase">Cartão Selecionado</div>
+                  <div className="font-bold text-slate-800">
+                    {customerCards.find(c => c.id === customerCardId)?.cardNumber} - {customerCards.find(c => c.id === customerCardId)?.ownerName}
+                  </div>
+                  {paymentMethod === 'card' ? (
+                    <div className="text-sm font-semibold text-emerald-600 mt-0.5">
+                      Crédito Disponível: R$ {(customerCards.find(c => c.id === customerCardId)?.balance || 0).toFixed(2)}
+                    </div>
+                  ) : (
+                    <div className="text-sm font-semibold text-purple-600 mt-0.5">
+                      Fatura Atual: R$ {(customerCards.find(c => c.id === customerCardId)?.balance || 0).toFixed(2)}
+                    </div>
+                  )}
+                </div>
+                <button 
+                  onClick={() => setShowCardSelector(paymentMethod === 'card' ? 'prepaid' : 'postpaid')}
+                  className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold px-2 py-1 bg-indigo-50 rounded h-fit"
+                >
+                  Trocar
+                </button>
+              </div>
+            )}
             <button
-              onClick={() => onConfirm(vehicle.id, parseFloat(customPrice) || 0, paymentMethod)}
-              className="w-full py-3 sm:py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-lg sm:text-xl transition-colors shadow-lg shadow-slate-900/20 mt-1"
+              onClick={() => onConfirm(vehicle.id, parseFloat(customPrice) || 0, paymentMethod, customerCardId)}
+              disabled={(paymentMethod === 'card' || paymentMethod === 'postpaid_card') && !customerCardId}
+              className={`w-full py-3 sm:py-4 rounded-xl font-bold text-lg sm:text-xl transition-colors shadow-lg mt-1
+                ${(paymentMethod === 'card' || paymentMethod === 'postpaid_card') && !customerCardId
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                  : 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/20'
+                }`}
             >
               Confirmar Pagamento
             </button>
           </div>
         </div>
       </div>
+
+      {/* Card Selector Modal */}
+      {showCardSelector && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center">
+                <CreditCard className="w-5 h-5 mr-2 text-indigo-500" />
+                Selecione o Cartão {showCardSelector === 'prepaid' ? 'Pré-Pago' : 'Pós-Pago'}
+              </h2>
+              <button 
+                onClick={() => setShowCardSelector(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 bg-slate-200 hover:bg-slate-300 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 space-y-2">
+              {customerCards.filter(c => c.type === showCardSelector).length === 0 ? (
+                <div className="text-center py-6 text-slate-500">
+                  Nenhum cartão {showCardSelector === 'prepaid' ? 'Pré-Pago' : 'Pós-Pago'} cadastrado.
+                </div>
+              ) : (
+                customerCards.filter(c => c.type === showCardSelector).map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setCustomerCardId(c.id);
+                      setShowCardSelector(null);
+                    }}
+                    className={`w-full text-left p-3 rounded-xl border-2 transition-all ${
+                      customerCardId === c.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-bold text-slate-800">{c.cardNumber}</div>
+                        <div className="text-sm text-slate-500">{c.ownerName}</div>
+                      </div>
+                      <div className={`text-sm font-bold text-right ${showCardSelector === 'prepaid' ? 'text-emerald-600' : 'text-purple-600'}`}>
+                        {showCardSelector === 'prepaid' 
+                          ? `Saldo: R$ ${(c.balance || 0).toFixed(2)}`
+                          : `Fatura: R$ ${(c.balance || 0).toFixed(2)}`
+                        }
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

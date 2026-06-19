@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { CustomerCard } from '../types';
+import { CustomerCard, ParkedVehicle } from '../types';
 import { Grid, Plus, Search, DollarSign, Edit, Trash2 } from 'lucide-react';
+import { getLocalDateString } from '../lib/dateUtils';
 
 interface CustomerCardsProps {
   cards: CustomerCard[];
+  vehicles?: ParkedVehicle[];
   onAddCard: (card: Omit<CustomerCard, 'id'>) => Promise<void>;
   onUpdateCard: (id: string, card: Partial<CustomerCard>) => Promise<void>;
   onDeleteCard: (id: string) => Promise<void>;
   onAddTransaction: (transaction: any) => Promise<void>;
 }
 
-export function CustomerCards({ cards, onAddCard, onUpdateCard, onDeleteCard, onAddTransaction }: CustomerCardsProps) {
+export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, onDeleteCard, onAddTransaction }: CustomerCardsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
@@ -178,6 +180,46 @@ export function CustomerCards({ cards, onAddCard, onUpdateCard, onDeleteCard, on
               className="w-full px-4 py-3 border rounded-xl mb-4 text-lg focus:ring-2 focus:ring-blue-500" 
               placeholder="0.00"
             />
+
+            {transactionType === 'add' && transactionCard.type === 'postpaid' && (
+              <div className="mb-4 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <div className="font-semibold text-slate-800 mb-2">Resumo da Fatura Atual</div>
+                <div className="text-slate-600 mb-2 font-bold text-lg">Total Devido: R$ {(transactionCard.balance || 0).toFixed(2)}</div>
+                <div className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Usos Recentes</div>
+                <div className="max-h-52 overflow-y-auto space-y-2 border-t border-slate-200 pt-2 pr-1">
+                  {vehicles
+                    .filter(v => v.customerCardId === transactionCard.id && v.status === 'completed' && v.paymentMethod === 'postpaid_card')
+                    .sort((a, b) => (b.checkOutTime || 0) - (a.checkOutTime || 0))
+                    .slice(0, 50)
+                    .map(v => (
+                      <div key={v.id} className="flex flex-col text-sm bg-white p-2.5 border border-slate-200 rounded-lg shadow-sm">
+                        <div className="flex justify-between items-center mb-1.5">
+                          <span className="font-bold text-slate-800">{v.identifier || 'Veículo'}</span>
+                          <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">R$ {(v.price || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="flex flex-col space-y-0.5 text-xs text-slate-500">
+                          <div className="flex justify-between">
+                            <span><span className="font-semibold">Entrada:</span> {getLocalDateString(v.checkInTime)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span><span className="font-semibold">Saída:</span> {getLocalDateString(v.checkOutTime || 0)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  {vehicles.filter(v => v.customerCardId === transactionCard.id && v.status === 'completed' && v.paymentMethod === 'postpaid_card').length === 0 && (
+                    <div className="text-slate-500 text-xs text-center py-2">Nenhum uso registrado no cartão.</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {transactionType === 'add' && transactionCard.type === 'prepaid' && (
+              <div className="mb-4 bg-slate-50 border border-slate-200 rounded-xl p-3 flex justify-between items-center">
+                <div className="font-semibold text-slate-800">Restante de Crédito</div>
+                <div className="font-bold text-emerald-600 text-xl">R$ {(transactionCard.balance || 0).toFixed(2)}</div>
+              </div>
+            )}
             
             {transactionType === 'add' && (
               <div className="mb-6">
