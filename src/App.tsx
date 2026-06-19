@@ -386,10 +386,15 @@ export default function App() {
       if (res.ok) {
         fetchVehicles(); // refresh list
         fetchLostCards();
+        fetchCustomerCards(); // refresh balances
         setVehicleToCheckOut(null);
+      } else {
+        const errorData = await res.json();
+        alert(`Erro ao registrar checkout: ${errorData.error}`);
       }
     } catch (error) {
        console.error('Error during checkout', error);
+       alert('Erro ao registrar checkout');
     }
   };
 

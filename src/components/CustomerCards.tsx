@@ -217,7 +217,7 @@ export function CustomerCards({ cards, onAddCard, onUpdateCard, onDeleteCard, on
                   const amt = parseFloat(transactionAmount);
                   if (isNaN(amt) || amt <= 0) return;
                   
-                  let newBalance = transactionCard.balance;
+                  let newBalance = Number(transactionCard.balance) || 0;
                   if (transactionType === 'add') {
                     if (transactionCard.type === 'prepaid') newBalance += amt;
                     else newBalance = Math.max(0, newBalance - amt); // reduce debt

@@ -230,9 +230,11 @@ async function startServer() {
         }
 
         if (card) {
+          const prevBalance = Number(card.balance) || 0;
+          const numPrice = Number(price) || 0;
           const newBalance = paymentMethod === 'card' 
-            ? card.balance - parseFloat(price) 
-            : card.balance + parseFloat(price); // prepay deducts from credits, postpay adds to debt
+            ? prevBalance - numPrice
+            : prevBalance + numPrice; // prepay deducts from credits, postpay adds to debt
           
           if (dbType === 'firebase') {
             await firebaseDb.updateCustomerCard(card.id, { balance: newBalance });
