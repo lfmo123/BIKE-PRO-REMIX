@@ -243,7 +243,7 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
                          className="flex-1 text-sm p-2 rounded-lg border border-slate-200 bg-white"
                        >
                          <option value="cash">Dinheiro</option>
-                         <option value="machine">Cartão</option>
+                         <option value="machine">Máquina</option>
                        </select>
                        <button
                          onClick={handlePayGlobalFiado}
