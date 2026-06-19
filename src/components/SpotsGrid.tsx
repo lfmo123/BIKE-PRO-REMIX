@@ -12,6 +12,7 @@ interface SpotsGridProps {
 
 export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hideTitle }: SpotsGridProps) {
   const activeVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
+  const [searchQuery, setSearchQuery] = useState('');
   const normalSpots = Array.from({ length: 300 }, (_, i) => (i + 1).toString());
   const specialSpots = Array.from({ length: 50 }, (_, i) => `MT/BE ${i + 1}`);
 
@@ -42,11 +43,30 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
     }
   };
 
-  const renderGrid = (spotsToRender: string[], title: string) => (
-    <div className="mb-8">
-      <h2 className="text-xl font-bold text-slate-800 mb-4">{title}</h2>
-      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-3">
-        {spotsToRender.map(spotNumStr => {
+  const renderGrid = (spotsToRender: string[], title: string, hasSearch?: boolean) => {
+    const filteredSpots = hasSearch && searchQuery 
+      ? spotsToRender.filter(s => s.includes(searchQuery))
+      : spotsToRender;
+
+    return (
+      <div className="mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+          <h2 className="text-xl font-bold text-slate-800">{title}</h2>
+          {hasSearch && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Buscar número..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-48"
+              />
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-3">
+          {filteredSpots.map(spotNumStr => {
           const spotNum = spotNumStr.toString();
           const vehicle = spotMap.get(spotNum);
           const isOccupied = !!vehicle;
@@ -125,6 +145,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
       </div>
     </div>
   );
+  };
 
   return (
     <div className="space-y-6">
@@ -170,7 +191,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
         </div>
       </div>
 
-      {renderGrid(normalSpots, "Bicicletas Tradicionais")}
+      {renderGrid(normalSpots, "Bicicletas Tradicionais", true)}
       
       {renderGrid(specialSpots, "E-Bikes e Motos (MT/BE)")}
       
