@@ -279,7 +279,7 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                     <option value="">Selecione um cartão...</option>
                     {availableCards.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.cardNumber} - {c.ownerName} (Saldo: R$ {c.balance.toFixed(2)})
+                        {c.cardNumber} - {c.ownerName} (Saldo: R$ {Number(c.balance || 0).toFixed(2)})
                       </option>
                     ))}
                   </select>
@@ -290,7 +290,7 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                         const price = calculatePrice(selectedVehicle, pricing, now);
                         const fee = (selectedVehicle.cardLost && pricing.lostCardFee) ? pricing.lostCardFee : 0;
                         const total = price + fee;
-                        if (card && card.balance < total) {
+                        if (card && (card.balance || 0) < total) {
                           return <span className="text-red-500 flex items-center mt-1"><AlertCircle className="w-4 h-4 mr-1"/> Saldo insuficiente.</span>;
                         }
                         return null;
@@ -309,7 +309,7 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                       const card = availableCards.find(c => c.id === selectedCardId);
                       const price = calculatePrice(selectedVehicle, pricing, now);
                       const fee = (selectedVehicle.cardLost && pricing.lostCardFee) ? pricing.lostCardFee : 0;
-                      return !card || card.balance < (price + fee);
+                      return !card || (card.balance || 0) < (price + fee);
                     })()))
                   }
                   className="w-full py-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-slate-900/20 flex items-center justify-center"

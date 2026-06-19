@@ -42,9 +42,9 @@ export function CustomerCards({ cards, onAddCard, onUpdateCard, onDeleteCard, on
     setBalanceInput('');
   };
 
-  const filteredCards = cards.filter(c => 
-    c.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.cardNumber.includes(searchTerm)
+  const filteredCards = (cards || []).filter(c => 
+    (c.ownerName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (c.cardNumber || '').includes(searchTerm)
   );
 
   return (
@@ -135,7 +135,7 @@ export function CustomerCards({ cards, onAddCard, onUpdateCard, onDeleteCard, on
               <div className="flex flex-col">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{card.type === 'prepaid' ? 'Saldo (Pré-pago)' : 'Fatura (Pós-pago)'}</span>
                 <span className={`text-lg font-bold ${card.type === 'prepaid' ? 'text-emerald-700' : 'text-purple-700'}`}>
-                  R$ {card.balance.toFixed(2)}
+                  R$ {Number(card.balance || 0).toFixed(2)}
                 </span>
               </div>
             </div>
