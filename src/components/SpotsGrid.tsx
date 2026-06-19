@@ -57,10 +57,12 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <input
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 placeholder="Buscar número..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-48"
+                className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-96"
               />
             </div>
           )}
