@@ -263,7 +263,7 @@ async function startServer() {
   app.put('/api/vehicles/:id/pay-fiado', async (req, res) => {
     try {
       const { id } = req.params;
-      const { paymentMethod, amount } = req.body;
+      const { paymentMethod, amount, observation } = req.body;
       const paymentDate = Date.now();
       
       let vehicle;
@@ -302,9 +302,14 @@ async function startServer() {
                           paymentMethod === 'pix' ? 'PIX' :
                           paymentMethod ? paymentMethod.toUpperCase() : 'N/A';
                           
+      let descriptionStr = `Baixa de Fiado: ${vehicle.identifier} (${paymentText})`;
+      if (observation) {
+        descriptionStr += ` - Obs: ${observation}`;
+      }
+                          
       const newTransaction = {
         id: transId,
-        description: `Baixa de Fiado: ${vehicle.identifier} (${paymentText})`,
+        description: descriptionStr,
         amount: amount,
         date: paymentDate,
         type: 'income'

@@ -8,7 +8,7 @@ interface CashBookProps {
   vehicles: ParkedVehicle[];
   onAddTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   onDeleteTransaction: (id: string) => Promise<void>;
-  onPayFiado: (id: string, paymentMethod: string, amount: number) => Promise<void>;
+  onPayFiado: (id: string, paymentMethod: string, amount: number, observation?: string) => Promise<void>;
 }
 
 export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTransaction, onPayFiado }: CashBookProps) {
@@ -18,6 +18,10 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
   const [payingFiadoId, setPayingFiadoId] = useState<string | null>(null);
   const [fiadoPaymentMethod, setFiadoPaymentMethod] = useState<'cash'|'machine'|'card'|'pix'>('cash');
   const [fiadoPaymentAmount, setFiadoPaymentAmount] = useState<string>('');
+
+  const [globalFiadoAmount, setGlobalFiadoAmount] = useState<string>('');
+  const [globalFiadoMethod, setGlobalFiadoMethod] = useState<'cash'|'machine'|'card'|'pix'>('cash');
+  const [globalFiadoObservation, setGlobalFiadoObservation] = useState<string>('');
 
   // Derived today's timestamp bounds
   const [year, month, day] = selectedDate.split('-').map(Number);
@@ -115,6 +119,28 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
     setAmount('');
   };
 
+  const handlePayGlobalFiado = async () => {
+    let amountToDistribute = parseFloat(globalFiadoAmount);
+    if (isNaN(amountToDistribute) || amountToDistribute <= 0) return;
+
+    if (!window.confirm(`Confirma a baixa global de R$ ${amountToDistribute.toFixed(2)}?`)) return;
+
+    const sortedFiados = [...unpaidFiados].sort((a, b) => (a.checkOutTime || 0) - (b.checkOutTime || 0));
+
+    for (const v of sortedFiados) {
+      if (amountToDistribute <= 0) break;
+      const remainingOnVehicle = (v.price || 0) - (v.fiadoPaidAmount || 0);
+      if (remainingOnVehicle <= 0) continue;
+
+      const amountToPayHere = Math.min(amountToDistribute, remainingOnVehicle);
+      await onPayFiado(v.id, globalFiadoMethod, amountToPayHere, globalFiadoObservation);
+      amountToDistribute -= amountToPayHere;
+    }
+
+    setGlobalFiadoAmount('');
+    setGlobalFiadoObservation('');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -186,9 +212,49 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
                  <AlertTriangle className="w-5 h-5 text-orange-500" />
                  <h2 className="text-lg font-bold text-orange-900">Caixa do Fiado</h2>
                </div>
-               <p className="text-sm text-orange-700 mt-1">
-                 Total em haver: <span className="font-bold">R$ {unpaidFiados.reduce((acc, v) => acc + (v.price || 0), 0).toFixed(2)}</span> ({unpaidFiados.length})
+               <p className="text-sm text-orange-700 mt-1 mb-4">
+                 Total em haver: <span className="font-bold">R$ {unpaidFiados.reduce((acc, v) => acc + ((v.price || 0) - (v.fiadoPaidAmount || 0)), 0).toFixed(2)}</span> ({unpaidFiados.length})
                </p>
+               {unpaidFiados.length > 0 && (
+                 <div className="bg-white p-3 rounded-xl border border-orange-200">
+                   <p className="text-xs font-bold text-orange-800 mb-2">ABATER DO TOTAL</p>
+                   <div className="space-y-2">
+                     <input 
+                       type="number" 
+                       step="0.01" 
+                       min="0.01"
+                       max={unpaidFiados.reduce((acc, v) => acc + ((v.price || 0) - (v.fiadoPaidAmount || 0)), 0).toFixed(2)}
+                       value={globalFiadoAmount}
+                       onChange={(e) => setGlobalFiadoAmount(e.target.value)}
+                       className="w-full text-sm p-2 rounded-lg border border-slate-200"
+                       placeholder="Ex: 50.00"
+                     />
+                     <input 
+                       type="text"
+                       value={globalFiadoObservation}
+                       onChange={(e) => setGlobalFiadoObservation(e.target.value)}
+                       className="w-full text-sm p-2 rounded-lg border border-slate-200"
+                       placeholder="Observação (opcional)"
+                     />
+                     <div className="flex gap-2">
+                       <select 
+                         value={globalFiadoMethod}
+                         onChange={(e) => setGlobalFiadoMethod(e.target.value as any)}
+                         className="flex-1 text-sm p-2 rounded-lg border border-slate-200 bg-white"
+                       >
+                         <option value="cash">Dinheiro</option>
+                         <option value="machine">Cartão</option>
+                       </select>
+                       <button
+                         onClick={handlePayGlobalFiado}
+                         className="px-3 py-2 text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors flex justify-center items-center gap-1"
+                       >
+                         <CheckCircle className="w-4 h-4" /> Abater
+                       </button>
+                     </div>
+                   </div>
+                 </div>
+               )}
              </div>
              
              <div className="p-4 max-h-[300px] overflow-y-auto space-y-3 bg-white">
