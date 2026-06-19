@@ -323,13 +323,36 @@ export async function addCustomerCard(card) {
 
 export async function updateCustomerCard(id, data) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  
+  // Create lastPaymentMethod column if it doesn't exist
+  try {
+    await getPool().query('ALTER TABLE customer_cards ADD COLUMN lastPaymentMethod VARCHAR(50)');
+  } catch (e) {
+    // Ignore duplicate column error
+  }
+
+  // Fetch current data to merge
+  const [rows] = await getPool().query('SELECT * FROM customer_cards WHERE id = ?', [id]);
+  if (rows.length === 0) return null;
+  const currentData = rows[0];
+  const mergedData = { ...currentData, ...data };
+
+  // Update
   const query = `
     UPDATE customer_cards 
-    SET cardNumber = ?, ownerName = ?, phone = ?, type = ?, balance = ?
+    SET cardNumber = ?, ownerName = ?, phone = ?, type = ?, balance = ?, lastPaymentMethod = ?
     WHERE id = ?
   `;
-  await getPool().query(query, [data.cardNumber, data.ownerName, data.phone || '', data.type, data.balance || 0, id]);
-  return { id, ...data };
+  await getPool().query(query, [
+    mergedData.cardNumber, 
+    mergedData.ownerName, 
+    mergedData.phone || '', 
+    mergedData.type, 
+    mergedData.balance || 0, 
+    mergedData.lastPaymentMethod || null,
+    id
+  ]);
+  return mergedData;
 }
 
 export async function removeCustomerCard(id) {

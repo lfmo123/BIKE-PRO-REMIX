@@ -57,6 +57,7 @@ export interface CustomerCard {
   phone: string;
   type: 'prepaid' | 'postpaid';
   balance: number; // Positive if prepaid has credits, negative if postpaid has debt
+  lastPaymentMethod?: string;
 }
 
 export interface Sale {

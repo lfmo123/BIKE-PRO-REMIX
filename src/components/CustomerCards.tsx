@@ -115,8 +115,15 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredCards.map(card => (
-          <div key={card.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col relative group">
+        {filteredCards.map(card => {
+          const isFiado = card.lastPaymentMethod === 'fiado';
+          const cardBg = isFiado ? 'bg-amber-50 border-amber-300 shadow-amber-100' : 'bg-white border-slate-100 shadow-sm';
+          const paymentMethodText = card.lastPaymentMethod === 'cash' ? 'Dinheiro' : 
+                                  card.lastPaymentMethod === 'machine' ? 'Máquina' :
+                                  card.lastPaymentMethod === 'fiado' ? 'Fiado' : '';
+
+          return (
+          <div key={card.id} className={`${cardBg} p-5 rounded-2xl border flex flex-col relative group transition-colors`}>
             <button onClick={() => onDeleteCard(card.id)} className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
               <Trash2 className="w-4 h-4" />
             </button>
@@ -125,13 +132,21 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
               <div className={`p-2 rounded-lg ${card.type === 'prepaid' ? 'bg-emerald-100 text-emerald-600' : 'bg-purple-100 text-purple-600'}`}>
                 <Grid className="w-5 h-5" />
               </div>
-              <div>
-                <h3 className="font-bold text-slate-900 leading-tight">{card.ownerName}</h3>
+              <div className="flex-1 pr-6">
+                <h3 className="font-bold text-slate-900 leading-tight truncate">{card.ownerName}</h3>
                 <p className="text-xs text-slate-500 font-medium">Cartão #{card.cardNumber}</p>
               </div>
             </div>
             
-            <p className="text-sm text-slate-600 mb-3 flex-1">{card.phone || 'Sem telefone'}</p>
+            <p className="text-sm text-slate-600 mb-2 flex-1">{card.phone || 'Sem telefone'}</p>
+            
+            {paymentMethodText && (
+              <div className="mb-3 flex items-center">
+                <span className={`text-xs font-bold px-2 py-1 rounded-md ${isFiado ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                  Último pgto: {paymentMethodText}
+                </span>
+              </div>
+            )}
             
             <div className={`p-3 rounded-xl border flex items-center justify-between mb-3 ${card.type === 'prepaid' ? 'bg-emerald-50 border-emerald-100' : 'bg-purple-50 border-purple-100'}`}>
               <div className="flex flex-col">
@@ -157,7 +172,7 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
               </button>
             </div>
           </div>
-        ))}
+        )})}
       </div>
 
       {transactionCard && (
@@ -260,16 +275,23 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
                   if (isNaN(amt) || amt <= 0) return;
                   
                   let newBalance = Number(transactionCard.balance) || 0;
+                  let updateData: Partial<CustomerCard> = { balance: newBalance };
+                  
                   if (transactionType === 'add') {
                     if (transactionCard.type === 'prepaid') newBalance += amt;
                     else newBalance = Math.max(0, newBalance - amt); // reduce debt
+                    
+                    updateData.balance = newBalance;
+                    updateData.lastPaymentMethod = transactionPaymentMethod;
                   } else {
                     // refund
                     if (transactionCard.type === 'prepaid') newBalance = Math.max(0, newBalance - amt); // remove credit
                     else newBalance += amt; // increase debt
+                    
+                    updateData.balance = newBalance;
                   }
                   
-                  await onUpdateCard(transactionCard.id, { balance: newBalance });
+                  await onUpdateCard(transactionCard.id, updateData);
                   
                   const paymentStr = transactionPaymentMethod === 'cash' ? 'DINHEIRO' : transactionPaymentMethod === 'machine' ? 'MÁQUINA' : 'FIADO';
                   
