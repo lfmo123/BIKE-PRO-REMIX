@@ -185,12 +185,12 @@ export default function App() {
     }
   };
 
-  const handlePayFiado = async (vehicleId: string, paymentMethod: string) => {
+  const handlePayFiado = async (vehicleId: string, paymentMethod: string, amount: number) => {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}/pay-fiado`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentMethod })
+        body: JSON.stringify({ paymentMethod, amount })
       });
       if (res.ok) {
         fetchVehicles();

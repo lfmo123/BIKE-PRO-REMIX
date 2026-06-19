@@ -127,19 +127,28 @@ export async function checkOutVehicle(id, price, paymentMethod, checkOutTime, cu
   return { ...vehicleSnap.data(), ...updatedData };
 }
 
-export async function payFiado(id, paymentMethod, paymentDate) {
+export async function payFiado(id, paymentMethod, paymentDate, amountToPay) {
   const vehicleRef = doc(db, 'vehicles', id);
   const vehicleSnap = await getDoc(vehicleRef);
   if (!vehicleSnap.exists()) return null;
   
+  const currentData = vehicleSnap.data();
+  const currentPaid = currentData.fiadoPaidAmount || 0;
+  const newPaid = currentPaid + amountToPay;
+  const isFullyPaid = newPaid >= currentData.price;
+  
   const updatedData = {
-    isFiadoPaid: true,
+    fiadoPaidAmount: newPaid,
     fiadoPaymentDate: paymentDate,
     fiadoPaymentMethod: paymentMethod
   };
   
+  if (isFullyPaid) {
+    updatedData.isFiadoPaid = true;
+  }
+  
   await updateDoc(vehicleRef, updatedData);
-  return { ...vehicleSnap.data(), ...updatedData };
+  return { ...currentData, ...updatedData };
 }
 
 // ------------------------------------

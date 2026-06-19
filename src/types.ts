@@ -23,6 +23,8 @@ export interface ParkedVehicle {
   lostCardPhone?: string;
   isFiadoPaid?: boolean;
   fiadoPaymentDate?: number;
+  fiadoPaidAmount?: number;
+  fiadoPaymentMethod?: string;
 }
 
 export interface Pricing {

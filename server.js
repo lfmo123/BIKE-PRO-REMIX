@@ -263,24 +263,31 @@ async function startServer() {
   app.put('/api/vehicles/:id/pay-fiado', async (req, res) => {
     try {
       const { id } = req.params;
-      const { paymentMethod } = req.body;
+      const { paymentMethod, amount } = req.body;
       const paymentDate = Date.now();
       
       let vehicle;
       
       if (dbType === 'firebase') {
-        vehicle = await firebaseDb.payFiado(id, paymentMethod, paymentDate);
+        vehicle = await firebaseDb.payFiado(id, paymentMethod, paymentDate, amount);
       } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
-        vehicle = await mysqlDb.payFiado(id, paymentMethod, paymentDate);
+        vehicle = await mysqlDb.payFiado(id, paymentMethod, paymentDate, amount);
       } else {
         const db = readDb();
         const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
         if (vehicleIndex === -1) return res.status(404).json({ error: 'Vehicle not found' });
         
-        db.vehicles[vehicleIndex].isFiadoPaid = true;
+        const currentPaid = db.vehicles[vehicleIndex].fiadoPaidAmount || 0;
+        const newPaid = currentPaid + amount;
+        const isFullyPaid = newPaid >= db.vehicles[vehicleIndex].price;
+        
+        db.vehicles[vehicleIndex].fiadoPaidAmount = newPaid;
         db.vehicles[vehicleIndex].fiadoPaymentDate = paymentDate;
         db.vehicles[vehicleIndex].fiadoPaymentMethod = paymentMethod;
+        if (isFullyPaid) {
+          db.vehicles[vehicleIndex].isFiadoPaid = true;
+        }
         writeDb(db);
         vehicle = db.vehicles[vehicleIndex];
       }
@@ -298,7 +305,7 @@ async function startServer() {
       const newTransaction = {
         id: transId,
         description: `Baixa de Fiado: ${vehicle.identifier} (${paymentText})`,
-        amount: vehicle.price || 0,
+        amount: amount,
         date: paymentDate,
         type: 'income'
       };

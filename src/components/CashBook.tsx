@@ -8,7 +8,7 @@ interface CashBookProps {
   vehicles: ParkedVehicle[];
   onAddTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   onDeleteTransaction: (id: string) => Promise<void>;
-  onPayFiado: (id: string, paymentMethod: string) => Promise<void>;
+  onPayFiado: (id: string, paymentMethod: string, amount: number) => Promise<void>;
 }
 
 export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTransaction, onPayFiado }: CashBookProps) {
@@ -17,6 +17,7 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [payingFiadoId, setPayingFiadoId] = useState<string | null>(null);
   const [fiadoPaymentMethod, setFiadoPaymentMethod] = useState<'cash'|'machine'|'card'|'pix'>('cash');
+  const [fiadoPaymentAmount, setFiadoPaymentAmount] = useState<string>('');
 
   // Derived today's timestamp bounds
   const [year, month, day] = selectedDate.split('-').map(Number);
@@ -201,11 +202,24 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
                          <p className="font-semibold text-slate-900 text-sm">{v.identifier}</p>
                          <p className="text-xs text-slate-500">{new Date(v.checkOutTime || 0).toLocaleDateString('pt-BR')} • {v.ownerName}</p>
                        </div>
-                       <span className="font-bold text-orange-600">R$ {(v.price || 0).toFixed(2)}</span>
+                       <div className="text-right">
+                         <span className="font-bold text-orange-600 block">R$ {((v.price || 0) - (v.fiadoPaidAmount || 0)).toFixed(2)}</span>
+                         {v.fiadoPaidAmount ? <span className="text-xs text-slate-400 font-medium line-through">R$ {v.price?.toFixed(2)}</span> : null}
+                       </div>
                      </div>
                      
                      {payingFiadoId === v.id ? (
                         <div className="mt-3 space-y-2">
+                           <input 
+                             type="number" 
+                             step="0.01" 
+                             min="0"
+                             max={((v.price || 0) - (v.fiadoPaidAmount || 0)).toFixed(2)}
+                             value={fiadoPaymentAmount}
+                             onChange={(e) => setFiadoPaymentAmount(e.target.value)}
+                             className="w-full text-sm p-2 rounded-lg border border-slate-200 bg-white"
+                             placeholder="Valor a abater (Deixe vazio para o total)"
+                           />
                            <select 
                              value={fiadoPaymentMethod}
                              onChange={(e) => setFiadoPaymentMethod(e.target.value as any)}
@@ -223,7 +237,12 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
                              </button>
                              <button
                                onClick={async () => {
-                                 await onPayFiado(v.id, fiadoPaymentMethod);
+                                 let amt = parseFloat(fiadoPaymentAmount);
+                                 if (isNaN(amt) || amt <= 0) {
+                                    // Default to full remaining if empty
+                                    amt = (v.price || 0) - (v.fiadoPaidAmount || 0);
+                                 }
+                                 await onPayFiado(v.id, fiadoPaymentMethod, amt);
                                  setPayingFiadoId(null);
                                }}
                                className="flex-1 py-1.5 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors flex justify-center items-center gap-1"
@@ -237,10 +256,11 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
                          onClick={() => {
                            setPayingFiadoId(v.id);
                            setFiadoPaymentMethod('cash');
+                           setFiadoPaymentAmount(''); // empty defaults to remaining amount
                          }}
                          className="w-full mt-2 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
                        >
-                         Dar Baixa
+                         {v.fiadoPaidAmount ? 'Dar Baixa Restante' : 'Dar Baixa'}
                        </button>
                      )}
                    </div>
