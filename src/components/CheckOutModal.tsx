@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, DollarSign, CreditCard, Banknote, Smartphone, AlertTriangle, Terminal } from 'lucide-react';
+import { X, Clock, DollarSign, CreditCard, Banknote, Smartphone, AlertTriangle, Terminal, Search } from 'lucide-react';
 import { ParkedVehicle, Pricing, CustomerCard } from '../types';
 import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/pricing';
 
@@ -21,6 +21,7 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
   const [customPrice, setCustomPrice] = useState<string>('');
   const [customerCardId, setCustomerCardId] = useState<string>('');
   const [showCardSelector, setShowCardSelector] = useState<'prepaid' | 'postpaid' | null>(null);
+  const [cardSearchTerm, setCardSearchTerm] = useState('');
 
   useEffect(() => {
     if (vehicle) {
@@ -143,6 +144,7 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
                 onClick={() => {
                   setPaymentMethod('card');
                   setShowCardSelector('prepaid');
+                  setCardSearchTerm('');
                 }}
                 className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border-2 transition-all ${
                   paymentMethod === 'card' 
@@ -159,6 +161,7 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
                 onClick={() => {
                   setPaymentMethod('postpaid_card');
                   setShowCardSelector('postpaid');
+                  setCardSearchTerm('');
                 }}
                 className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border-2 transition-all ${
                   paymentMethod === 'postpaid_card' 
@@ -271,7 +274,10 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
                   )}
                 </div>
                 <button 
-                  onClick={() => setShowCardSelector(paymentMethod === 'card' ? 'prepaid' : 'postpaid')}
+                  onClick={() => {
+                    setShowCardSelector(paymentMethod === 'card' ? 'prepaid' : 'postpaid');
+                    setCardSearchTerm('');
+                  }}
                   className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold px-2 py-1 bg-indigo-50 rounded h-fit"
                 >
                   Trocar
@@ -309,13 +315,27 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
                 <X className="w-5 h-5" />
               </button>
             </div>
+            
+            <div className="px-4 pt-4 border-b border-slate-100 pb-4">
+              <div className="relative">
+                <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar cartão ou cliente..."
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  value={cardSearchTerm}
+                  onChange={(e) => setCardSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
             <div className="p-4 overflow-y-auto flex-1 space-y-2">
-              {customerCards.filter(c => c.type === showCardSelector).length === 0 ? (
+              {customerCards.filter(c => c.type === showCardSelector && (c.cardNumber.toLowerCase().includes(cardSearchTerm.toLowerCase()) || c.ownerName.toLowerCase().includes(cardSearchTerm.toLowerCase()))).length === 0 ? (
                 <div className="text-center py-6 text-slate-500">
-                  Nenhum cartão {showCardSelector === 'prepaid' ? 'Pré-Pago' : 'Pós-Pago'} cadastrado.
+                  Nenhum cartão {showCardSelector === 'prepaid' ? 'Pré-Pago' : 'Pós-Pago'} encontrado.
                 </div>
               ) : (
-                customerCards.filter(c => c.type === showCardSelector).map(c => (
+                customerCards.filter(c => c.type === showCardSelector && (c.cardNumber.toLowerCase().includes(cardSearchTerm.toLowerCase()) || c.ownerName.toLowerCase().includes(cardSearchTerm.toLowerCase()))).map(c => (
                   <button
                     key={c.id}
                     onClick={() => {
