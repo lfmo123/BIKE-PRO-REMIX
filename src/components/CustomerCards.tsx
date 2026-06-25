@@ -23,6 +23,7 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
 
   const [transactionCard, setTransactionCard] = useState<CustomerCard | null>(null);
   const [transactionAmount, setTransactionAmount] = useState('');
+  const [transactionDiscount, setTransactionDiscount] = useState('');
   const [transactionType, setTransactionType] = useState<'add' | 'refund'>('add');
   const [transactionPaymentMethod, setTransactionPaymentMethod] = useState<'cash' | 'machine' | 'fiado'>('cash');
 
@@ -197,6 +198,21 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
             />
 
             {transactionType === 'add' && transactionCard.type === 'postpaid' && (
+              <>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Desconto (R$)</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  step="0.01"
+                  value={transactionDiscount}
+                  onChange={e => setTransactionDiscount(e.target.value)}
+                  className="w-full px-4 py-3 border rounded-xl mb-4 text-lg focus:ring-2 focus:ring-emerald-500" 
+                  placeholder="0.00"
+                />
+              </>
+            )}
+
+            {transactionType === 'add' && transactionCard.type === 'postpaid' && (
               <div className="mb-4 bg-slate-50 border border-slate-200 rounded-xl p-3">
                 <div className="font-semibold text-slate-800 mb-2">Resumo da Fatura Atual</div>
                 <div className="text-slate-600 mb-2 font-bold text-lg">Total Devido: R$ {(transactionCard.balance || 0).toFixed(2)}</div>
@@ -264,7 +280,7 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
 
             <div className="flex gap-2">
               <button 
-                onClick={() => { setTransactionCard(null); setTransactionAmount(''); setTransactionPaymentMethod('cash'); }}
+                onClick={() => { setTransactionCard(null); setTransactionAmount(''); setTransactionDiscount(''); setTransactionPaymentMethod('cash'); }}
                 className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
               >
                 Cancelar
@@ -273,13 +289,14 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
                 onClick={async () => {
                   const amt = parseFloat(transactionAmount);
                   if (isNaN(amt) || amt <= 0) return;
+                  const discount = parseFloat(transactionDiscount) || 0;
                   
                   let newBalance = Number(transactionCard.balance) || 0;
                   let updateData: Partial<CustomerCard> = { balance: newBalance };
                   
                   if (transactionType === 'add') {
                     if (transactionCard.type === 'prepaid') newBalance += amt;
-                    else newBalance = Math.max(0, newBalance - amt); // reduce debt
+                    else newBalance = Math.max(0, newBalance - amt - discount); // reduce debt
                     
                     updateData.balance = newBalance;
                     updateData.lastPaymentMethod = transactionPaymentMethod;
@@ -297,7 +314,7 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
                   
                   await onAddTransaction({
                      description: transactionType === 'add'
-                       ? `${transactionCard.type === 'prepaid' ? 'Recarga Pré-pago' : 'Pgto. Conta Pós-pago'}: Cartão ${transactionCard.cardNumber} (${transactionCard.ownerName}) (${paymentStr})`
+                       ? `${transactionCard.type === 'prepaid' ? 'Recarga Pré-pago' : 'Pgto. Conta Pós-pago'}: Cartão ${transactionCard.cardNumber} (${transactionCard.ownerName}) (${paymentStr})${transactionCard.type === 'postpaid' && discount > 0 ? ` (Desc. R$${discount.toFixed(2)})` : ''}`
                        : `Estorno ${transactionCard.type === 'prepaid' ? 'Pré-pago' : 'Pós-pago'}: Cartão ${transactionCard.cardNumber} (${transactionCard.ownerName})`,
                      amount: amt,
                      date: Date.now(),
@@ -306,6 +323,7 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
                   
                   setTransactionCard(null);
                   setTransactionAmount('');
+                  setTransactionDiscount('');
                   setTransactionPaymentMethod('cash');
                 }}
                 className={`flex-1 py-3 text-white font-bold rounded-xl transition-colors ${
