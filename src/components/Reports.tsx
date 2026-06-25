@@ -84,6 +84,33 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
     { name: 'Motos', value: revenueByTypeDaily['motorcycle'] || 0, fill: '#a855f7' }, 
   ];
 
+  const movementByTypeDaily = ['bicycle', 'ebike', 'motorcycle', 'car'].map(type => {
+    const entries = entriesDaily.filter(v => v.type === type).length;
+    const exits = exitsDaily.filter(v => v.type === type).length;
+    const active = vehicles.filter(v => v.type === type && v.status === 'active').length;
+    const revenue = completedVehiclesDaily.filter(v => v.type === type).reduce((sum, v) => sum + (v.price || 0), 0);
+    
+    const typeLabel = type === 'bicycle' ? 'Bicicleta' : type === 'ebike' ? 'E-Bike' : type === 'motorcycle' ? 'Moto' : 'Carro';
+    return { type: typeLabel, entries, exits, active, revenue };
+  }).filter(m => m.entries > 0 || m.exits > 0 || m.active > 0 || m.revenue > 0);
+
+  const startOfPrevDay = startOfDay - 86400000;
+  const endOfPrevDay = startOfDay;
+
+  const entriesPrevDay = vehicles.filter(v => v.checkInTime >= startOfPrevDay && v.checkInTime < endOfPrevDay);
+  const exitsPrevDay = vehicles.filter(v => v.checkOutTime && v.checkOutTime >= startOfPrevDay && v.checkOutTime < endOfPrevDay);
+  const completedVehiclesPrevDay = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= startOfPrevDay && v.checkOutTime < endOfPrevDay);
+
+  const movementByTypePrevDay = ['bicycle', 'ebike', 'motorcycle', 'car'].map(type => {
+    const entries = entriesPrevDay.filter(v => v.type === type).length;
+    const exits = exitsPrevDay.filter(v => v.type === type).length;
+    const active = vehicles.filter(v => v.type === type && v.checkInTime < endOfPrevDay && (!v.checkOutTime || v.checkOutTime >= endOfPrevDay)).length;
+    const revenue = completedVehiclesPrevDay.filter(v => v.type === type).reduce((sum, v) => sum + (v.price || 0), 0);
+    
+    const typeLabel = type === 'bicycle' ? 'Bicicleta' : type === 'ebike' ? 'E-Bike' : type === 'motorcycle' ? 'Moto' : 'Carro';
+    return { type: typeLabel, entries, exits, active, revenue };
+  }).filter(m => m.entries > 0 || m.exits > 0 || m.active > 0 || m.revenue > 0);
+
   const overnightVehiclesDaily = vehicles.filter(v => {
     const checkedInBeforeToday = v.checkInTime < startOfDay;
     const activeToday = (v.status === 'active' || v.status === 'stored' || (v.checkOutTime && v.checkOutTime >= startOfDay));
@@ -482,8 +509,117 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
               </div>
             </div>
 
-            {/* Overnight Report Section */}
+            {/* Movement by Type Section */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
+                <ArrowRightLeft className="w-5 h-5 mr-2 text-indigo-500" />
+                Movimentação Diária por Categoria
+              </h3>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-sm font-bold text-slate-500">
+                      <th className="p-4 rounded-tl-xl">Categoria</th>
+                      <th className="p-4 text-center">Entradas</th>
+                      <th className="p-4 text-center">Saídas</th>
+                      <th className="p-4 text-center">No Pátio (Ativos)</th>
+                      <th className="p-4 text-right rounded-tr-xl">Faturamento</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {movementByTypeDaily.map((item) => (
+                      <tr key={item.type} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4 font-bold text-slate-900">{item.type}</td>
+                        <td className="p-4 text-center text-slate-600 font-medium">{item.entries}</td>
+                        <td className="p-4 text-center text-slate-600 font-medium">{item.exits}</td>
+                        <td className="p-4 text-center text-slate-600 font-medium">{item.active}</td>
+                        <td className="p-4 text-right font-bold text-emerald-600">
+                          R$ {item.revenue.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    {movementByTypeDaily.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-slate-500 font-medium">
+                          Nenhuma movimentação registrada neste dia.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  {movementByTypeDaily.length > 0 && (
+                    <tfoot className="bg-slate-50 font-bold text-slate-800">
+                      <tr>
+                        <td className="p-4 rounded-bl-xl">Total Geral</td>
+                        <td className="p-4 text-center">{movementByTypeDaily.reduce((acc, curr) => acc + curr.entries, 0)}</td>
+                        <td className="p-4 text-center">{movementByTypeDaily.reduce((acc, curr) => acc + curr.exits, 0)}</td>
+                        <td className="p-4 text-center">{movementByTypeDaily.reduce((acc, curr) => acc + curr.active, 0)}</td>
+                        <td className="p-4 text-right text-emerald-700 rounded-br-xl">
+                          R$ {movementByTypeDaily.reduce((acc, curr) => acc + curr.revenue, 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2 mt-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
+                <ArrowRightLeft className="w-5 h-5 mr-2 text-slate-400" />
+                Resumo do Dia Anterior
+              </h3>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-sm font-bold text-slate-500">
+                      <th className="p-4 rounded-tl-xl">Categoria</th>
+                      <th className="p-4 text-center">Entradas</th>
+                      <th className="p-4 text-center">Saídas</th>
+                      <th className="p-4 text-center">No Pátio (Ativos)</th>
+                      <th className="p-4 text-right rounded-tr-xl">Faturamento</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {movementByTypePrevDay.map((item) => (
+                      <tr key={item.type} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4 font-bold text-slate-900">{item.type}</td>
+                        <td className="p-4 text-center text-slate-600 font-medium">{item.entries}</td>
+                        <td className="p-4 text-center text-slate-600 font-medium">{item.exits}</td>
+                        <td className="p-4 text-center text-slate-600 font-medium">{item.active}</td>
+                        <td className="p-4 text-right font-bold text-emerald-600">
+                          R$ {item.revenue.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    {movementByTypePrevDay.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-slate-500 font-medium">
+                          Nenhuma movimentação registrada no dia anterior.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  {movementByTypePrevDay.length > 0 && (
+                    <tfoot className="bg-slate-50 font-bold text-slate-800">
+                      <tr>
+                        <td className="p-4 rounded-bl-xl">Total Geral</td>
+                        <td className="p-4 text-center">{movementByTypePrevDay.reduce((acc, curr) => acc + curr.entries, 0)}</td>
+                        <td className="p-4 text-center">{movementByTypePrevDay.reduce((acc, curr) => acc + curr.exits, 0)}</td>
+                        <td className="p-4 text-center">{movementByTypePrevDay.reduce((acc, curr) => acc + curr.active, 0)}</td>
+                        <td className="p-4 text-right text-emerald-700 rounded-br-xl">
+                          R$ {movementByTypePrevDay.reduce((acc, curr) => acc + curr.revenue, 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+
+            {/* Overnight Report Section */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2 mt-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center">
                   <Moon className="w-5 h-5 mr-2 text-amber-500" />
