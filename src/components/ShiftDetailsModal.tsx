@@ -67,22 +67,22 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
   <meta charset="UTF-8">
   <title>Fechamento de Turno - ${shift.operatorName}</title>
   <style>
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333; line-height: 1.6; max-width: 800px; margin: 0 auto; }
-    h1 { font-size: 24px; font-weight: bold; margin-bottom: 20px; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; text-transform: uppercase; }
-    .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 8px; }
-    .section h2 { font-size: 16px; font-weight: bold; background: #f8f9fa; padding: 8px; margin: -15px -15px 15px -15px; border-bottom: 1px solid #ddd; border-top-left-radius: 8px; border-top-right-radius: 8px; text-transform: uppercase; }
-    .row { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px dotted #ccc; padding-bottom: 4px; font-size: 14px; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #000; line-height: 1.6; max-width: 800px; margin: 0 auto; font-size: 16px; }
+    h1 { font-size: 28px; font-weight: 900; margin-bottom: 25px; text-align: center; border-bottom: 3px solid #000; padding-bottom: 15px; text-transform: uppercase; color: #000; }
+    .section { margin-bottom: 35px; border: 2px solid #ccc; padding: 20px; border-radius: 8px; }
+    .section h2 { font-size: 18px; font-weight: 900; background: #f8f9fa; padding: 12px; margin: -20px -20px 20px -20px; border-bottom: 2px solid #ccc; border-top-left-radius: 8px; border-top-right-radius: 8px; text-transform: uppercase; color: #000; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px dotted #999; padding-bottom: 6px; font-size: 16px; }
     .row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-    .label { font-weight: bold; color: #555; }
-    .value { font-weight: bold; font-family: monospace; font-size: 14px; }
-    .header-info { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 14px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
+    .label { font-weight: bold; color: #333; }
+    .value { font-weight: 900; font-family: monospace; font-size: 18px; color: #000; }
+    .header-info { display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 16px; background: #f8f9fa; padding: 20px; border-radius: 8px; border: 2px solid #ccc; }
     .header-info div { text-align: center; }
-    .header-info .label { display: block; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; border-bottom: none; }
-    .total-row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #000; font-size: 18px; font-weight: bold; }
-    .text-emerald { color: #10b981; }
-    .text-rose { color: #ef4444; }
-    .text-blue { color: #3b82f6; }
-    .text-orange { color: #f97316; }
+    .header-info .label { display: block; font-size: 14px; text-transform: uppercase; margin-bottom: 6px; border-bottom: none; font-weight: bold; color: #444; }
+    .total-row { display: flex; justify-content: space-between; margin-top: 15px; padding-top: 15px; border-top: 3px solid #000; font-size: 22px; font-weight: 900; color: #000; }
+    .text-emerald { color: #059669; font-weight: bold; }
+    .text-rose { color: #e11d48; font-weight: bold; }
+    .text-blue { color: #2563eb; font-weight: bold; }
+    .text-orange { color: #ea580c; font-weight: bold; }
     @media print { body { padding: 0; } }
   </style>
 </head>

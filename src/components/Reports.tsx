@@ -182,31 +182,31 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
   <meta charset="UTF-8">
   <title>Relatório Diário - ${formattedDate}</title>
   <style>
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333; line-height: 1.5; max-width: 900px; margin: 0 auto; }
-    h1 { font-size: 22px; font-weight: bold; margin-bottom: 5px; text-align: center; text-transform: uppercase; }
-    .subtitle { text-align: center; font-size: 14px; color: #666; margin-bottom: 25px; font-weight: bold; }
-    .section { margin-bottom: 25px; border: 1px solid #ddd; padding: 15px; border-radius: 8px; page-break-inside: avoid; }
-    .section h2 { font-size: 14px; font-weight: bold; background: #f8f9fa; padding: 8px; margin: -15px -15px 15px -15px; border-bottom: 1px solid #ddd; border-top-left-radius: 8px; border-top-right-radius: 8px; text-transform: uppercase; display: flex; justify-content: space-between; }
-    .row { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px dotted #ccc; padding-bottom: 4px; font-size: 13px; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #000; line-height: 1.5; max-width: 900px; margin: 0 auto; font-size: 16px; }
+    h1 { font-size: 26px; font-weight: 900; margin-bottom: 5px; text-align: center; text-transform: uppercase; color: #000; }
+    .subtitle { text-align: center; font-size: 18px; color: #444; margin-bottom: 30px; font-weight: bold; }
+    .section { margin-bottom: 30px; border: 2px solid #ccc; padding: 20px; border-radius: 8px; page-break-inside: avoid; }
+    .section h2 { font-size: 18px; font-weight: 900; background: #f8f9fa; padding: 12px; margin: -20px -20px 20px -20px; border-bottom: 2px solid #ccc; border-top-left-radius: 8px; border-top-right-radius: 8px; text-transform: uppercase; display: flex; justify-content: space-between; color: #000; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px dotted #999; padding-bottom: 6px; font-size: 16px; }
     .row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-    .label { font-weight: bold; color: #555; }
-    .value { font-weight: bold; font-family: monospace; font-size: 13px; }
-    .total-row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #000; font-size: 16px; font-weight: bold; }
-    .text-emerald { color: #10b981; }
-    .text-rose { color: #ef4444; }
-    .text-blue { color: #3b82f6; }
+    .label { font-weight: bold; color: #333; }
+    .value { font-weight: 900; font-family: monospace; font-size: 18px; color: #000; }
+    .total-row { display: flex; justify-content: space-between; margin-top: 15px; padding-top: 15px; border-top: 3px solid #000; font-size: 22px; font-weight: 900; color: #000; }
+    .text-emerald { color: #059669; font-weight: bold; }
+    .text-rose { color: #e11d48; font-weight: bold; }
+    .text-blue { color: #2563eb; font-weight: bold; }
     
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-    th { background: #f8f9fa; font-weight: bold; border-bottom: 2px solid #ddd; padding: 6px 8px; text-align: left; }
-    td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 16px; }
+    th { background: #f8f9fa; font-weight: 900; border-bottom: 3px solid #000; padding: 10px; text-align: left; color: #000; }
+    td { padding: 10px; border-bottom: 1px solid #ccc; color: #000; }
     tr:last-child td { border-bottom: none; }
     .text-center { text-align: center; }
     .text-right { text-align: right; }
     
-    .grid-summary { display: grid; grid-template-cols: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
-    .card-summary { border: 1px solid #ddd; border-radius: 8px; padding: 12px; text-align: center; background: #f8f9fa; }
-    .card-summary .card-title { font-size: 11px; text-transform: uppercase; color: #666; font-weight: bold; margin-bottom: 4px; }
-    .card-summary .card-value { font-size: 18px; font-weight: black; color: #111; }
+    .grid-summary { display: grid; grid-template-cols: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+    .card-summary { border: 2px solid #ccc; border-radius: 8px; padding: 15px; text-align: center; background: #f8f9fa; }
+    .card-summary .card-title { font-size: 15px; text-transform: uppercase; color: #444; font-weight: 900; margin-bottom: 8px; }
+    .card-summary .card-value { font-size: 26px; font-weight: 900; color: #000; }
 
     @media print { 
       body { padding: 0; } 
