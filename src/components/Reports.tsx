@@ -1141,7 +1141,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
                         className="flex flex-col cursor-pointer hover:text-indigo-800 transition-colors"
                         onClick={() => setSelectedVehicleDetails(vehicle)}
                       >
-                        <span>#{vehicle.cardNumber || '-'}</span>
+                        <span>{vehicle.cardNumber.startsWith('VIP') ? vehicle.cardNumber : `#${vehicle.cardNumber || '-'}`}</span>
                         <span className="text-xs font-medium text-slate-400 capitalize">
                           {vehicle.type === 'bicycle' ? 'Bicicleta' : 
                            vehicle.type === 'ebike' ? 'E-Bike' : 

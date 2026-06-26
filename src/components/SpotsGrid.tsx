@@ -15,6 +15,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
   const [searchQuery, setSearchQuery] = useState('');
   const normalSpots = Array.from({ length: 300 }, (_, i) => (i + 1).toString());
   const specialSpots = Array.from({ length: 50 }, (_, i) => `MT/BE ${i + 1}`);
+  const vipSpots = Array.from({ length: 20 }, (_, i) => `VIP ${i + 1}`);
 
   const spotMap = useMemo(() => {
     const map = new Map<string, ParkedVehicle>();
@@ -97,12 +98,17 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
                     : 'bg-white border-slate-200 border-dashed hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm cursor-pointer group'
               }`}
             >
-              <span className={`absolute top-1 left-2 font-bold text-2xl ${spotNum.includes('MT/BE') ? 'text-lg' : ''} ${isLostCard ? 'text-red-900/30' : 'text-black'}`}>
-                {spotNum.replace('MT/BE ', '')}
+              <span className={`absolute top-1 left-2 font-bold text-2xl ${spotNum.includes('MT/BE') || spotNum.includes('VIP') ? 'text-lg' : ''} ${isLostCard ? 'text-red-900/30' : 'text-black'}`}>
+                {spotNum.replace('MT/BE ', '').replace('VIP ', '')}
               </span>
               {spotNum.includes('MT/BE') && (
                 <span className={`absolute top-6 left-2 font-bold text-[10px] ${isLostCard ? 'text-red-900/30' : 'text-slate-500'}`}>
                   MT/BE
+                </span>
+              )}
+              {spotNum.includes('VIP') && (
+                <span className={`absolute top-6 left-2 font-bold text-[10px] ${isLostCard ? 'text-red-900/30' : 'text-slate-500'}`}>
+                  VIP
                 </span>
               )}
               
@@ -196,14 +202,16 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
       {renderGrid(normalSpots, "Bicicletas Tradicionais", true)}
       
       {renderGrid(specialSpots, "E-Bikes e Motos (MT/BE)")}
+
+      {renderGrid(vipSpots, "Vagas VIP")}
       
       {/* List vehicles that have non-numeric spot numbers (fallback) */}
-      {activeVehicles.find(v => !normalSpots.includes(v.cardNumber) && !specialSpots.includes(v.cardNumber)) && (
+      {activeVehicles.find(v => !normalSpots.includes(v.cardNumber) && !specialSpots.includes(v.cardNumber) && !vipSpots.includes(v.cardNumber)) && (
         <div className="mt-8">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Cartões Especiais / Extra</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {activeVehicles
-              .filter(v => !normalSpots.includes(v.cardNumber) && !specialSpots.includes(v.cardNumber))
+              .filter(v => !normalSpots.includes(v.cardNumber) && !specialSpots.includes(v.cardNumber) && !vipSpots.includes(v.cardNumber))
               .map(vehicle => (
                 <button
                   key={vehicle.id}

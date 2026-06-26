@@ -12,11 +12,13 @@ interface CheckInModalProps {
 export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: CheckInModalProps) {
   const [type, setType] = useState<VehicleType>('bicycle');
   const [cardNumber, setCardNumber] = useState('');
+  const [ownerName, setOwnerName] = useState('');
   const [customDate, setCustomDate] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const isSpecialGrid = initialCardNumber?.includes('MT/BE');
-  const isTraditionalGrid = initialCardNumber && !initialCardNumber.includes('MT/BE');
+  const isVipGrid = initialCardNumber?.startsWith('VIP');
+  const isTraditionalGrid = initialCardNumber && !initialCardNumber.includes('MT/BE') && !initialCardNumber.startsWith('VIP');
 
   React.useEffect(() => {
     if (isOpen) {
@@ -30,6 +32,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
       } else {
         setType('bicycle');
       }
+      setOwnerName('');
       setErrorMsg('');
       
       if (!customDate) {
@@ -47,11 +50,15 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
     setErrorMsg('');
     
     if (!cardNumber || !customDate) return;
+    if (isVipGrid && !ownerName.trim()) {
+      setErrorMsg('Para vagas VIP, o nome do cliente é obrigatório!');
+      return;
+    }
     
     const res = await onCheckIn({
       type,
       identifier: 'Não informada',
-      ownerName: 'Não informado',
+      ownerName: ownerName.trim() || 'Não informado',
       cardNumber: cardNumber.trim().toUpperCase(),
       checkInTime: new Date(customDate).getTime(),
     });
@@ -132,7 +139,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
           <div className="space-y-4">
             <div>
               <label htmlFor="cardNumber" className="block text-lg font-medium text-slate-700 mb-2">
-                Número do Cartão
+                {isVipGrid ? 'Vaga' : 'Número do Cartão'}
               </label>
               <input
                 id="cardNumber"
@@ -140,10 +147,28 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                 required
                 value={cardNumber}
                 onChange={(e) => setCardNumber(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-xl"
+                readOnly={isVipGrid}
+                className={`w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-xl ${isVipGrid ? 'opacity-70 cursor-not-allowed' : ''}`}
                 placeholder="Ex: 12"
               />
             </div>
+
+            {isVipGrid && (
+              <div>
+                <label htmlFor="ownerName" className="block text-lg font-medium text-slate-700 mb-2">
+                  Nome do Cliente (Obrigatório)
+                </label>
+                <input
+                  id="ownerName"
+                  type="text"
+                  required
+                  value={ownerName}
+                  onChange={(e) => setOwnerName(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-xl"
+                  placeholder="Ex: João Silva"
+                />
+              </div>
+            )}
 
             <div>
               <label htmlFor="checkInDate" className="block text-lg font-medium text-slate-700 mb-2">

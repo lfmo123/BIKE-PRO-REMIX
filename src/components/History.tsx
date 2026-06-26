@@ -141,7 +141,7 @@ export function History({ vehicles, onRevertCheckout }: HistoryProps) {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100 text-sm font-medium text-slate-500">
-                <th className="p-4">Cartão</th>
+                <th className="p-4">Identificação</th>
                 <th className="p-4">Tipo</th>
                 <th className="p-4">Usos</th>
                 <th className="p-4 text-right">Total Pago</th>
@@ -150,7 +150,9 @@ export function History({ vehicles, onRevertCheckout }: HistoryProps) {
             <tbody className="divide-y divide-slate-100">
               {groupedList.map((group: any, idx) => (
                 <tr key={`${group.cardNumber}-${group.type}`} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="p-4 text-emerald-600 font-bold hover:underline cursor-pointer" onClick={() => setSelectedCardForHistory(group.cardNumber)}>{group.cardNumber}</td>
+                  <td className="p-4 text-emerald-600 font-bold hover:underline cursor-pointer" onClick={() => setSelectedCardForHistory(group.cardNumber)}>
+                    {group.cardNumber.startsWith('VIP') ? group.cardNumber : `Cartão ${group.cardNumber}`}
+                  </td>
                   <td className="p-4">
                       <div className="flex items-center space-x-2">
                         {getIcon(group.type)}
@@ -177,7 +179,7 @@ export function History({ vehicles, onRevertCheckout }: HistoryProps) {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900">Histórico do Cartão #{selectedCardForHistory}</h2>
+              <h2 className="text-xl font-bold text-slate-900">Histórico - {selectedCardForHistory.startsWith('VIP') ? selectedCardForHistory : `Cartão #${selectedCardForHistory}`}</h2>
               <button onClick={() => setSelectedCardForHistory(null)} className="p-2 hover:bg-slate-100 rounded-full">
                 <X className="w-6 h-6 text-slate-500" />
               </button>
