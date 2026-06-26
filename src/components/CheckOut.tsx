@@ -131,20 +131,16 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
     printIframe.style.left = '-10000px';
     document.body.appendChild(printIframe);
     
-    const doc = printIframe.contentWindow?.document;
+    const doc = printIframe.contentWindow?.document || printIframe.contentDocument;
     if (doc) {
       doc.open();
       doc.write(html);
       doc.close();
-      
-      printIframe.contentWindow?.focus();
-      setTimeout(() => {
-        printIframe.contentWindow?.print();
-        setTimeout(() => {
-          document.body.removeChild(printIframe);
-        }, 1000);
-      }, 500);
     }
+    
+    setTimeout(() => {
+      document.body.removeChild(printIframe);
+    }, 2000);
   };
 
   return (
