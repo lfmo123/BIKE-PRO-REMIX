@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Bike, Zap, Motorbike, DollarSign, Clock, Users, ShoppingCart, Package } from 'lucide-react';
+import { Bike, Zap, Motorbike, DollarSign, Clock, Users, ShoppingCart, Package, Printer } from 'lucide-react';
 import { ParkedVehicle, Pricing, LostCard, Product, Sale } from '../types';
 import { SaleModal } from './SaleModal';
+import { generateThermalPrintHtml } from '../utils/printHelper';
 
 export interface DashboardProps {
   vehicles: ParkedVehicle[];
@@ -20,6 +21,54 @@ export function Dashboard({ vehicles, pricing, lostCards, products = [], onAddSa
   const activeVehicles = vehicles.filter(v => v.status === 'active');
   const storedVehicles = vehicles.filter(v => v.status === 'stored');
   const occupyingVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
+  
+  const handlePrintConference = () => {
+    const allActive = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
+    const bodyHtml = `
+      <h1>Conferência de Pátio</h1>
+      <div class="subtitle">${new Date().toLocaleString('pt-BR')}</div>
+      <div class="section">
+        <h2>${allActive.length} Veículos</h2>
+        ${allActive.map((v) => `
+          <div class="print-item">
+            <div class="print-item-header" style="display: flex; justify-content: space-between;">
+              <span><strong>#${v.cardNumber}</strong> - ${v.identifier || v.ownerName || 'S/ Placa'}</span>
+              <span>[&nbsp;&nbsp;&nbsp;]</span>
+            </div>
+            <div class="print-item-row">
+              <span>${v.type === 'bicycle' ? 'Bike' : v.type === 'ebike' ? 'E-Bike' : 'Moto'}</span>
+              <span>Entrada: ${new Date(v.checkInTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="footer">
+        <p>Bikepark - Conferência</p>
+      </div>
+    `;
+    
+    const html = generateThermalPrintHtml('Conferência de Pátio', bodyHtml);
+    const printIframe = document.createElement('iframe');
+    printIframe.style.position = 'absolute';
+    printIframe.style.top = '-10000px';
+    printIframe.style.left = '-10000px';
+    document.body.appendChild(printIframe);
+    
+    const doc = printIframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      
+      printIframe.contentWindow?.focus();
+      setTimeout(() => {
+        printIframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(printIframe);
+        }, 1000);
+      }, 500);
+    }
+  };
   
   const typeCount = {
     bicycle: activeVehicles.filter(v => v.type === 'bicycle').length,
@@ -93,7 +142,16 @@ export function Dashboard({ vehicles, pricing, lostCards, products = [], onAddSa
           <h2 className="text-lg font-bold text-slate-900 mb-4">Ocupação por Tipo</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Veículos no Pátio (Ativos)</h3>
+              <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2">
+                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-0 border-b-0 pb-0">Veículos no Pátio (Ativos)</h3>
+                <button
+                  onClick={handlePrintConference}
+                  className="text-slate-500 hover:text-slate-700 p-1"
+                  title="Imprimir Conferência de Pátio"
+                >
+                  <Printer className="w-4 h-4" />
+                </button>
+              </div>
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
                   <div className="flex items-center space-x-3">

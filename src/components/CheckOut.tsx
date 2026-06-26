@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Bike, Zap, Motorbike, Clock, DollarSign, CreditCard, Banknote, Smartphone, ChevronRight, LogOut, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Search, Bike, Zap, Motorbike, Clock, DollarSign, CreditCard, Banknote, Smartphone, ChevronRight, LogOut, ArrowLeft, AlertCircle, Printer } from 'lucide-react';
 import { ParkedVehicle, Pricing, VehicleType, CustomerCard } from '../types';
 import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/pricing';
+import { generateThermalPrintHtml } from '../utils/printHelper';
 
 interface CheckOutProps {
   vehicles: ParkedVehicle[];
@@ -85,10 +86,72 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
     return customerCards.filter(c => c.type === (paymentMethod === 'card' ? 'prepaid' : 'postpaid'));
   }, [customerCards, paymentMethod]);
 
+  const handlePrintConference = () => {
+    const allActive = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
+    const bodyHtml = `
+      <h1>Conferência de Pátio</h1>
+      <div class="subtitle">${new Date().toLocaleString('pt-BR')}</div>
+      <div class="section">
+        <h2>${allActive.length} Veículos</h2>
+        ${allActive.map((v) => `
+          <div class="print-item">
+            <div class="print-item-header" style="display: flex; justify-content: space-between;">
+              <span><strong>#${v.cardNumber}</strong> - ${v.identifier || v.ownerName || 'S/ Placa'}</span>
+              <span>[&nbsp;&nbsp;&nbsp;]</span>
+            </div>
+            <div class="print-item-row">
+              <span>${v.type === 'bicycle' ? 'Bike' : v.type === 'ebike' ? 'E-Bike' : 'Moto'}</span>
+              <span>Entrada: ${new Date(v.checkInTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="footer">
+        <p>Bikepark - Conferência</p>
+      </div>
+    `;
+    
+    const html = generateThermalPrintHtml('Conferência de Pátio', bodyHtml);
+    const printIframe = document.createElement('iframe');
+    printIframe.style.position = 'absolute';
+    printIframe.style.top = '-10000px';
+    printIframe.style.left = '-10000px';
+    document.body.appendChild(printIframe);
+    
+    const doc = printIframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      
+      printIframe.contentWindow?.focus();
+      setTimeout(() => {
+        printIframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(printIframe);
+        }, 1000);
+      }, 500);
+    }
+  };
+
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between shrink-0">
         <h1 className="text-2xl font-bold text-slate-900">Registrar Saída</h1>
+        <button
+          onClick={handlePrintConference}
+          className="hidden sm:flex bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors items-center"
+        >
+          <Printer className="w-4 h-4 mr-2" />
+          Imprimir Conferência
+        </button>
+        <button
+          onClick={handlePrintConference}
+          className="sm:hidden bg-white border border-slate-200 text-slate-700 p-2 rounded-xl hover:bg-slate-50 transition-colors"
+          title="Imprimir Conferência"
+        >
+          <Printer className="w-5 h-5" />
+        </button>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
