@@ -67,17 +67,17 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
   <meta charset="UTF-8">
   <title>Fechamento de Turno - ${shift.operatorName}</title>
   <style>
-    body { font-family: 'Courier New', Courier, monospace; padding: 10px; color: #000; line-height: 1.3; max-width: 300px; margin: 0 auto; font-size: 14px; background: #fff; }
-    h1 { font-size: 18px; font-weight: 900; margin-bottom: 10px; text-align: center; border-bottom: 2px dashed #000; padding-bottom: 5px; text-transform: uppercase; color: #000; }
-    .section { margin-bottom: 15px; border-bottom: 2px dashed #000; padding-bottom: 10px; }
-    .section h2 { font-size: 16px; font-weight: 900; margin: 0 0 10px 0; text-transform: uppercase; color: #000; text-align: center; }
-    .row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; }
+    body { font-family: 'Courier New', Courier, monospace; padding: 10px; color: #000; line-height: 1.3; max-width: 100%; margin: 0 auto; font-size: 32px; background: #fff; }
+    h1 { font-size: 40px; font-weight: 900; margin-bottom: 20px; text-align: center; border-bottom: 4px dashed #000; padding-bottom: 10px; text-transform: uppercase; color: #000; }
+    .section { margin-bottom: 30px; border-bottom: 4px dashed #000; padding-bottom: 20px; }
+    .section h2 { font-size: 36px; font-weight: 900; margin: 0 0 20px 0; text-transform: uppercase; color: #000; text-align: center; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 32px; font-weight: bold; }
     .row:last-child { margin-bottom: 0; }
-    .label { font-weight: bold; }
-    .value { font-weight: 900; font-size: 15px; text-align: right; }
-    .header-info { display: flex; flex-direction: column; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px dashed #000; }
-    .header-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-    .total-row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 5px; border-top: 2px dashed #000; font-size: 16px; font-weight: 900; }
+    .label { font-weight: 900; }
+    .value { font-weight: 900; font-size: 34px; text-align: right; }
+    .header-info { display: flex; flex-direction: column; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 4px dashed #000; }
+    .header-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 32px; font-weight: bold; }
+    .total-row { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 10px; border-top: 4px dashed #000; font-size: 36px; font-weight: 900; }
     
     @media print { body { padding: 0; width: 100%; max-width: 100%; margin: 0; } }
   </style>
@@ -87,8 +87,8 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
   
   <div class="header-info">
     <div class="header-row"><span class="label">Op:</span> <span class="value">${shift.operatorName}</span></div>
-    <div class="header-row"><span class="label">Abre:</span> <span class="value" style="font-size:12px;">${new Date(shift.startTime).toLocaleString('pt-BR')}</span></div>
-    <div class="header-row"><span class="label">Fecha:</span> <span class="value" style="font-size:12px;">${shift.endTime ? new Date(shift.endTime).toLocaleString('pt-BR') : 'Em aberto'}</span></div>
+    <div class="header-row"><span class="label">Abre:</span> <span class="value" style="font-size:24px;">${new Date(shift.startTime).toLocaleString('pt-BR')}</span></div>
+    <div class="header-row"><span class="label">Fecha:</span> <span class="value" style="font-size:24px;">${shift.endTime ? new Date(shift.endTime).toLocaleString('pt-BR') : 'Em aberto'}</span></div>
   </div>
 
   <div class="section">
@@ -97,7 +97,7 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
     <div class="row"><span class="label">Entradas</span> <span class="value">R$ ${cash.toFixed(2)}</span></div>
     <div class="row"><span class="label">Despesas</span> <span class="value">- R$ ${expenses.toFixed(2)}</span></div>
     <div class="total-row"><span class="label">Em Caixa</span> <span class="value">R$ ${(shift.initialChange + cash - expenses).toFixed(2)}</span></div>
-    <div class="row" style="margin-top: 5px; padding-top: 5px; border-top: 1px dotted #ccc;"><span class="label">Troco Repassado</span> <span class="value">R$ ${(shift.finalChange || 0).toFixed(2)}</span></div>
+    <div class="row" style="margin-top: 15px; padding-top: 15px; border-top: 2px dotted #000;"><span class="label">Troco Repassado</span> <span class="value">R$ ${(shift.finalChange || 0).toFixed(2)}</span></div>
   </div>
 
   <div class="section">
@@ -119,7 +119,7 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
     <div class="row"><span class="label">Pernoites</span> <span class="value">${shift.summary?.overnightCount || 0}</span></div>
   </div>
   
-  <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #000; font-weight: bold; padding-bottom: 20px;">
+  <div style="text-align: center; margin-top: 50px; font-size: 24px; color: #000; font-weight: bold; padding-bottom: 20px;">
     <p>___________________</p>
     <p>${shift.operatorName}</p>
     <p>Gerado: ${new Date().toLocaleString('pt-BR')}</p>
