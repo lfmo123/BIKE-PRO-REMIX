@@ -186,19 +186,6 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
                 <span className="text-xs sm:text-base font-medium text-center">Fiado</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('pix')}
-                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border-2 transition-all ${
-                  paymentMethod === 'pix' 
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
-                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                }`}
-              >
-                <Smartphone className={`w-5 h-5 mb-1 ${paymentMethod === 'pix' ? 'text-emerald-600' : ''}`} />
-                <span className="text-xs sm:text-base font-medium text-center">Pix</span>
-              </button>
-
               {!vehicle.cardLost && !showLostForm && (
                 <button
                   type="button"
