@@ -26,6 +26,9 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
   const [transactionDiscount, setTransactionDiscount] = useState('');
   const [transactionType, setTransactionType] = useState<'add' | 'refund'>('add');
   const [transactionPaymentMethod, setTransactionPaymentMethod] = useState<'cash' | 'machine' | 'fiado'>('cash');
+  const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   // Handle save
   const handleSave = async (e: React.FormEvent) => {
@@ -125,7 +128,7 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
 
           return (
           <div key={card.id} className={`${cardBg} p-5 rounded-2xl border flex flex-col relative group transition-colors`}>
-            <button onClick={() => onDeleteCard(card.id)} className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => { setDeletingCardId(card.id); setDeletePassword(''); setDeleteError(''); }} className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
               <Trash2 className="w-4 h-4" />
             </button>
             
@@ -332,6 +335,59 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
                 }`}
               >
                 Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deletingCardId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200 p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-2">
+              Excluir Cartão
+            </h2>
+            <p className="text-sm text-slate-500 mb-4">
+              Para excluir este cartão, por favor, insira a senha de autorização.
+            </p>
+
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-semibold rounded-xl border border-red-200">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Senha</label>
+              <input 
+                type="password" 
+                value={deletePassword}
+                onChange={e => setDeletePassword(e.target.value)}
+                className="w-full px-4 py-3 border rounded-xl mb-4 text-lg focus:ring-2 focus:ring-red-500" 
+                placeholder="Digite a senha"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button 
+                onClick={() => { setDeletingCardId(null); setDeletePassword(''); setDeleteError(''); }}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={async () => {
+                  if (deletePassword === 'Admin') {
+                    await onDeleteCard(deletingCardId);
+                    setDeletingCardId(null);
+                    setDeletePassword('');
+                    setDeleteError('');
+                  } else {
+                    setDeleteError('Senha incorreta!');
+                  }
+                }}
+                className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors"
+              >
+                Excluir
               </button>
             </div>
           </div>
