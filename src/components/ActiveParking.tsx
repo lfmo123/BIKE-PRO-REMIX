@@ -58,23 +58,35 @@ export function ActiveParking({ vehicles, pricing, onCheckOut, onRevertCheckin }
   };
 
   const handlePrintConference = () => {
+    const bikes = activeVehicles.filter(v => v.type === 'bicycle');
+    const ebikes = activeVehicles.filter(v => v.type === 'ebike');
+    const motos = activeVehicles.filter(v => v.type === 'motorcycle');
+
+    const renderCategory = (title: string, items: any[]) => {
+      if (items.length === 0) return '';
+      return `
+        <div class="section" style="margin-bottom: 15px;">
+          <h2 style="font-size: 11pt; margin-bottom: 8px;">${title} (${items.length})</h2>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${items.map(v => `
+              <div style="border: 1px solid #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11pt; display: flex; align-items: center; gap: 8px;">
+                <span>#${v.cardNumber}</span>
+                <span style="border: 1px solid #000; width: 14px; height: 14px; display: inline-block;"></span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    };
+
     const bodyHtml = `
       <h1>Conferência de Pátio</h1>
-      <div class="subtitle">${new Date().toLocaleString('pt-BR')}</div>
-      <div class="section">
-        <h2>${activeVehicles.length} Veículos</h2>
-        ${activeVehicles.map((v, i) => `
-          <div class="print-item">
-            <div class="print-item-header" style="display: flex; justify-content: space-between;">
-              <span><strong>#${v.cardNumber}</strong> - ${v.identifier || v.ownerName || 'S/ Placa'}</span>
-              <span>[&nbsp;&nbsp;&nbsp;]</span>
-            </div>
-            <div class="print-item-row">
-              <span>${v.type === 'bicycle' ? 'Bike' : v.type === 'ebike' ? 'E-Bike' : 'Moto'}</span>
-              <span>Entrada: ${new Date(v.checkInTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</span>
-            </div>
-          </div>
-        `).join('')}
+      <div class="subtitle" style="margin-bottom: 15px;">${new Date().toLocaleString('pt-BR')}</div>
+      ${renderCategory('Bikes', bikes)}
+      ${renderCategory('E-Bikes', ebikes)}
+      ${renderCategory('Motos', motos)}
+      <div class="section" style="text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;">
+        <h2>Total Geral: ${activeVehicles.length}</h2>
       </div>
       <div class="footer">
         <p>Bikepark - Conferência</p>
