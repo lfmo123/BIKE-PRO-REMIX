@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Bike, Zap, Motorbike, Search, Clock, LogOut, AlertTriangle, Undo2, X } from 'lucide-react';
+import { Bike, Zap, Motorbike, Search, Clock, LogOut, AlertTriangle, Undo2, X, Printer } from 'lucide-react';
 import { ParkedVehicle, VehicleType, Pricing } from '../types';
 import { calculatePrice, formatDuration } from '../lib/pricing';
+import { generateThermalPrintHtml } from '../utils/printHelper';
 
 interface ActiveParkingProps {
   vehicles: ParkedVehicle[];
@@ -56,12 +57,75 @@ export function ActiveParking({ vehicles, pricing, onCheckOut, onRevertCheckin }
     }
   };
 
+  const handlePrintConference = () => {
+    const bodyHtml = `
+      <h1>Conferência de Pátio</h1>
+      <div class="subtitle">${new Date().toLocaleString('pt-BR')}</div>
+      <div class="section">
+        <h2>${activeVehicles.length} Veículos</h2>
+        ${activeVehicles.map((v, i) => `
+          <div class="print-item">
+            <div class="print-item-header" style="display: flex; justify-content: space-between;">
+              <span><strong>#${v.cardNumber}</strong> - ${v.identifier || v.ownerName || 'S/ Placa'}</span>
+              <span>[&nbsp;&nbsp;&nbsp;]</span>
+            </div>
+            <div class="print-item-row">
+              <span>${v.type === 'bicycle' ? 'Bike' : v.type === 'ebike' ? 'E-Bike' : 'Moto'}</span>
+              <span>Entrada: ${new Date(v.checkInTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="footer">
+        <p>Bikepark - Conferência</p>
+      </div>
+    `;
+    
+    const html = generateThermalPrintHtml('Conferência de Pátio', bodyHtml);
+    const printIframe = document.createElement('iframe');
+    printIframe.style.position = 'absolute';
+    printIframe.style.top = '-10000px';
+    printIframe.style.left = '-10000px';
+    document.body.appendChild(printIframe);
+    
+    const doc = printIframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      
+      printIframe.contentWindow?.focus();
+      setTimeout(() => {
+        printIframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(printIframe);
+        }, 1000);
+      }, 500);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Veículos Estacionados</h1>
-        <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-sm font-medium">
-          {activeVehicles.length} Ativos
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handlePrintConference}
+            className="hidden sm:flex bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors items-center"
+          >
+            <Printer className="w-4 h-4 mr-2" />
+            Imprimir Conferência
+          </button>
+          <button
+            onClick={handlePrintConference}
+            className="sm:hidden bg-white border border-slate-200 text-slate-700 p-2 rounded-xl hover:bg-slate-50 transition-colors"
+            title="Imprimir Conferência"
+          >
+            <Printer className="w-5 h-5" />
+          </button>
+          <div className="bg-emerald-100 text-emerald-700 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full text-sm font-medium">
+            {activeVehicles.length} Ativos
+          </div>
         </div>
       </div>
 
