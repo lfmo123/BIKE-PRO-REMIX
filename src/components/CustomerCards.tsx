@@ -29,6 +29,12 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
   const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editCardNumber, setEditCardNumber] = useState('');
+  const [editOwnerName, setEditOwnerName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editError, setEditError] = useState('');
 
   // Handle save
   const handleSave = async (e: React.FormEvent) => {
@@ -128,11 +134,31 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
 
           return (
           <div key={card.id} className={`${cardBg} p-5 rounded-2xl border flex flex-col relative group transition-colors`}>
-            <button onClick={() => { setDeletingCardId(card.id); setDeletePassword(''); setDeleteError(''); }} className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                onClick={() => {
+                  setEditingCardId(card.id);
+                  setEditCardNumber(card.cardNumber);
+                  setEditOwnerName(card.ownerName);
+                  setEditPhone(card.phone || '');
+                  setEditPassword('');
+                  setEditError('');
+                }} 
+                className="text-slate-400 hover:text-blue-500"
+                title="Editar Cartão"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => { setDeletingCardId(card.id); setDeletePassword(''); setDeleteError(''); }} 
+                className="text-slate-400 hover:text-red-500"
+                title="Excluir Cartão"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
             
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3 mb-3 mt-1">
               <div className={`p-2 rounded-lg ${card.type === 'prepaid' ? 'bg-emerald-100 text-emerald-600' : 'bg-purple-100 text-purple-600'}`}>
                 <Grid className="w-5 h-5" />
               </div>
@@ -388,6 +414,96 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
                 className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors"
               >
                 Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {editingCardId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-6">
+              Editar Cartão
+            </h2>
+
+            {editError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-semibold rounded-xl border border-red-200">
+                {editError}
+              </div>
+            )}
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Cliente</label>
+                <input 
+                  type="text" 
+                  value={editOwnerName}
+                  onChange={e => setEditOwnerName(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Nome completo"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nº do Cartão</label>
+                <input 
+                  type="text" 
+                  value={editCardNumber}
+                  onChange={e => setEditCardNumber(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Número ou identificador"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Telefone (opcional)</label>
+                <input 
+                  type="tel" 
+                  value={editPhone}
+                  onChange={e => setEditPhone(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500" 
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Senha de Autorização (Admin)</label>
+                <input 
+                  type="password" 
+                  value={editPassword}
+                  onChange={e => setEditPassword(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500" 
+                  placeholder="Digite a senha para salvar"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button 
+                onClick={() => { setEditingCardId(null); setEditPassword(''); setEditError(''); }}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={async () => {
+                  if (editPassword === 'Admin') {
+                    if (!editOwnerName.trim() || !editCardNumber.trim()) {
+                      setEditError('Nome e número do cartão são obrigatórios!');
+                      return;
+                    }
+                    await onUpdateCard(editingCardId, {
+                      ownerName: editOwnerName,
+                      cardNumber: editCardNumber,
+                      phone: editPhone
+                    });
+                    setEditingCardId(null);
+                    setEditPassword('');
+                    setEditError('');
+                  } else {
+                    setEditError('Senha incorreta!');
+                  }
+                }}
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors"
+              >
+                Salvar Alterações
               </button>
             </div>
           </div>
