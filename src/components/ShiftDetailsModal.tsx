@@ -67,73 +67,63 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
   <meta charset="UTF-8">
   <title>Fechamento de Turno - ${shift.operatorName}</title>
   <style>
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #000; line-height: 1.6; max-width: 800px; margin: 0 auto; font-size: 16px; }
-    h1 { font-size: 28px; font-weight: 900; margin-bottom: 25px; text-align: center; border-bottom: 3px solid #000; padding-bottom: 15px; text-transform: uppercase; color: #000; }
-    .section { margin-bottom: 35px; border: 2px solid #ccc; padding: 20px; border-radius: 8px; }
-    .section h2 { font-size: 18px; font-weight: 900; background: #f8f9fa; padding: 12px; margin: -20px -20px 20px -20px; border-bottom: 2px solid #ccc; border-top-left-radius: 8px; border-top-right-radius: 8px; text-transform: uppercase; color: #000; }
-    .row { display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px dotted #999; padding-bottom: 6px; font-size: 16px; }
-    .row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-    .label { font-weight: bold; color: #333; }
-    .value { font-weight: 900; font-family: monospace; font-size: 18px; color: #000; }
-    .header-info { display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 16px; background: #f8f9fa; padding: 20px; border-radius: 8px; border: 2px solid #ccc; }
-    .header-info div { text-align: center; }
-    .header-info .label { display: block; font-size: 14px; text-transform: uppercase; margin-bottom: 6px; border-bottom: none; font-weight: bold; color: #444; }
-    .total-row { display: flex; justify-content: space-between; margin-top: 15px; padding-top: 15px; border-top: 3px solid #000; font-size: 22px; font-weight: 900; color: #000; }
-    .text-emerald { color: #059669; font-weight: bold; }
-    .text-rose { color: #e11d48; font-weight: bold; }
-    .text-blue { color: #2563eb; font-weight: bold; }
-    .text-orange { color: #ea580c; font-weight: bold; }
-    @media print { body { padding: 0; } }
+    body { font-family: 'Courier New', Courier, monospace; padding: 10px; color: #000; line-height: 1.3; max-width: 300px; margin: 0 auto; font-size: 14px; background: #fff; }
+    h1 { font-size: 18px; font-weight: 900; margin-bottom: 10px; text-align: center; border-bottom: 2px dashed #000; padding-bottom: 5px; text-transform: uppercase; color: #000; }
+    .section { margin-bottom: 15px; border-bottom: 2px dashed #000; padding-bottom: 10px; }
+    .section h2 { font-size: 16px; font-weight: 900; margin: 0 0 10px 0; text-transform: uppercase; color: #000; text-align: center; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; }
+    .row:last-child { margin-bottom: 0; }
+    .label { font-weight: bold; }
+    .value { font-weight: 900; font-size: 15px; text-align: right; }
+    .header-info { display: flex; flex-direction: column; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px dashed #000; }
+    .header-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .total-row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 5px; border-top: 2px dashed #000; font-size: 16px; font-weight: 900; }
+    
+    @media print { body { padding: 0; width: 100%; max-width: 100%; margin: 0; } }
   </style>
 </head>
 <body onload="window.print();">
-  <h1>Fechamento de Turno</h1>
+  <h1>Fechamento Turno</h1>
   
   <div class="header-info">
-    <div><span class="label">Operador</span> <span class="value" style="font-size: 16px;">${shift.operatorName}</span></div>
-    <div><span class="label">Abertura</span> <span class="value" style="font-size: 12px;">${new Date(shift.startTime).toLocaleString('pt-BR')}</span></div>
-    <div><span class="label">Fechamento</span> <span class="value" style="font-size: 12px;">${shift.endTime ? new Date(shift.endTime).toLocaleString('pt-BR') : 'Em aberto'}</span></div>
+    <div class="header-row"><span class="label">Op:</span> <span class="value">${shift.operatorName}</span></div>
+    <div class="header-row"><span class="label">Abre:</span> <span class="value" style="font-size:12px;">${new Date(shift.startTime).toLocaleString('pt-BR')}</span></div>
+    <div class="header-row"><span class="label">Fecha:</span> <span class="value" style="font-size:12px;">${shift.endTime ? new Date(shift.endTime).toLocaleString('pt-BR') : 'Em aberto'}</span></div>
   </div>
 
   <div class="section">
-    <h2>Caixa e Transações Gerais</h2>
-    <div class="row"><span class="label">Fundo de Caixa (Abertura)</span> <span class="value">R$ ${shift.initialChange.toFixed(2)}</span></div>
-    <div class="row"><span class="label">Saídas (Despesas Manuais)</span> <span class="value text-rose">- R$ ${expenses.toFixed(2)}</span></div>
-    <div class="total-row"><span class="label">Saldo em Dinheiro Esperado (Abertura + Dinheiro - Despesas)</span> <span class="value text-emerald">R$ ${(shift.initialChange + cash - expenses).toFixed(2)}</span></div>
-    <div class="row" style="margin-top: 10px; padding-top: 10px; border-top: 1px dotted #ccc;"><span class="label">Troco Final Repassado/Retirado (Informado pelo Op.)</span> <span class="value text-blue">R$ ${(shift.finalChange || 0).toFixed(2)}</span></div>
+    <h2>Caixa (Dinheiro)</h2>
+    <div class="row"><span class="label">Fundo Inicial</span> <span class="value">R$ ${shift.initialChange.toFixed(2)}</span></div>
+    <div class="row"><span class="label">Entradas</span> <span class="value">R$ ${cash.toFixed(2)}</span></div>
+    <div class="row"><span class="label">Despesas</span> <span class="value">- R$ ${expenses.toFixed(2)}</span></div>
+    <div class="total-row"><span class="label">Em Caixa</span> <span class="value">R$ ${(shift.initialChange + cash - expenses).toFixed(2)}</span></div>
+    <div class="row" style="margin-top: 5px; padding-top: 5px; border-top: 1px dotted #ccc;"><span class="label">Troco Repassado</span> <span class="value">R$ ${(shift.finalChange || 0).toFixed(2)}</span></div>
   </div>
 
   <div class="section">
-    <h2>Detalhamento de Entradas</h2>
-    <div class="row"><span class="label">Dinheiro (Espécie)</span> <span class="value">R$ ${cash.toFixed(2)}</span></div>
+    <h2>Outras Entradas</h2>
     <div class="row"><span class="label">Máquina</span> <span class="value">R$ ${card.toFixed(2)}</span></div>
-    <div class="row"><span class="label">Fiado</span> <span class="value text-orange">R$ ${fiado.toFixed(2)}</span></div>
-    <div class="total-row" style="font-size:16px"><span class="label">Total Entradas (Incluindo Fiado)</span> <span class="value">R$ ${(totalIncomeReal + fiado).toFixed(2)}</span></div>
+    <div class="row"><span class="label">Fiado</span> <span class="value">R$ ${fiado.toFixed(2)}</span></div>
   </div>
 
   <div class="section">
-    <h2>Valores a Receber Futuramente</h2>
-    <div class="row"><span class="label">Cartões Pós-pagos (Fechamento)</span> <span class="value text-orange">R$ ${postpaid.toFixed(2)}</span></div>
-    <div class="total-row" style="font-size:16px"><span class="label">Total Pós-pagos</span> <span class="value text-orange">R$ ${postpaid.toFixed(2)}</span></div>
+    <h2>A Receber / Abatido</h2>
+    <div class="row"><span class="label">Pós-pago</span> <span class="value">R$ ${postpaid.toFixed(2)}</span></div>
+    <div class="row"><span class="label">Uso Pré-pago</span> <span class="value">R$ ${prepaid.toFixed(2)}</span></div>
   </div>
 
   <div class="section">
-    <h2>Abatimentos de Saldo</h2>
-    <div class="row"><span class="label">Uso de Cartões Pré-pago</span> <span class="value text-blue">R$ ${prepaid.toFixed(2)}</span></div>
-  </div>
-
-  <div class="section">
-    <h2>Resumo Operacional</h2>
-    <div class="row"><span class="label">Veículos Finalizados</span> <span class="value">${shift.summary?.checkOuts || 0}</span></div>
-    <div class="row"><span class="label">Check-ins Lançados</span> <span class="value">${shift.summary?.checkIns || 0}</span></div>
-    <div class="row"><span class="label">Qtd. de Pernoites</span> <span class="value">${shift.summary?.overnightCount || 0}</span></div>
+    <h2>Operacional</h2>
+    <div class="row"><span class="label">Check-outs</span> <span class="value">${shift.summary?.checkOuts || 0}</span></div>
+    <div class="row"><span class="label">Check-ins</span> <span class="value">${shift.summary?.checkIns || 0}</span></div>
+    <div class="row"><span class="label">Pernoites</span> <span class="value">${shift.summary?.overnightCount || 0}</span></div>
   </div>
   
-  <div style="text-align: center; margin-top: 60px; font-size: 12px; color: #888;">
-    <p>_________________________________________________</p>
-    <p style="font-weight: bold; color: #333;">Assinatura do Operador (${shift.operatorName})</p>
-    <p style="margin-top: 20px;">Relatório gerado em ${new Date().toLocaleString('pt-BR')}</p>
-    <p style="margin-top: 5px;">Sistema Bikepark - Gestão de Estacionamento</p>
+  <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #000; font-weight: bold; padding-bottom: 20px;">
+    <p>___________________</p>
+    <p>${shift.operatorName}</p>
+    <p>Gerado: ${new Date().toLocaleString('pt-BR')}</p>
+    <p>Bikepark</p>
   </div>
 </body>
 </html>
