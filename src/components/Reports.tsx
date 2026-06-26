@@ -3,6 +3,7 @@ import { ParkedVehicle, Sale, Transaction } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users, ShoppingCart, Smartphone, Printer, Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { getLocalDateString } from '../lib/dateUtils';
+import { generateThermalPrintHtml } from '../utils/printHelper';
 
 interface ReportsProps {
   vehicles: ParkedVehicle[];
@@ -173,41 +174,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
       </div>
     `).join('');
 
-    const html = `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <title>Relatório Diário - ${formattedDate}</title>
-  <style>
-    body { font-family: 'Courier New', Courier, monospace; padding: 10px; color: #000; font-size: 32px; max-width: 100%; margin: 0 auto; background: #fff; line-height: 1.3; }
-    h1 { font-size: 40px; font-weight: 900; margin-bottom: 10px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 4px dashed #000; padding-bottom: 10px; }
-    .subtitle { text-align: center; font-size: 32px; margin-bottom: 30px; font-weight: 900; }
-    .section { margin-bottom: 30px; border-bottom: 4px dashed #000; padding-bottom: 20px; page-break-inside: avoid; }
-    .section h2 { font-size: 36px; font-weight: 900; margin: 0 0 20px 0; text-transform: uppercase; color: #000; text-align: center; }
-    .row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 32px; font-weight: bold; }
-    .label { font-weight: 900; }
-    .value { font-weight: 900; font-size: 34px; }
-    .total-row { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 20px; border-top: 4px dashed #000; font-size: 36px; font-weight: 900; }
-    
-    .print-item { margin-bottom: 20px; border-bottom: 2px dotted #000; padding-bottom: 10px; }
-    .print-item-header { font-size: 32px; font-weight: 900; margin-bottom: 5px; }
-    .print-item-row { display: flex; justify-content: space-between; font-size: 30px; font-weight: bold; }
-    .print-item-total { font-weight: 900; font-size: 32px; text-align: right; }
-
-    .summary-card { margin-bottom: 16px; border-bottom: 2px dashed #ccc; padding-bottom: 8px; display: flex; flex-direction: column; }
-    .summary-card:last-child { border-bottom: none; }
-    .summary-card .card-title { font-size: 32px; text-transform: uppercase; font-weight: 900; }
-    .summary-card .card-value { font-size: 36px; font-weight: 900; text-align: right; }
-
-    .text-center { text-align: center; }
-
-    @media print { 
-      body { padding: 0; width: 100%; max-width: 100%; margin: 0; } 
-    }
-  </style>
-</head>
-<body onload="window.print();">
+    const bodyHtml = `
   <h1>Relatório Diário</h1>
   <div class="subtitle">${formattedDate}</div>
   
@@ -231,7 +198,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
     </div>
     <div class="summary-card">
       <div class="card-title">Saldo Consolidado</div>
-      <div class="card-value" style="font-size: 44px;">R$ ${netBalanceDaily.toFixed(2)}</div>
+      <div class="card-value" style="font-size: 14pt;">R$ ${netBalanceDaily.toFixed(2)}</div>
     </div>
   </div>
 
@@ -281,13 +248,13 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
   </div>
   ` : ''}
 
-  <div style="text-align: center; margin-top: 50px; font-size: 32px; color: #000; font-weight: bold; padding-bottom: 20px;">
+  <div class="footer">
     <p>Gerado: ${new Date().toLocaleString('pt-BR')}</p>
     <p>Bikepark</p>
   </div>
-</body>
-</html>
-    `;
+`;
+
+    const html = generateThermalPrintHtml(`Relatório Diário - ${formattedDate}`, bodyHtml);
 
     // Print using iframe trick
     const iframe = document.createElement('iframe');

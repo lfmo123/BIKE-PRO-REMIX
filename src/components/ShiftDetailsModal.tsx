@@ -1,6 +1,7 @@
 import React from 'react';
 import { Shift, Transaction, ParkedVehicle, Sale } from '../types';
 import { X, Printer } from 'lucide-react';
+import { generateThermalPrintHtml } from '../utils/printHelper';
 
 interface ShiftDetailsModalProps {
   shift: Shift;
@@ -60,35 +61,13 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
 
   const handlePrint = () => {
     // We launch print using an iframe just like before, but with the detailed layout
-    const html = `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <title>Fechamento de Turno - ${shift.operatorName}</title>
-  <style>
-    body { font-family: 'Courier New', Courier, monospace; padding: 10px; color: #000; line-height: 1.3; max-width: 100%; margin: 0 auto; font-size: 32px; background: #fff; }
-    h1 { font-size: 40px; font-weight: 900; margin-bottom: 20px; text-align: center; border-bottom: 4px dashed #000; padding-bottom: 10px; text-transform: uppercase; color: #000; }
-    .section { margin-bottom: 30px; border-bottom: 4px dashed #000; padding-bottom: 20px; }
-    .section h2 { font-size: 36px; font-weight: 900; margin: 0 0 20px 0; text-transform: uppercase; color: #000; text-align: center; }
-    .row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 32px; font-weight: bold; }
-    .row:last-child { margin-bottom: 0; }
-    .label { font-weight: 900; }
-    .value { font-weight: 900; font-size: 34px; text-align: right; }
-    .header-info { display: flex; flex-direction: column; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 4px dashed #000; }
-    .header-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 32px; font-weight: bold; }
-    .total-row { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 10px; border-top: 4px dashed #000; font-size: 36px; font-weight: 900; }
-    
-    @media print { body { padding: 0; width: 100%; max-width: 100%; margin: 0; } }
-  </style>
-</head>
-<body onload="window.print();">
+    const bodyHtml = `
   <h1>Fechamento Turno</h1>
   
   <div class="header-info">
     <div class="header-row"><span class="label">Op:</span> <span class="value">${shift.operatorName}</span></div>
-    <div class="header-row"><span class="label">Abre:</span> <span class="value" style="font-size:24px;">${new Date(shift.startTime).toLocaleString('pt-BR')}</span></div>
-    <div class="header-row"><span class="label">Fecha:</span> <span class="value" style="font-size:24px;">${shift.endTime ? new Date(shift.endTime).toLocaleString('pt-BR') : 'Em aberto'}</span></div>
+    <div class="header-row"><span class="label">Abre:</span> <span class="value" style="font-size:10pt;">${new Date(shift.startTime).toLocaleString('pt-BR')}</span></div>
+    <div class="header-row"><span class="label">Fecha:</span> <span class="value" style="font-size:10pt;">${shift.endTime ? new Date(shift.endTime).toLocaleString('pt-BR') : 'Em aberto'}</span></div>
   </div>
 
   <div class="section">
@@ -119,15 +98,14 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
     <div class="row"><span class="label">Pernoites</span> <span class="value">${shift.summary?.overnightCount || 0}</span></div>
   </div>
   
-  <div style="text-align: center; margin-top: 50px; font-size: 24px; color: #000; font-weight: bold; padding-bottom: 20px;">
+  <div class="footer">
     <p>___________________</p>
     <p>${shift.operatorName}</p>
     <p>Gerado: ${new Date().toLocaleString('pt-BR')}</p>
     <p>Bikepark</p>
   </div>
-</body>
-</html>
-    `;
+`;
+    const html = generateThermalPrintHtml(`Fechamento de Turno - ${shift.operatorName}`, bodyHtml);
     const printIframe = document.createElement('iframe');
     printIframe.style.position = 'absolute';
     printIframe.style.top = '-10000px';
