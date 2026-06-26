@@ -17,7 +17,7 @@ export interface ParkedVehicle {
   checkOutTime?: number;
   status: 'active' | 'completed';
   price?: number;
-  paymentMethod?: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine';
+  paymentMethod?: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix';
   cardLost?: boolean;
   lostCardName?: string;
   lostCardPhone?: string;
@@ -67,7 +67,7 @@ export interface Sale {
   quantity: number;
   totalPrice: number;
   date: number;
-  paymentMethod?: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine';
+  paymentMethod?: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix';
 }
 
 export interface Shift {

@@ -8,12 +8,12 @@ interface CheckOutModalProps {
   pricing: Pricing;
   customerCards?: CustomerCard[];
   onClose: () => void;
-  onConfirm: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine', customerCardId?: string) => void;
+  onConfirm: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix', customerCardId?: string) => void;
   onReportLostCard?: (vehicleId: string, lostCardName: string, lostCardPhone: string) => void;
 }
 
 export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, onConfirm, onReportLostCard }: CheckOutModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine'>('machine');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix'>('machine');
   const [now, setNow] = useState(Date.now());
   const [showLostForm, setShowLostForm] = useState(false);
   const [lostName, setLostName] = useState('');
@@ -184,6 +184,19 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
               >
                 <AlertTriangle className={`w-5 h-5 mb-1 ${paymentMethod === 'fiado' ? 'text-red-600' : ''}`} />
                 <span className="text-xs sm:text-base font-medium text-center">Fiado</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('pix')}
+                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border-2 transition-all ${
+                  paymentMethod === 'pix' 
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
+                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                }`}
+              >
+                <Smartphone className={`w-5 h-5 mb-1 ${paymentMethod === 'pix' ? 'text-emerald-600' : ''}`} />
+                <span className="text-xs sm:text-base font-medium text-center">Pix</span>
               </button>
 
               {!vehicle.cardLost && !showLostForm && (

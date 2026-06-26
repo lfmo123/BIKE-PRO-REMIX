@@ -376,7 +376,7 @@ export default function App() {
     }
   };
 
-  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine', customerCardId?: string) => {
+  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix', customerCardId?: string) => {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}/checkout`, {
         method: 'PUT',
@@ -567,7 +567,7 @@ export default function App() {
                 {activeTab === 'cards' && <CustomerCards cards={customerCards} vehicles={vehicles} onAddCard={handleAddCard} onUpdateCard={handleUpdateCard} onDeleteCard={handleDeleteCard} onAddTransaction={handleAddTransaction} />}
                 {activeTab === 'store' && <Store products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} onAddSale={handleAddSale} />}
                 {activeTab === 'history' && <History vehicles={vehicles} onRevertCheckout={handleRevertCheckout} />}
-                {activeTab === 'reports' && <Reports vehicles={vehicles} sales={sales} />}
+                {activeTab === 'reports' && <Reports vehicles={vehicles} sales={sales} transactions={transactions} />}
                 {activeTab === 'settings' && <Settings operators={operators} onAddOperator={handleAddOperator} onDeleteOperator={handleDeleteOperator} pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={fetchLostCards} onResetApp={() => setIsResetAppOpen(true)} />}
               </motion.div>
             </AnimatePresence>

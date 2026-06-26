@@ -18,6 +18,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
 
   const isSpecialGrid = initialCardNumber?.includes('MT/BE');
   const isVipGrid = initialCardNumber?.startsWith('VIP');
+  const isVip = isVipGrid || cardNumber.trim().toUpperCase().startsWith('VIP');
   const isTraditionalGrid = initialCardNumber && !initialCardNumber.includes('MT/BE') && !initialCardNumber.startsWith('VIP');
 
   React.useEffect(() => {
@@ -50,7 +51,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
     setErrorMsg('');
     
     if (!cardNumber || !customDate) return;
-    if (isVipGrid && !ownerName.trim()) {
+    if (isVip && !ownerName.trim()) {
       setErrorMsg('Para vagas VIP, o nome do cliente é obrigatório!');
       return;
     }
@@ -139,7 +140,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
           <div className="space-y-4">
             <div>
               <label htmlFor="cardNumber" className="block text-lg font-medium text-slate-700 mb-2">
-                {isVipGrid ? 'Vaga' : 'Número do Cartão'}
+                {isVip ? 'Vaga' : 'Número do Cartão'}
               </label>
               <input
                 id="cardNumber"
@@ -153,7 +154,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
               />
             </div>
 
-            {isVipGrid && (
+            {isVip && (
               <div>
                 <label htmlFor="ownerName" className="block text-lg font-medium text-slate-700 mb-2">
                   Nome do Cliente (Obrigatório)

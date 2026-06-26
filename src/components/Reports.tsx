@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { ParkedVehicle, Sale } from '../types';
+import { ParkedVehicle, Sale, Transaction } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users, ShoppingCart } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users, ShoppingCart, Smartphone, Printer, Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { getLocalDateString } from '../lib/dateUtils';
 
 interface ReportsProps {
   vehicles: ParkedVehicle[];
   sales?: Sale[];
+  transactions?: Transaction[];
 }
 
-export function Reports({ vehicles, sales = [] }: ReportsProps) {
+export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProps) {
   const [reportType, setReportType] = useState<'daily' | 'monthly' | 'custom' | 'cards' | 'store' | 'parked'>('daily');
   const [selectedDate, setSelectedDate] = useState<string>(
     getLocalDateString()
@@ -59,6 +60,18 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
 
   const totalRevenueDaily = completedVehiclesDaily.reduce((sum, v) => sum + (v.price || 0), 0);
 
+  // Store sales on selected date
+  const salesStoreDaily = sales.filter(s => s.date >= startOfDay && s.date <= endOfDay);
+  const totalStoreRevenueDaily = salesStoreDaily.reduce((sum, s) => sum + s.totalPrice, 0);
+
+  // Manual transactions on selected date
+  const dailyTransactions = transactions.filter(t => t.date >= startOfDay && t.date <= endOfDay);
+  const totalManualIncomeDaily = dailyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const totalManualExpenseDaily = dailyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+
+  const totalConsolidatedRevenueDaily = totalRevenueDaily + totalStoreRevenueDaily + totalManualIncomeDaily;
+  const netBalanceDaily = totalConsolidatedRevenueDaily - totalManualExpenseDaily;
+
   const revenueByPaymentDaily = completedVehiclesDaily.reduce((acc, v) => {
     const method = v.paymentMethod || 'cash';
     acc[method] = (acc[method] || 0) + (v.price || 0);
@@ -71,6 +84,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
     { name: 'Dinheiro', value: revenueByPaymentDaily['cash'] || 0, color: '#f59e0b' }, 
     { name: 'Pós-Pago', value: revenueByPaymentDaily['postpaid_card'] || 0, color: '#a855f7' }, 
     { name: 'Aguardando Pag.', value: revenueByPaymentDaily['fiado'] || 0, color: '#ef4444' }, 
+    { name: 'PIX', value: revenueByPaymentDaily['pix'] || 0, color: '#10b981' },
   ].filter(d => d.value > 0);
 
   const revenueByTypeDaily = completedVehiclesDaily.reduce((acc, v) => {
@@ -121,6 +135,229 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
     .filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay)
     .reduce((sum, v) => sum + (v.price || 0), 0);
 
+  const handlePrintDailyReport = () => {
+    const formattedDate = new Date(startOfDay + 12 * 60 * 60 * 1000).toLocaleDateString('pt-BR');
+    
+    // Build tables of items for print
+    // 1. Saídas (Completed vehicles)
+    const vehiclesRows = completedVehiclesDaily.map(v => `
+      <tr>
+        <td>${v.cardNumber}</td>
+        <td>${v.ownerName || '-'}</td>
+        <td>${v.plate || '-'}</td>
+        <td>${v.type === 'bicycle' ? 'Bike' : v.type === 'ebike' ? 'E-Bike' : 'Moto'}</td>
+        <td>${new Date(v.checkInTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</td>
+        <td>${v.checkOutTime ? new Date(v.checkOutTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '-'}</td>
+        <td>${v.paymentMethod === 'card' ? 'Pré Pago' : v.paymentMethod === 'machine' ? 'Máquina' : v.paymentMethod === 'cash' ? 'Dinheiro' : v.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : v.paymentMethod === 'fiado' ? 'Fiado' : v.paymentMethod === 'pix' ? 'Pix' : v.paymentMethod || '-'}</td>
+        <td style="font-weight: bold; text-align: right;">R$ ${(v.price || 0).toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    // 2. Vendas da Loja (Sales)
+    const salesRows = salesStoreDaily.map(s => `
+      <tr>
+        <td>${s.productName}</td>
+        <td style="text-align: center;">${s.quantity}</td>
+        <td>${s.paymentMethod === 'cash' ? 'Dinheiro' : s.paymentMethod === 'machine' ? 'Máquina' : s.paymentMethod === 'pix' ? 'Pix' : s.paymentMethod || '-'}</td>
+        <td style="font-weight: bold; text-align: right;">R$ ${(s.totalPrice || 0).toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    // 3. Lançamentos do Caixa (Manual Transactions)
+    const manualRows = dailyTransactions.map(t => `
+      <tr>
+        <td>${new Date(t.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</td>
+        <td>${t.type === 'income' ? '<span class="text-emerald">Entrada</span>' : '<span class="text-rose">Saída/Despesa</span>'}</td>
+        <td>${t.description}</td>
+        <td style="font-weight: bold; text-align: right; ${t.type === 'expense' ? 'color: #ef4444;' : 'color: #10b981;'}">
+          ${t.type === 'expense' ? '-' : ''}R$ ${t.amount.toFixed(2)}
+        </td>
+      </tr>
+    `).join('');
+
+    const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório Diário - ${formattedDate}</title>
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333; line-height: 1.5; max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 22px; font-weight: bold; margin-bottom: 5px; text-align: center; text-transform: uppercase; }
+    .subtitle { text-align: center; font-size: 14px; color: #666; margin-bottom: 25px; font-weight: bold; }
+    .section { margin-bottom: 25px; border: 1px solid #ddd; padding: 15px; border-radius: 8px; page-break-inside: avoid; }
+    .section h2 { font-size: 14px; font-weight: bold; background: #f8f9fa; padding: 8px; margin: -15px -15px 15px -15px; border-bottom: 1px solid #ddd; border-top-left-radius: 8px; border-top-right-radius: 8px; text-transform: uppercase; display: flex; justify-content: space-between; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px dotted #ccc; padding-bottom: 4px; font-size: 13px; }
+    .row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .label { font-weight: bold; color: #555; }
+    .value { font-weight: bold; font-family: monospace; font-size: 13px; }
+    .total-row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #000; font-size: 16px; font-weight: bold; }
+    .text-emerald { color: #10b981; }
+    .text-rose { color: #ef4444; }
+    .text-blue { color: #3b82f6; }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+    th { background: #f8f9fa; font-weight: bold; border-bottom: 2px solid #ddd; padding: 6px 8px; text-align: left; }
+    td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    tr:last-child td { border-bottom: none; }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    
+    .grid-summary { display: grid; grid-template-cols: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
+    .card-summary { border: 1px solid #ddd; border-radius: 8px; padding: 12px; text-align: center; background: #f8f9fa; }
+    .card-summary .card-title { font-size: 11px; text-transform: uppercase; color: #666; font-weight: bold; margin-bottom: 4px; }
+    .card-summary .card-value { font-size: 18px; font-weight: black; color: #111; }
+
+    @media print { 
+      body { padding: 0; } 
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body onload="window.print();">
+  <h1>Relatório Financeiro Diário</h1>
+  <div class="subtitle">Data de Referência: ${formattedDate}</div>
+  
+  <div class="grid-summary">
+    <div class="card-summary" style="border-left: 4px solid #3b82f6;">
+      <div class="card-title">Faturamento Estacionamento</div>
+      <div class="card-value">R$ ${totalRevenueDaily.toFixed(2)}</div>
+    </div>
+    <div class="card-summary" style="border-left: 4px solid #10b981;">
+      <div class="card-title">Faturamento Lojinha</div>
+      <div class="card-value">R$ ${totalStoreRevenueDaily.toFixed(2)}</div>
+    </div>
+    <div class="card-summary" style="border-left: 4px solid #a855f7;">
+      <div class="card-title">Entradas Caixa (Manuais)</div>
+      <div class="card-value">R$ ${totalManualIncomeDaily.toFixed(2)}</div>
+    </div>
+  </div>
+
+  <div class="grid-summary" style="margin-top: -10px;">
+    <div class="card-summary" style="border-left: 4px solid #ef4444;">
+      <div class="card-title">Despesas Lançadas (Manuais)</div>
+      <div class="card-value">- R$ ${totalManualExpenseDaily.toFixed(2)}</div>
+    </div>
+    <div class="card-summary" style="border-left: 4px solid #111827; grid-column: span 2; background: #f3f4f6;">
+      <div class="card-title" style="color: #374151;">Saldo Final Consolidado (Receitas - Despesas)</div>
+      <div class="card-value" style="font-size: 20px; color: ${netBalanceDaily >= 0 ? '#10b981' : '#ef4444'};">
+        R$ ${netBalanceDaily.toFixed(2)}
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>
+      <span>Resumo Operacional (Estacionamento)</span>
+      <span>${completedVehiclesDaily.length} Saídas</span>
+    </h2>
+    <div class="row"><span class="label">Total de Entradas no Dia</span> <span class="value">${entriesDaily.length}</span></div>
+    <div class="row"><span class="label">Total de Saídas no Dia</span> <span class="value">${exitsDaily.length}</span></div>
+    <div class="row"><span class="label">Ticket Médio</span> <span class="value">R$ ${completedVehiclesDaily.length > 0 ? (totalRevenueDaily / completedVehiclesDaily.length).toFixed(2) : '0.00'}</span></div>
+    <div class="row"><span class="label">Tempo Médio de Permanência</span> <span class="value">${avgTimeDaily}</span></div>
+  </div>
+
+  <div class="section">
+    <h2>Meios de Pagamento (Estacionamento)</h2>
+    <div class="row"><span class="label">Dinheiro</span> <span class="value">R$ ${(revenueByPaymentDaily['cash'] || 0).toFixed(2)}</span></div>
+    <div class="row"><span class="label">Máquina</span> <span class="value">R$ ${(revenueByPaymentDaily['machine'] || 0).toFixed(2)}</span></div>
+    <div class="row"><span class="label">Pix</span> <span class="value">R$ ${(revenueByPaymentDaily['pix'] || 0).toFixed(2)}</span></div>
+    <div class="row"><span class="label">Pré Pago (Uso de Saldo)</span> <span class="value">R$ ${(revenueByPaymentDaily['card'] || 0).toFixed(2)}</span></div>
+    <div class="row"><span class="label">Cartão Pós-Pago (Fechados)</span> <span class="value">R$ ${(revenueByPaymentDaily['postpaid_card'] || 0).toFixed(2)}</span></div>
+    <div class="row"><span class="label">Fiado (Aguardando Pagamento)</span> <span class="value text-rose">R$ ${(revenueByPaymentDaily['fiado'] || 0).toFixed(2)}</span></div>
+  </div>
+
+  ${completedVehiclesDaily.length > 0 ? `
+  <div class="section">
+    <h2>Relação de Saídas de Veículos</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Cartão</th>
+          <th>Dono</th>
+          <th>Placa</th>
+          <th>Tipo</th>
+          <th>Entrada</th>
+          <th>Saída</th>
+          <th>Pagamento</th>
+          <th style="text-align: right;">Valor</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${vehiclesRows}
+      </tbody>
+    </table>
+  </div>
+  ` : ''}
+
+  ${salesStoreDaily.length > 0 ? `
+  <div class="section">
+    <h2>Vendas da Lojinha</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Produto</th>
+          <th style="text-align: center;">Quantidade</th>
+          <th>Pagamento</th>
+          <th style="text-align: right;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${salesRows}
+      </tbody>
+    </table>
+  </div>
+  ` : ''}
+
+  ${dailyTransactions.length > 0 ? `
+  <div class="section">
+    <h2>Movimentações do Caixa (Lançamentos Manuais)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Hora</th>
+          <th>Tipo</th>
+          <th>Descrição</th>
+          <th style="text-align: right;">Valor</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${manualRows}
+      </tbody>
+    </table>
+  </div>
+  ` : ''}
+
+  <div style="text-align: center; margin-top: 50px; font-size: 11px; color: #888;">
+    <p>Relatório gerado em ${new Date().toLocaleString('pt-BR')}</p>
+    <p>Sistema Bikepark - Gestão de Estacionamento</p>
+  </div>
+</body>
+</html>
+    `;
+
+    // Print using iframe trick
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+    
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+    }
+    
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 2000);
+  };
+
   // Monthly Calculations
   const completedVehiclesMonthly = vehicles.filter(v => 
     v.status === 'completed' && v.price && v.checkOutTime && v.checkOutTime >= startOfMonth && v.checkOutTime <= endOfMonth
@@ -145,6 +382,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
     { name: 'Dinheiro', value: revenueByPaymentMonthly['cash'] || 0, color: '#f59e0b' }, 
     { name: 'Pós-Pago', value: revenueByPaymentMonthly['postpaid_card'] || 0, color: '#a855f7' }, 
     { name: 'Aguardando Pag.', value: revenueByPaymentMonthly['fiado'] || 0, color: '#ef4444' },
+    { name: 'PIX', value: revenueByPaymentMonthly['pix'] || 0, color: '#10b981' },
   ].filter(d => d.value > 0);
 
   const revenueByTypeMonthly = completedVehiclesMonthly.reduce((acc, v) => {
@@ -202,6 +440,7 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
     { name: 'Dinheiro', value: revenueByPaymentCustom['cash'] || 0, color: '#f59e0b' }, 
     { name: 'Pós-Pago', value: revenueByPaymentCustom['postpaid_card'] || 0, color: '#a855f7' }, 
     { name: 'Aguardando Pag.', value: revenueByPaymentCustom['fiado'] || 0, color: '#ef4444' },
+    { name: 'PIX', value: revenueByPaymentCustom['pix'] || 0, color: '#10b981' },
   ].filter(d => d.value > 0);
 
   const revenueByTypeCustom = completedVehiclesCustom.reduce((acc, v) => {
@@ -240,8 +479,6 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
   });
 
   // Store Report Calculations (by the selected day, like daily)
-  const salesStoreDaily = sales.filter(s => s.date >= startOfDay && s.date <= endOfDay);
-  const totalStoreRevenueDaily = salesStoreDaily.reduce((sum, s) => sum + s.totalPrice, 0);
   const totalStoreItemsDaily = salesStoreDaily.reduce((sum, s) => sum + s.quantity, 0);
 
   const storeSalesByProduct = salesStoreDaily.reduce((acc, s) => {
@@ -330,14 +567,25 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
           </div>
 
           {(reportType === 'daily' || reportType === 'store') && (
-            <div className="flex items-center space-x-2 bg-white rounded-xl shadow-sm border border-slate-200 p-1 pl-3 transition-shadow hover:shadow-md">
-              <Calendar className="w-5 h-5 text-emerald-500" />
-              <input 
-                type="date" 
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-transparent border-0 focus:ring-0 text-slate-700 font-bold p-2 outline-none cursor-pointer"
-              />
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 bg-white rounded-xl shadow-sm border border-slate-200 p-1 pl-3 transition-shadow hover:shadow-md">
+                <Calendar className="w-5 h-5 text-emerald-500" />
+                <input 
+                  type="date" 
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-transparent border-0 focus:ring-0 text-slate-700 font-bold p-2 outline-none cursor-pointer"
+                />
+              </div>
+              {reportType === 'daily' && (
+                <button
+                  onClick={handlePrintDailyReport}
+                  className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all text-sm cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span className="hidden sm:inline">Imprimir Relatório</span>
+                </button>
+              )}
             </div>
           )}
           
@@ -389,6 +637,50 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
 
       {reportType === 'daily' && (
         <>
+          {/* Consolidated Financial Overview */}
+          <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center">
+              <Wallet className="w-4 h-4 mr-2 text-slate-500" />
+              Resumo Financeiro Consolidado
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Faturamento Estacionamento</span>
+                <div className="flex items-baseline space-x-1 mt-2">
+                  <span className="text-xl font-extrabold text-slate-900">R$ {totalRevenueDaily.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Faturamento Lojinha</span>
+                <div className="flex items-baseline space-x-1 mt-2">
+                  <span className="text-xl font-extrabold text-slate-900">R$ {totalStoreRevenueDaily.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Entradas Avulsas Caixa</span>
+                <div className="flex items-baseline space-x-1 mt-2 text-emerald-600">
+                  <span className="text-xl font-extrabold">R$ {totalManualIncomeDaily.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Despesas Avulsas Caixa</span>
+                <div className="flex items-baseline space-x-1 mt-2 text-rose-600">
+                  <span className="text-xl font-extrabold">- R$ {totalManualExpenseDaily.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className={`bg-white p-4 rounded-xl shadow-sm border-2 md:col-span-2 lg:col-span-1 flex flex-col justify-between ${netBalanceDaily >= 0 ? 'border-emerald-500 bg-emerald-50/20' : 'border-rose-500 bg-rose-50/20'}`}>
+                <span className={`text-xs font-bold uppercase tracking-wide ${netBalanceDaily >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>Saldo Final do Dia</span>
+                <div className="flex items-baseline space-x-1 mt-2">
+                  <span className={`text-2xl font-black ${netBalanceDaily >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>R$ {netBalanceDaily.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Daily Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
@@ -708,6 +1000,176 @@ export function Reports({ vehicles, sales = [] }: ReportsProps) {
                     />
                   </LineChart>
                 </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Detailed Checkout List Section */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2 mt-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
+                <Bike className="w-5 h-5 mr-2 text-emerald-500" />
+                Relação de Saídas de Veículos (Detalhamento)
+              </h3>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-sm font-bold text-slate-500">
+                      <th className="p-4 rounded-tl-xl">Cartão</th>
+                      <th className="p-4">Dono / Placa</th>
+                      <th className="p-4">Tipo</th>
+                      <th className="p-4">Entrada</th>
+                      <th className="p-4">Saída</th>
+                      <th className="p-4">Pagamento</th>
+                      <th className="p-4 text-right rounded-tr-xl">Valor Pago</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {completedVehiclesDaily.map((vehicle) => (
+                      <tr key={vehicle.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4 font-bold text-emerald-600">#{vehicle.cardNumber}</td>
+                        <td className="p-4">
+                          <div className="font-semibold text-slate-900">{vehicle.ownerName || 'Sem nome'}</div>
+                          <div className="text-xs text-slate-500 font-mono">{vehicle.plate || 'SEM PLACA'}</div>
+                        </td>
+                        <td className="p-4 text-slate-600 capitalize">
+                          {vehicle.type === 'bicycle' ? 'Bike' : vehicle.type === 'ebike' ? 'E-Bike' : 'Moto'}
+                        </td>
+                        <td className="p-4 text-slate-500">
+                          {new Date(vehicle.checkInTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="p-4 text-slate-500">
+                          {vehicle.checkOutTime ? new Date(vehicle.checkOutTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                        </td>
+                        <td className="p-4">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
+                            vehicle.paymentMethod === 'cash' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                            vehicle.paymentMethod === 'machine' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                            vehicle.paymentMethod === 'pix' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                            vehicle.paymentMethod === 'card' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
+                            'bg-purple-50 text-purple-700 border border-purple-100'
+                          }`}>
+                            {vehicle.paymentMethod === 'cash' ? 'Dinheiro' :
+                             vehicle.paymentMethod === 'machine' ? 'Máquina' :
+                             vehicle.paymentMethod === 'pix' ? 'Pix' :
+                             vehicle.paymentMethod === 'card' ? 'Pré Pago' :
+                             vehicle.paymentMethod === 'postpaid_card' ? 'Pós-Pago' :
+                             vehicle.paymentMethod === 'fiado' ? 'Fiado' : vehicle.paymentMethod || '-'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right font-bold text-emerald-600">
+                          R$ {(vehicle.price || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    {completedVehiclesDaily.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-400 font-medium">
+                          Nenhum veículo finalizado neste dia.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Detailed Store Sales Section */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2 mt-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
+                <ShoppingCart className="w-5 h-5 mr-2 text-indigo-500" />
+                Vendas de Produtos da Lojinha
+              </h3>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-sm font-bold text-slate-500">
+                      <th className="p-4 rounded-tl-xl">Produto</th>
+                      <th className="p-4 text-center">Quantidade</th>
+                      <th className="p-4">Forma de Pagamento</th>
+                      <th className="p-4 text-right rounded-tr-xl">Valor Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {salesStoreDaily.map((sale) => (
+                      <tr key={sale.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4 font-bold text-slate-900">{sale.productName}</td>
+                        <td className="p-4 text-center text-slate-600 font-semibold">{sale.quantity}</td>
+                        <td className="p-4">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
+                            sale.paymentMethod === 'cash' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                            sale.paymentMethod === 'machine' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                            'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                          }`}>
+                            {sale.paymentMethod === 'cash' ? 'Dinheiro' : sale.paymentMethod === 'machine' ? 'Máquina' : sale.paymentMethod === 'pix' ? 'Pix' : sale.paymentMethod || '-'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right font-bold text-emerald-600">
+                          R$ {sale.totalPrice.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    {salesStoreDaily.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-slate-400 font-medium">
+                          Nenhuma venda de produto registrada neste dia.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Detailed Manual Transactions Section */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2 mt-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
+                <Wallet className="w-5 h-5 mr-2 text-amber-500" />
+                Movimentações Financeiras Avulsas (Lançamentos de Caixa)
+              </h3>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-sm font-bold text-slate-500">
+                      <th className="p-4 rounded-tl-xl">Hora</th>
+                      <th className="p-4">Tipo</th>
+                      <th className="p-4">Descrição</th>
+                      <th className="p-4 text-right rounded-tr-xl">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {dailyTransactions.map((transaction) => (
+                      <tr key={transaction.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4 text-slate-500 font-medium">
+                          {new Date(transaction.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="p-4">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
+                            transaction.type === 'income' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                          }`}>
+                            {transaction.type === 'income' ? (
+                              <><ArrowUpRight className="w-3 h-3 mr-1" /> Entrada</>
+                            ) : (
+                              <><ArrowDownRight className="w-3 h-3 mr-1" /> Saída</>
+                            )}
+                          </span>
+                        </td>
+                        <td className="p-4 font-semibold text-slate-700">{transaction.description}</td>
+                        <td className={`p-4 text-right font-bold ${transaction.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {transaction.type === 'expense' ? '-' : ''}R$ {transaction.amount.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    {dailyTransactions.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-slate-400 font-medium">
+                          Nenhuma movimentação avulsa lançada neste dia.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
 

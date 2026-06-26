@@ -134,7 +134,7 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
 
           return (
           <div key={card.id} className={`${cardBg} p-5 rounded-2xl border flex flex-col relative group transition-colors`}>
-            <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-4 right-4 flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
               <button 
                 onClick={() => {
                   setEditingCardId(card.id);
