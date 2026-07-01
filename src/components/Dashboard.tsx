@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Bike, Zap, Motorbike, DollarSign, Clock, Users, ShoppingCart, Package, Printer } from 'lucide-react';
 import { ParkedVehicle, Pricing, LostCard, Product, Sale } from '../types';
 import { SaleModal } from './SaleModal';
-import { generateThermalPrintHtml } from '../utils/printHelper';
+import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 
 export interface DashboardProps {
   vehicles: ParkedVehicle[];
@@ -61,22 +61,7 @@ export function Dashboard({ vehicles, pricing, lostCards, products = [], onAddSa
     `;
     
     const html = generateThermalPrintHtml('Conferência de Pátio', bodyHtml);
-    const printIframe = document.createElement('iframe');
-    printIframe.style.position = 'absolute';
-    printIframe.style.top = '-10000px';
-    printIframe.style.left = '-10000px';
-    document.body.appendChild(printIframe);
-    
-    const doc = printIframe.contentWindow?.document || printIframe.contentDocument;
-    if (doc) {
-      doc.open();
-      doc.write(html);
-      doc.close();
-    }
-    
-    setTimeout(() => {
-      document.body.removeChild(printIframe);
-    }, 2000);
+    printHtml(html);
   };
   
   const typeCount = {

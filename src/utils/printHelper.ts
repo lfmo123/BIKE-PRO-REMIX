@@ -54,9 +54,41 @@ export const generateThermalPrintHtml = (title: string, bodyContent: string) => 
       <title>${title}</title>
       ${getThermalPrinterStyle()}
     </head>
-    <body onload="window.print();">
+    <body>
       ${bodyContent}
     </body>
     </html>
   `;
+};
+
+export const printHtml = (html: string) => {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+  
+  const doc = iframe.contentWindow?.document || iframe.contentDocument;
+  if (doc) {
+    doc.open();
+    doc.write(html);
+    doc.close();
+  }
+  
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (e) {
+      console.error("Erro ao imprimir:", e);
+    }
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 3000);
+  }, 500);
 };

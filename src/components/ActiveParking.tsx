@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Bike, Zap, Motorbike, Search, Clock, LogOut, AlertTriangle, Undo2, X, Printer } from 'lucide-react';
 import { ParkedVehicle, VehicleType, Pricing } from '../types';
 import { calculatePrice, formatDuration } from '../lib/pricing';
-import { generateThermalPrintHtml } from '../utils/printHelper';
+import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 
 interface ActiveParkingProps {
   vehicles: ParkedVehicle[];
@@ -94,22 +94,7 @@ export function ActiveParking({ vehicles, pricing, onCheckOut, onRevertCheckin }
     `;
     
     const html = generateThermalPrintHtml('Conferência de Pátio', bodyHtml);
-    const printIframe = document.createElement('iframe');
-    printIframe.style.position = 'absolute';
-    printIframe.style.top = '-10000px';
-    printIframe.style.left = '-10000px';
-    document.body.appendChild(printIframe);
-    
-    const doc = printIframe.contentWindow?.document || printIframe.contentDocument;
-    if (doc) {
-      doc.open();
-      doc.write(html);
-      doc.close();
-    }
-    
-    setTimeout(() => {
-      document.body.removeChild(printIframe);
-    }, 2000);
+    printHtml(html);
   };
 
   return (

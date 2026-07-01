@@ -1,7 +1,7 @@
 import React from 'react';
 import { Shift, Transaction, ParkedVehicle, Sale } from '../types';
 import { X, Printer } from 'lucide-react';
-import { generateThermalPrintHtml } from '../utils/printHelper';
+import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 
 interface ShiftDetailsModalProps {
   shift: Shift;
@@ -106,21 +106,7 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
   </div>
 `;
     const html = generateThermalPrintHtml(`Fechamento de Turno - ${shift.operatorName}`, bodyHtml);
-    const printIframe = document.createElement('iframe');
-    printIframe.style.position = 'absolute';
-    printIframe.style.top = '-10000px';
-    printIframe.style.left = '-10000px';
-    document.body.appendChild(printIframe);
-    
-    const doc = printIframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(html);
-      doc.close();
-      setTimeout(() => {
-          document.body.removeChild(printIframe);
-      }, 2000);
-    }
+    printHtml(html);
   };
 
   return (

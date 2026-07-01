@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Bike, Zap, Motorbike, Clock, DollarSign, CreditCard, Banknote, Smartphone, ChevronRight, LogOut, ArrowLeft, AlertCircle, Printer } from 'lucide-react';
 import { ParkedVehicle, Pricing, VehicleType, CustomerCard } from '../types';
 import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/pricing';
-import { generateThermalPrintHtml } from '../utils/printHelper';
+import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 
 interface CheckOutProps {
   vehicles: ParkedVehicle[];
@@ -125,22 +125,7 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
     `;
     
     const html = generateThermalPrintHtml('Conferência de Pátio', bodyHtml);
-    const printIframe = document.createElement('iframe');
-    printIframe.style.position = 'absolute';
-    printIframe.style.top = '-10000px';
-    printIframe.style.left = '-10000px';
-    document.body.appendChild(printIframe);
-    
-    const doc = printIframe.contentWindow?.document || printIframe.contentDocument;
-    if (doc) {
-      doc.open();
-      doc.write(html);
-      doc.close();
-    }
-    
-    setTimeout(() => {
-      document.body.removeChild(printIframe);
-    }, 2000);
+    printHtml(html);
   };
 
   return (

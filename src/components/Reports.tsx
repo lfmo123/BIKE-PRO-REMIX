@@ -3,7 +3,7 @@ import { ParkedVehicle, Sale, Transaction } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users, ShoppingCart, Smartphone, Printer, Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { getLocalDateString } from '../lib/dateUtils';
-import { generateThermalPrintHtml } from '../utils/printHelper';
+import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 
 interface ReportsProps {
   vehicles: ParkedVehicle[];
@@ -255,27 +255,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
 `;
 
     const html = generateThermalPrintHtml(`Relatório Diário - ${formattedDate}`, bodyHtml);
-
-    // Print using iframe trick
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
-    
-    const doc = iframe.contentWindow?.document || iframe.contentDocument;
-    if (doc) {
-      doc.open();
-      doc.write(html);
-      doc.close();
-    }
-    
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 2000);
+    printHtml(html);
   };
 
   // Monthly Calculations
