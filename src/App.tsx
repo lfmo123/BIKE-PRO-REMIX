@@ -14,6 +14,7 @@ import { Reports } from './components/Reports';
 import { Settings } from './components/Settings';
 import { SpotsGrid } from './components/SpotsGrid';
 import { Store } from './components/Store';
+import { Audit } from './components/Audit';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
 import { ResetAppModal } from './components/ResetAppModal';
@@ -317,6 +318,24 @@ export default function App() {
     fetchSales();
   }, []);
 
+  const handleRefreshAll = async () => {
+    try {
+      await Promise.all([
+        fetchVehicles(),
+        fetchPricing(),
+        fetchLostCards(),
+        fetchTransactions(),
+        fetchCustomerCards(),
+        fetchShifts(),
+        fetchOperators(),
+        fetchProducts(),
+        fetchSales()
+      ]);
+    } catch (e) {
+      console.error('Failed to refresh data', e);
+    }
+  };
+
   const handleAddProduct = async (product: Omit<Product, 'id'>) => {
     const res = await fetch('/api/products', {
       method: 'POST',
@@ -566,6 +585,7 @@ export default function App() {
                 {activeTab === 'shifts' && <ShiftControl operators={operators} shifts={shifts} transactions={transactions} vehicles={vehicles} sales={sales} activeShift={activeShift} user={user as any} onOpenShift={handleOpenShift} onCloseShift={handleCloseShift} />}
                 {activeTab === 'cards' && <CustomerCards cards={customerCards} vehicles={vehicles} onAddCard={handleAddCard} onUpdateCard={handleUpdateCard} onDeleteCard={handleDeleteCard} onAddTransaction={handleAddTransaction} />}
                 {activeTab === 'store' && <Store products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} onAddSale={handleAddSale} />}
+                {activeTab === 'audit' && <Audit vehicles={vehicles} sales={sales} transactions={transactions} products={products} onRefreshAll={handleRefreshAll} />}
                 {activeTab === 'history' && <History vehicles={vehicles} onRevertCheckout={handleRevertCheckout} />}
                 {activeTab === 'reports' && <Reports vehicles={vehicles} sales={sales} transactions={transactions} />}
                 {activeTab === 'settings' && <Settings operators={operators} onAddOperator={handleAddOperator} onDeleteOperator={handleDeleteOperator} pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={fetchLostCards} onResetApp={() => setIsResetAppOpen(true)} />}

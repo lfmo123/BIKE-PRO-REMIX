@@ -377,6 +377,90 @@ export async function addSale(sale) {
   return sale;
 }
 
+export async function updateSale(id, data) {
+  const saleRef = doc(db, 'sales', id);
+  const saleSnap = await getDoc(saleRef);
+  if (!saleSnap.exists()) return null;
+  const oldSale = saleSnap.data();
+  const updatedData = { ...oldSale, ...data };
+  await updateDoc(saleRef, updatedData);
+
+  // If quantity or product changed, adjust stock
+  if (data.quantity !== undefined || data.productId !== undefined) {
+    const oldQty = Number(oldSale.quantity) || 0;
+    const newQty = Number(data.quantity ?? oldSale.quantity) || 0;
+    const qtyDiff = newQty - oldQty;
+    const prodId = data.productId ?? oldSale.productId;
+    const productRef = doc(db, 'products', prodId);
+    const productSnap = await getDoc(productRef);
+    if (productSnap.exists()) {
+      const product = productSnap.data();
+      await updateDoc(productRef, { stock: Math.max(0, (Number(product.stock) || 0) - qtyDiff) });
+    }
+  }
+
+  // Update associated transaction
+  const transSnap = await getDocs(query(collection(db, 'transactions'), where('date', '==', oldSale.date)));
+  const paymentText = updatedData.paymentMethod === 'machine' ? 'MÁQUINA' :
+                      updatedData.paymentMethod === 'card' ? 'CARTÃO' :
+                      updatedData.paymentMethod === 'cash' ? 'DINHEIRO' :
+                      updatedData.paymentMethod === 'pix' ? 'PIX' :
+                      updatedData.paymentMethod ? updatedData.paymentMethod.toUpperCase() : 'N/A';
+  transSnap.forEach((docSnap) => {
+    updateDoc(docSnap.ref, {
+      description: `Venda na Loja: ${updatedData.quantity}x ${updatedData.productName} (${paymentText})`,
+      amount: updatedData.totalPrice,
+      date: updatedData.date ?? oldSale.date
+    }).catch(console.error);
+  });
+
+  return updatedData;
+}
+
+export async function removeSale(id) {
+  const saleRef = doc(db, 'sales', id);
+  const saleSnap = await getDoc(saleRef);
+  if (saleSnap.exists()) {
+    const sale = saleSnap.data();
+    // Restore stock
+    const productRef = doc(db, 'products', sale.productId);
+    const productSnap = await getDoc(productRef);
+    if (productSnap.exists()) {
+      const product = productSnap.data();
+      await updateDoc(productRef, { stock: (Number(product.stock) || 0) + (Number(sale.quantity) || 0) });
+    }
+    // Delete associated transaction
+    const transSnap = await getDocs(query(collection(db, 'transactions'), where('date', '==', sale.date)));
+    transSnap.forEach((docSnap) => {
+      deleteDoc(docSnap.ref).catch(console.error);
+    });
+    // Delete sale
+    await deleteDoc(saleRef);
+  }
+}
+
+export async function updateVehicle(id, data) {
+  const vehicleRef = doc(db, 'vehicles', id);
+  const vehicleSnap = await getDoc(vehicleRef);
+  if (!vehicleSnap.exists()) return null;
+  const updatedData = { ...vehicleSnap.data(), ...data };
+  await updateDoc(vehicleRef, updatedData);
+  return updatedData;
+}
+
+export async function removeVehicle(id) {
+  await deleteDoc(doc(db, 'vehicles', id));
+}
+
+export async function updateTransaction(id, data) {
+  const transRef = doc(db, 'transactions', id);
+  const transSnap = await getDoc(transRef);
+  if (!transSnap.exists()) return null;
+  const updatedData = { ...transSnap.data(), ...data };
+  await updateDoc(transRef, updatedData);
+  return updatedData;
+}
+
 export async function resetDatabase() {
   const batch = writeBatch(db);
   

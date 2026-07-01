@@ -876,6 +876,171 @@ async function startServer() {
     }
   });
 
+  // Update a vehicle (general/completed editing)
+  app.put('/api/vehicles/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+      let updatedVehicle;
+
+      if (dbType === 'firebase') {
+        updatedVehicle = await firebaseDb.updateVehicle(id, data);
+      } else {
+        const db = readDb();
+        const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
+        if (vehicleIndex > -1) {
+          db.vehicles[vehicleIndex] = { ...db.vehicles[vehicleIndex], ...data };
+          writeDb(db);
+          updatedVehicle = db.vehicles[vehicleIndex];
+        }
+      }
+
+      if (!updatedVehicle) return res.status(404).json({ error: 'Vehicle not found' });
+      res.json(updatedVehicle);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to update vehicle' });
+    }
+  });
+
+  // Delete a vehicle
+  app.delete('/api/vehicles/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (dbType === 'firebase') {
+        await firebaseDb.removeVehicle(id);
+      } else {
+        const db = readDb();
+        db.vehicles = db.vehicles.filter(v => v.id !== id);
+        writeDb(db);
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to delete vehicle' });
+    }
+  });
+
+  // Update a sale
+  app.put('/api/sales/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+      let updatedSale;
+
+      if (dbType === 'firebase') {
+        updatedSale = await firebaseDb.updateSale(id, data);
+      } else {
+        const db = readDb();
+        db.sales = db.sales || [];
+        const saleIndex = db.sales.findIndex(s => s.id === id);
+        if (saleIndex > -1) {
+          const oldSale = db.sales[saleIndex];
+          const oldQty = Number(oldSale.quantity) || 0;
+          const newQty = Number(data.quantity ?? oldSale.quantity) || 0;
+          const qtyDiff = newQty - oldQty;
+
+          db.sales[saleIndex] = { ...oldSale, ...data };
+
+          // Update stock
+          db.products = db.products || [];
+          const prodId = data.productId ?? oldSale.productId;
+          const pIndex = db.products.findIndex(p => p.id === prodId);
+          if (pIndex > -1) {
+            db.products[pIndex].stock = Math.max(0, (Number(db.products[pIndex].stock) || 0) - qtyDiff);
+          }
+
+          // Update associated transaction in local db
+          db.transactions = db.transactions || [];
+          const paymentText = db.sales[saleIndex].paymentMethod === 'machine' ? 'MÁQUINA' :
+                              db.sales[saleIndex].paymentMethod === 'card' ? 'CARTÃO' :
+                              db.sales[saleIndex].paymentMethod === 'cash' ? 'DINHEIRO' :
+                              db.sales[saleIndex].paymentMethod === 'pix' ? 'PIX' :
+                              db.sales[saleIndex].paymentMethod ? db.sales[saleIndex].paymentMethod.toUpperCase() : 'N/A';
+          
+          const tIndex = db.transactions.findIndex(t => t.date === oldSale.date);
+          if (tIndex > -1) {
+            db.transactions[tIndex] = {
+              ...db.transactions[tIndex],
+              description: `Venda na Loja: ${db.sales[saleIndex].quantity}x ${db.sales[saleIndex].productName} (${paymentText})`,
+              amount: db.sales[saleIndex].totalPrice,
+              date: db.sales[saleIndex].date ?? oldSale.date
+            };
+          }
+
+          writeDb(db);
+          updatedSale = db.sales[saleIndex];
+        }
+      }
+
+      if (!updatedSale) return res.status(404).json({ error: 'Sale not found' });
+      res.json(updatedSale);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to update sale' });
+    }
+  });
+
+  // Delete a sale
+  app.delete('/api/sales/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (dbType === 'firebase') {
+        await firebaseDb.removeSale(id);
+      } else {
+        const db = readDb();
+        db.sales = db.sales || [];
+        const sale = db.sales.find(s => s.id === id);
+        if (sale) {
+          // Restore stock
+          db.products = db.products || [];
+          const pIndex = db.products.findIndex(p => p.id === sale.productId);
+          if (pIndex > -1) {
+            db.products[pIndex].stock = (Number(db.products[pIndex].stock) || 0) + (Number(sale.quantity) || 0);
+          }
+          // Remove transaction
+          db.transactions = db.transactions || [];
+          db.transactions = db.transactions.filter(t => t.date !== sale.date);
+          // Remove sale
+          db.sales = db.sales.filter(s => s.id !== id);
+          writeDb(db);
+        }
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to delete sale' });
+    }
+  });
+
+  // Update a transaction
+  app.put('/api/transactions/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+      let updatedTransaction;
+
+      if (dbType === 'firebase') {
+        updatedTransaction = await firebaseDb.updateTransaction(id, data);
+      } else {
+        const db = readDb();
+        db.transactions = db.transactions || [];
+        const transIndex = db.transactions.findIndex(t => t.id === id);
+        if (transIndex > -1) {
+          db.transactions[transIndex] = { ...db.transactions[transIndex], ...data };
+          writeDb(db);
+          updatedTransaction = db.transactions[transIndex];
+        }
+      }
+
+      if (!updatedTransaction) return res.status(404).json({ error: 'Transaction not found' });
+      res.json(updatedTransaction);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to update transaction' });
+    }
+  });
+
   app.post('/api/system/migrate-ebikes', async (req, res) => {
     try {
       if (dbType === 'firebase') {
