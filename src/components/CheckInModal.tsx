@@ -17,9 +17,9 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
   const [errorMsg, setErrorMsg] = useState('');
 
   const isSpecialGrid = initialCardNumber?.includes('MT/BE');
-  const isVipGrid = initialCardNumber?.startsWith('VIP');
-  const isVip = isVipGrid || cardNumber.trim().toUpperCase().startsWith('VIP');
-  const isTraditionalGrid = initialCardNumber && !initialCardNumber.includes('MT/BE') && !initialCardNumber.startsWith('VIP');
+  const isVipGrid = initialCardNumber?.startsWith('SN');
+  const isVip = isVipGrid || cardNumber.trim().toUpperCase().startsWith('SN');
+  const isTraditionalGrid = initialCardNumber && !initialCardNumber.includes('MT/BE') && !initialCardNumber.startsWith('SN');
 
   React.useEffect(() => {
     if (isOpen) {
@@ -52,7 +52,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
     
     if (!cardNumber || !customDate) return;
     if (isVip && !ownerName.trim()) {
-      setErrorMsg('Para vagas VIP, o nome do cliente é obrigatório!');
+      setErrorMsg('Para vagas sem número, o nome do cliente é obrigatório!');
       return;
     }
     
@@ -89,8 +89,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-3">
             <label className="block text-lg font-medium text-slate-700">Tipo de Veículo</label>
-            <div className={`grid ${isSpecialGrid ? 'grid-cols-2' : (isTraditionalGrid ? 'grid-cols-1' : 'grid-cols-3')} gap-3`}>
-              {!isSpecialGrid && (
+            <div className="grid grid-cols-3 gap-3">
                 <button
                   type="button"
                   onClick={() => setType('bicycle')}
@@ -103,9 +102,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                   <Bike className={`w-8 h-8 mb-2 ${type === 'bicycle' ? 'text-blue-600' : ''}`} />
                   <span className="text-base font-medium">Bicicleta</span>
                 </button>
-              )}
-              
-              {!isTraditionalGrid && (
+                            
                 <button
                   type="button"
                   onClick={() => setType('motorcycle')}
@@ -118,9 +115,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                   <Motorbike className={`w-8 h-8 mb-2 ${type === 'motorcycle' ? 'text-purple-600' : ''}`} />
                   <span className="text-base font-medium">Moto</span>
                 </button>
-              )}
 
-              {!isTraditionalGrid && (
                 <button
                   type="button"
                   onClick={() => setType('ebike')}
@@ -133,7 +128,6 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                   <Zap className={`w-8 h-8 mb-2 ${type === 'ebike' ? 'text-emerald-600' : ''}`} />
                   <span className="text-base font-medium">E-Bike</span>
                 </button>
-              )}
             </div>
           </div>
           

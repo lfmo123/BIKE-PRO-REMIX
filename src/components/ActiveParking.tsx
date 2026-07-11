@@ -193,7 +193,7 @@ export function ActiveParking({ vehicles, pricing, onCheckOut, onRevertCheckin }
               </div>
               <div className="flex flex-col items-end space-y-2">
                 <div className="bg-slate-100 text-slate-700 font-bold px-3 py-1 rounded-lg text-sm">
-                  {vehicle.cardNumber.startsWith('VIP') ? vehicle.cardNumber : `Cartão ${vehicle.cardNumber}`}
+                  {vehicle.cardNumber.startsWith('SN') ? vehicle.cardNumber : `Cartão ${vehicle.cardNumber}`}
                 </div>
                 {isOvernight && (
                   <div className="bg-amber-100 text-amber-700 font-bold px-2 py-1 rounded-md text-xs flex items-center">

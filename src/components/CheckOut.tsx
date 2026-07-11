@@ -72,9 +72,6 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
   const handleConfirm = () => {
     if (selectedVehicle) {
       let price = calculatePrice(selectedVehicle, pricing, now);
-      if (selectedVehicle.cardLost && pricing.lostCardFee) {
-        price += pricing.lostCardFee;
-      }
       onCheckOut(selectedVehicle.id, price, paymentMethod, selectedCardId || undefined);
       setSelectedVehicle(null);
       setSearchTerm('');
@@ -345,9 +342,7 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                       {(() => {
                         const card = availableCards.find(c => c.id === selectedCardId);
                         const price = calculatePrice(selectedVehicle, pricing, now);
-                        const fee = (selectedVehicle.cardLost && pricing.lostCardFee) ? pricing.lostCardFee : 0;
-                        const total = price + fee;
-                        if (card && (card.balance || 0) < total) {
+                        if (card && (card.balance || 0) < price) {
                           return <span className="text-red-500 flex items-center mt-1"><AlertCircle className="w-4 h-4 mr-1"/> Saldo insuficiente.</span>;
                         }
                         return null;
@@ -365,8 +360,7 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                     (!selectedCardId || (paymentMethod === 'card' && (() => {
                       const card = availableCards.find(c => c.id === selectedCardId);
                       const price = calculatePrice(selectedVehicle, pricing, now);
-                      const fee = (selectedVehicle.cardLost && pricing.lostCardFee) ? pricing.lostCardFee : 0;
-                      return !card || (card.balance || 0) < (price + fee);
+                      return !card || (card.balance || 0) < price;
                     })()))
                   }
                   className="w-full py-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-slate-900/20 flex items-center justify-center"

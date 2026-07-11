@@ -57,7 +57,7 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
             <div className="flex justify-between items-start mb-1">
               <h3 className="font-bold text-slate-900 text-xl leading-none">{vehicle.identifier}</h3>
               <span className="bg-slate-200 text-slate-700 font-bold px-2.5 py-1 rounded text-xs sm:text-sm">
-                {vehicle.cardNumber.startsWith('VIP') ? vehicle.cardNumber : `Cartão ${vehicle.cardNumber}`}
+                {vehicle.cardNumber.startsWith('SN') ? vehicle.cardNumber : `Cartão ${vehicle.cardNumber}`}
               </span>
             </div>
             <p className="text-base text-slate-500 mb-2">{vehicle.ownerName}</p>
