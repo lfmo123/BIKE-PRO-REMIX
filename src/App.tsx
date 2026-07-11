@@ -7,6 +7,7 @@ import { ActiveParking } from './components/ActiveParking';
 import { StoredVehicles } from './components/StoredVehicles';
 import { CashBook } from './components/CashBook';
 import { CheckOut } from './components/CheckOut';
+import { Conference } from './components/Conference';
 import { CustomerCards } from './components/CustomerCards';
 import { ShiftControl } from './components/ShiftControl';
 import { History } from './components/History';
@@ -564,6 +565,7 @@ export default function App() {
                   />
                 )}
                 {activeTab === 'active' && <ActiveParking vehicles={vehicles} pricing={pricing} onCheckOut={setVehicleToCheckOut} onRevertCheckin={handleRevertCheckin} />}
+                {activeTab === 'conference' && <Conference vehicles={vehicles} />}
                 {activeTab === 'stored' && <StoredVehicles vehicles={vehicles} pricing={pricing} onCheckOut={setVehicleToCheckOut} />}
                 {activeTab === 'spots' && (
                   <SpotsGrid 

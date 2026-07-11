@@ -83,66 +83,10 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
     return customerCards.filter(c => c.type === (paymentMethod === 'card' ? 'prepaid' : 'postpaid'));
   }, [customerCards, paymentMethod]);
 
-  const handlePrintConference = () => {
-    const allActive = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
-    
-    const bikes = allActive.filter(v => v.type === 'bicycle');
-    const ebikes = allActive.filter(v => v.type === 'ebike');
-    const motos = allActive.filter(v => v.type === 'motorcycle');
-
-    const renderCategory = (title: string, items: any[]) => {
-      if (items.length === 0) return '';
-      return `
-        <div class="section" style="margin-bottom: 15px;">
-          <h2 style="font-size: 11pt; margin-bottom: 8px;">${title} (${items.length})</h2>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            ${items.map(v => `
-              <div style="border: 1px solid #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11pt; display: flex; align-items: center; gap: 8px;">
-                <span>#${v.cardNumber}</span>
-                <span style="border: 1px solid #000; width: 14px; height: 14px; display: inline-block;"></span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
-    };
-
-    const bodyHtml = `
-      <h1>Conferência de Pátio</h1>
-      <div class="subtitle" style="margin-bottom: 15px;">${new Date().toLocaleString('pt-BR')}</div>
-      ${renderCategory('Bikes', bikes)}
-      ${renderCategory('E-Bikes', ebikes)}
-      ${renderCategory('Motos', motos)}
-      <div class="section" style="text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;">
-        <h2>Total Geral: ${allActive.length}</h2>
-      </div>
-      <div class="footer">
-        <p>Bikepark - Conferência</p>
-      </div>
-    `;
-    
-    const html = generateThermalPrintHtml('Conferência de Pátio', bodyHtml);
-    printHtml(html);
-  };
-
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between shrink-0">
         <h1 className="text-2xl font-bold text-slate-900">Registrar Saída</h1>
-        <button
-          onClick={handlePrintConference}
-          className="hidden sm:flex bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors items-center"
-        >
-          <Printer className="w-4 h-4 mr-2" />
-          Imprimir Conferência
-        </button>
-        <button
-          onClick={handlePrintConference}
-          className="sm:hidden bg-white border border-slate-200 text-slate-700 p-2 rounded-xl hover:bg-slate-50 transition-colors"
-          title="Imprimir Conferência"
-        >
-          <Printer className="w-5 h-5" />
-        </button>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">

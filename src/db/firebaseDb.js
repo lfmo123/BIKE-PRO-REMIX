@@ -1,24 +1,17 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, query, where, orderBy, writeBatch } from 'firebase/firestore';
-import { getAuth, signInAnonymously } from 'firebase/auth';
 import fs from 'fs';
 import path from 'path';
 
 // Firebase configuration from AI Studio
 const firebaseConfigPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
-let app, db, auth;
+let app, db;
 
 try {
   const configContent = fs.readFileSync(firebaseConfigPath, 'utf8');
   const firebaseConfig = JSON.parse(configContent);
   app = initializeApp(firebaseConfig);
   db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-  auth = getAuth(app);
-  
-  // Sign in anonymously so we can access Firestore behind some rules
-  signInAnonymously(auth).catch((error) => {
-    console.error("Firebase Auth Error:", error);
-  });
 } catch (error) {
   console.error("Failed to initialize Firebase:", error);
 }
