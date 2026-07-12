@@ -81,11 +81,10 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
             <button
               key={spotNum}
               onClick={() => {
-                if (!(isLostCard && !isOccupied) && onSpotClick) {
+                if (onSpotClick) {
                   onSpotClick(spotNum, vehicle);
                 }
               }}
-              disabled={isLostCard && !isOccupied}
               className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all aspect-square relative ${
                 isOccupied 
                   ? vehicle?.cardLost 
@@ -94,7 +93,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
                       ? 'bg-yellow-100 border-yellow-300 hover:border-yellow-400 hover:shadow-sm cursor-pointer text-yellow-900'
                       : `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800 border-transparent`
                   : isLostCard
-                    ? 'bg-red-100 border-red-400 opacity-80 cursor-not-allowed text-red-900' 
+                    ? 'bg-red-100 border-red-400 opacity-80 cursor-pointer hover:bg-red-200 text-red-900' 
                     : 'bg-white border-slate-200 border-dashed hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm cursor-pointer group'
               }`}
             >
