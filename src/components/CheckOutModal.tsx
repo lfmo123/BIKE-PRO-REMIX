@@ -10,9 +10,10 @@ interface CheckOutModalProps {
   onClose: () => void;
   onConfirm: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix', customerCardId?: string) => void;
   onReportLostCard?: (vehicleId: string, lostCardName: string, lostCardPhone: string) => void;
+  onRevertCheckin?: (vehicleId: string) => void;
 }
 
-export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, onConfirm, onReportLostCard }: CheckOutModalProps) {
+export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, onConfirm, onReportLostCard, onRevertCheckin }: CheckOutModalProps) {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix'>('machine');
   const [now, setNow] = useState(Date.now());
   const [showLostForm, setShowLostForm] = useState(false);
@@ -22,6 +23,9 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
   const [customerCardId, setCustomerCardId] = useState<string>('');
   const [showCardSelector, setShowCardSelector] = useState<'prepaid' | 'postpaid' | null>(null);
   const [cardSearchTerm, setCardSearchTerm] = useState('');
+  const [revertIntent, setRevertIntent] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     if (vehicle) {
@@ -295,6 +299,56 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
             >
               Confirmar Pagamento
             </button>
+            
+            {onRevertCheckin && !revertIntent && (
+              <button
+                type="button"
+                onClick={() => setRevertIntent(true)}
+                className="w-full mt-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-medium transition-colors flex items-center justify-center border border-red-200"
+              >
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Estornar Entrada
+              </button>
+            )}
+
+            {revertIntent && (
+              <div className="mt-3 bg-red-50 p-3 rounded-xl border border-red-200">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Senha do Admin para Estorno</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 mb-2"
+                  placeholder="Digite a senha"
+                />
+                {passwordError && <p className="text-red-500 text-xs mb-2">{passwordError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (password === 'Admin') {
+                        onRevertCheckin(vehicle.id);
+                        onClose();
+                      } else {
+                        setPasswordError('Senha incorreta');
+                      }
+                    }}
+                    className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    Confirmar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRevertIntent(false);
+                      setPassword('');
+                      setPasswordError('');
+                    }}
+                    className="flex-1 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

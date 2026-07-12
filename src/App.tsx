@@ -615,6 +615,7 @@ export default function App() {
         onClose={() => setVehicleToCheckOut(null)} 
         onConfirm={handleCheckOut} 
         onReportLostCard={handleReportLostCard}
+        onRevertCheckin={handleRevertCheckin}
       />
       
       <ResetAppModal

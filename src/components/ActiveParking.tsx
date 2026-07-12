@@ -173,16 +173,6 @@ export function ActiveParking({ vehicles, pricing, onCheckOut, onRevertCheckin }
                 <LogOut className="w-4 h-4 mr-2" />
                 Registrar Saída
               </button>
-              
-              {onRevertCheckin && (
-                <button 
-                  onClick={() => setRevertIntent(vehicle.id)}
-                  className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-medium transition-colors flex items-center justify-center border border-red-200"
-                >
-                  <Undo2 className="w-4 h-4 mr-2" />
-                  Estornar Entrada
-                </button>
-              )}
             </div>
           </div>
         )})}
@@ -197,52 +187,6 @@ export function ActiveParking({ vehicles, pricing, onCheckOut, onRevertCheckin }
           </div>
         )}
       </div>
-
-      {revertIntent && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-red-50">
-              <h2 className="text-lg font-bold text-red-900">Estornar Entrada</h2>
-              <button onClick={() => { setRevertIntent(null); setPassword(''); setPasswordError(''); }} className="p-1 hover:bg-red-100 rounded-full">
-                <X className="w-5 h-5 text-red-500" />
-              </button>
-            </div>
-            <div className="p-6">
-              <p className="text-sm text-slate-600 mb-4">
-                Tem certeza que deseja estornar esta entrada? Esta operação requer senha de administrador.
-              </p>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Senha</label>
-                  <input 
-                    type="password" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                    placeholder="Digite a senha"
-                  />
-                  {passwordError && <p className="text-red-500 text-xs mt-1">{passwordError}</p>}
-                </div>
-                <button 
-                  onClick={() => {
-                    if (password === 'Admin') {
-                      onRevertCheckin?.(revertIntent);
-                      setRevertIntent(null);
-                      setPassword('');
-                      setPasswordError('');
-                    } else {
-                      setPasswordError('Senha incorreta');
-                    }
-                  }}
-                  className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  Confirmar Estorno
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
