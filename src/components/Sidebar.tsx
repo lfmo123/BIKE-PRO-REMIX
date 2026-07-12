@@ -48,7 +48,7 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
         <span className="text-xl font-bold tracking-tight">BikePark Pro</span>
       </div>
       
-      <nav className="flex-1 px-4 space-y-2 mt-6 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 min-h-0 px-4 space-y-1 mt-4 overflow-y-auto custom-scrollbar">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -59,7 +59,7 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
                 setActiveTab(item.id);
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors border ${
+              className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-colors border ${
                 isActive 
                   ? 'bg-emerald-500/10 text-emerald-400' 
                   : 'text-slate-400 hover:bg-slate-800 hover:text-white'
