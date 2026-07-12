@@ -1,27 +1,29 @@
 import React, { useState } from 'react';
-import { Transaction, ParkedVehicle } from '../types';
-import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Transaction, ParkedVehicle, Shift } from '../types';
+import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
 import { getLocalDateString } from '../lib/dateUtils';
+import { DailyReportModal } from './DailyReportModal';
 
 interface CashBookProps {
   transactions: Transaction[];
   vehicles: ParkedVehicle[];
+  shifts?: Shift[];
   onAddTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   onDeleteTransaction: (id: string) => Promise<void>;
   onPayFiado: (id: string, paymentMethod: string, amount: number, observation?: string) => Promise<void>;
 }
 
-export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTransaction, onPayFiado }: CashBookProps) {
+export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction, onDeleteTransaction, onPayFiado }: CashBookProps) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [payingFiadoId, setPayingFiadoId] = useState<string | null>(null);
   const [fiadoPaymentMethod, setFiadoPaymentMethod] = useState<'cash'|'machine'|'card'|'pix'>('cash');
   const [fiadoPaymentAmount, setFiadoPaymentAmount] = useState<string>('');
-
   const [globalFiadoAmount, setGlobalFiadoAmount] = useState<string>('');
   const [globalFiadoMethod, setGlobalFiadoMethod] = useState<'cash'|'machine'|'card'|'pix'>('cash');
   const [globalFiadoObservation, setGlobalFiadoObservation] = useState<string>('');
+  const [isDailyReportOpen, setIsDailyReportOpen] = useState(false);
 
   // Derived today's timestamp bounds
   const [year, month, day] = selectedDate.split('-').map(Number);
@@ -148,16 +150,37 @@ export function CashBook({ transactions, vehicles, onAddTransaction, onDeleteTra
           <h1 className="text-2xl font-bold text-slate-900">Livro Caixa</h1>
           <p className="text-slate-500">Controle financeiro diário do estacionamento</p>
         </div>
-        <div className="flex items-center space-x-2 bg-white px-4 py-2 border border-slate-200 rounded-xl shadow-sm">
-          <Calendar className="w-5 h-5 text-slate-400" />
-          <input 
-            type="date" 
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-transparent border-none focus:ring-0 text-slate-700 font-medium"
-          />
+        
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => setIsDailyReportOpen(true)}
+            className="flex items-center justify-center space-x-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-4 py-2 border border-emerald-200 rounded-xl transition-colors font-medium shadow-sm"
+          >
+            <FileText className="w-5 h-5" />
+            <span>Fechamento Detalhado</span>
+          </button>
+
+          <div className="flex items-center space-x-2 bg-white px-4 py-2 border border-slate-200 rounded-xl shadow-sm">
+            <Calendar className="w-5 h-5 text-slate-400" />
+            <input 
+              type="date" 
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent border-none focus:ring-0 text-slate-700 font-medium"
+            />
+          </div>
         </div>
       </div>
+
+      {isDailyReportOpen && (
+        <DailyReportModal 
+          date={selectedDate}
+          vehicles={vehicles}
+          transactions={transactions}
+          shifts={shifts}
+          onClose={() => setIsDailyReportOpen(false)}
+        />
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
