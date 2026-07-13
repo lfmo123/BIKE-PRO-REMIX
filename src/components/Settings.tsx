@@ -354,7 +354,7 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
                 Baixar backup automaticamente
               </label>
               <p className="text-xs text-slate-500 mt-1">
-                Uma cópia do banco de dados será baixada assim que abrir o software e depois a cada 4 horas. Note que para valer é preciso clicar em "Salvar Configurações" caso essa opção esteja na sessão acima, mas agora funciona ao marcar!
+                Uma cópia do banco de dados será baixada assim que abrir o software e depois a cada hora. Note que para valer é preciso clicar em "Salvar Configurações" caso essa opção esteja na sessão acima, mas agora funciona ao marcar!
               </p>
             </div>
           </div>

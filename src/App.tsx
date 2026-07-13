@@ -88,7 +88,7 @@ export default function App() {
     fetchOperators();
 
     // Auto backup local check
-    const performAutoBackup = async () => {
+    const performAutoBackup = async (forceInit = false) => {
       const isEnabled = localStorage.getItem('autoBackupEnabled');
       if (isEnabled !== 'true') return;
 
@@ -96,9 +96,11 @@ export default function App() {
       const now = Date.now();
       
       // 4 horas em milissegundos
-      const FOUR_HOURS = 4 * 60 * 60 * 1000;
+      const ONE_HOUR = 1 * 60 * 60 * 1000;
       
-      if (now - lastBackupTime >= FOUR_HOURS) {
+      const alreadyDoneThisSession = sessionStorage.getItem('backupDoneThisSession') === 'true';
+      const shouldBackup = (forceInit && !alreadyDoneThisSession) || (now - lastBackupTime >= ONE_HOUR);
+      if (shouldBackup) {
          try {
             console.log('Executando backup automático local...');
             const res = await fetch('/api/backup/export');
@@ -116,16 +118,17 @@ export default function App() {
               downloadAnchorNode.remove();
               URL.revokeObjectURL(url);
               localStorage.setItem('lastAutoBackupTimestamp', now.toString());
+              sessionStorage.setItem('backupDoneThisSession', 'true');
             }
           } catch(e) { console.error('Auto backup failed', e); }
       }
     };
     
     // Check right when screen opens
-    performAutoBackup();
+    performAutoBackup(true);
     
     // Keep checking periodically
-    const backupTimer = setInterval(performAutoBackup, 5 * 60 * 1000); // Check every 5 minutes
+    const backupTimer = setInterval(() => performAutoBackup(false), 5 * 60 * 1000); // Check every 5 minutes
 
     return () => clearInterval(backupTimer);
   }, []);
