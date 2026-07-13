@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Save, DollarSign, Download, Upload, Database, Cloud, Trash2 } from 'lucide-react';
 import { ParkedVehicle, Pricing, LostCard, Operator } from '../types';
 import { getLocalDateString } from '../lib/dateUtils';
@@ -82,15 +84,33 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
         backupData = generateBackupData();
       }
 
-      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href", url);
-      downloadAnchorNode.setAttribute("download", `bikepark_backup_completo_${getLocalDateString()}.json`);
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
-      URL.revokeObjectURL(url);
+      const fileName = `bikepark_backup_completo_${getLocalDateString()}.json`;
+      const jsonString = JSON.stringify(backupData, null, 2);
+
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await Filesystem.writeFile({
+            path: fileName,
+            data: jsonString,
+            directory: Directory.Documents,
+            encoding: Encoding.UTF8
+          });
+          alert('Backup salvo nos Documentos do dispositivo com sucesso!');
+        } catch(err) {
+          console.error('Erro ao salvar no capacitor', err);
+          alert('Erro ao salvar arquivo no dispositivo.');
+        }
+      } else {
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", url);
+        downloadAnchorNode.setAttribute("download", fileName);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+        URL.revokeObjectURL(url);
+      }
     } catch (error) {
       console.error("Erro ao gerar backup:", error);
       alert("Erro ao tentar baixar o backup.");

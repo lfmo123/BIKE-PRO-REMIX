@@ -21,6 +21,8 @@ import { CheckOutModal } from './components/CheckOutModal';
 import { ResetAppModal } from './components/ResetAppModal';
 import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard, Shift, Operator } from './types';
 import { getLocalDateString } from './lib/dateUtils';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
 const defaultPricing: Pricing = {
   bicycle: 5,
@@ -108,20 +110,37 @@ export default function App() {
               const backupData = await res.json();
               const dateStr = getLocalDateString();
               const timeStr = new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-');
-              const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-              const url = URL.createObjectURL(blob);
-              
-              const downloadAnchorNode = document.createElement('a');
-              downloadAnchorNode.style.display = 'none';
-              downloadAnchorNode.setAttribute("href", url);
-              downloadAnchorNode.setAttribute("download", `bikepark_backup_auto_${dateStr}_${timeStr}.json`);
-              document.body.appendChild(downloadAnchorNode);
-              downloadAnchorNode.click();
-              
-              setTimeout(() => {
-                document.body.removeChild(downloadAnchorNode);
-                URL.revokeObjectURL(url);
-              }, 100);
+              const fileName = `bikepark_backup_auto_${dateStr}_${timeStr}.json`;
+              const jsonString = JSON.stringify(backupData, null, 2);
+
+              if (Capacitor.isNativePlatform()) {
+                try {
+                  await Filesystem.writeFile({
+                    path: fileName,
+                    data: jsonString,
+                    directory: Directory.Documents,
+                    encoding: Encoding.UTF8
+                  });
+                  console.log('Backup salvo nos Documentos do dispositivo.');
+                } catch(err) {
+                  console.error('Erro ao salvar no capacitor', err);
+                }
+              } else {
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.style.display = 'none';
+                downloadAnchorNode.setAttribute("href", url);
+                downloadAnchorNode.setAttribute("download", fileName);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                
+                setTimeout(() => {
+                  document.body.removeChild(downloadAnchorNode);
+                  URL.revokeObjectURL(url);
+                }, 100);
+              }
               
               localStorage.setItem('lastAutoBackupTimestamp', now.toString());
               
