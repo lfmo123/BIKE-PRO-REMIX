@@ -12,10 +12,18 @@ export function Conference({ vehicles }: ConferenceProps) {
 
   const allActive = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
   
-  const sn = allActive.filter(v => v.cardNumber.startsWith('SN') || v.cardNumber.startsWith('VIP'));
-  const bikes = allActive.filter(v => v.type === 'bicycle' && !v.cardNumber.startsWith('SN') && !v.cardNumber.startsWith('VIP'));
-  const ebikes = allActive.filter(v => v.type === 'ebike' && !v.cardNumber.startsWith('SN') && !v.cardNumber.startsWith('VIP'));
-  const motos = allActive.filter(v => v.type === 'motorcycle' && !v.cardNumber.startsWith('SN') && !v.cardNumber.startsWith('VIP'));
+  const activeVehicles = allActive.filter(v => v.status !== 'stored');
+  const storedVehicles = allActive.filter(v => v.status === 'stored');
+  
+  const sn = activeVehicles.filter(v => v.cardNumber.startsWith('SN') || v.cardNumber.startsWith('VIP'));
+  const bikes = activeVehicles.filter(v => v.type === 'bicycle' && !v.cardNumber.startsWith('SN') && !v.cardNumber.startsWith('VIP'));
+  const ebikes = activeVehicles.filter(v => v.type === 'ebike' && !v.cardNumber.startsWith('SN') && !v.cardNumber.startsWith('VIP'));
+  const motos = activeVehicles.filter(v => v.type === 'motorcycle' && !v.cardNumber.startsWith('SN') && !v.cardNumber.startsWith('VIP'));
+  
+  const storedSn = storedVehicles.filter(v => v.cardNumber.startsWith('SN') || v.cardNumber.startsWith('VIP'));
+  const storedBikes = storedVehicles.filter(v => v.type === 'bicycle' && !v.cardNumber.startsWith('SN') && !v.cardNumber.startsWith('VIP'));
+  const storedEbikes = storedVehicles.filter(v => v.type === 'ebike' && !v.cardNumber.startsWith('SN') && !v.cardNumber.startsWith('VIP'));
+  const storedMotos = storedVehicles.filter(v => v.type === 'motorcycle' && !v.cardNumber.startsWith('SN') && !v.cardNumber.startsWith('VIP'));
 
   const handlePrintConference = () => {
     const renderCategory = (title: string, items: any[]) => {
@@ -25,8 +33,8 @@ export function Conference({ vehicles }: ConferenceProps) {
           ${items.length > 0 ? `
           <div style="display: flex; flex-wrap: wrap; gap: 8px;">
             ${items.map(v => `
-              <div style="border: 1px solid #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11pt; display: flex; align-items: center; gap: 8px; ${v.status === 'stored' ? 'background-color: #ffff00; color: #000;' : ''}">
-                <span>#${v.cardNumber}</span>
+              <div style="border: 1px solid #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11pt; display: flex; align-items: center; gap: 8px; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 2px dashed #000;' : ''}">
+                <span>${v.status === 'stored' ? 'DEPÓSITO #' : '#'}${v.cardNumber}</span>
                 <span style="border: 1px solid #000; width: 14px; height: 14px; display: inline-block;"></span>
               </div>
             `).join('')}
@@ -43,6 +51,10 @@ export function Conference({ vehicles }: ConferenceProps) {
       ${renderCategory('E-Bikes', ebikes)}
       ${renderCategory('Motos', motos)}
       ${renderCategory('Vagas Sem Número', sn)}
+      ${storedBikes.length > 0 ? renderCategory('Bikes em Depósito', storedBikes) : ''}
+      ${storedEbikes.length > 0 ? renderCategory('E-Bikes em Depósito', storedEbikes) : ''}
+      ${storedMotos.length > 0 ? renderCategory('Motos em Depósito', storedMotos) : ''}
+      ${storedSn.length > 0 ? renderCategory('Sem Número em Depósito', storedSn) : ''}
       <div class="section" style="text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;">
         <h2>Total Geral: ${allActive.length}</h2>
       </div>
@@ -85,10 +97,12 @@ export function Conference({ vehicles }: ConferenceProps) {
                   key={vehicle.id}
                   onClick={() => toggleCheck(vehicle.id)}
                   className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                    isChecked 
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
-                      : vehicle.status === 'stored'
-                        ? 'bg-yellow-200 border-yellow-400 text-yellow-900 hover:bg-yellow-300'
+                    vehicle.status === 'stored'
+                      ? isChecked
+                        ? 'bg-yellow-400 border-yellow-600 text-yellow-900 shadow-inner ring-2 ring-yellow-500'
+                        : 'bg-yellow-200 border-yellow-400 text-yellow-900 shadow-sm'
+                      : isChecked 
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
                         : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
@@ -96,9 +110,9 @@ export function Conference({ vehicles }: ConferenceProps) {
                     {vehicle.cardNumber.startsWith('SN') || vehicle.cardNumber.startsWith('VIP') ? vehicle.cardNumber : `#${vehicle.cardNumber}`}
                   </span>
                   {isChecked ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                    <CheckCircle2 className={`w-5 h-5 ${vehicle.status === 'stored' ? 'text-yellow-700' : 'text-emerald-500'}`} />
                   ) : (
-                    <Circle className="w-5 h-5 text-slate-300" />
+                    <Circle className={`w-5 h-5 ${vehicle.status === 'stored' ? 'text-yellow-500' : 'text-slate-300'}`} />
                   )}
                 </button>
               );
@@ -145,6 +159,19 @@ export function Conference({ vehicles }: ConferenceProps) {
             {renderCategoryScreen('E-Bikes', ebikes)}
             {renderCategoryScreen('Motos', motos)}
             {renderCategoryScreen('Vagas Sem Número', sn)}
+            
+            {storedVehicles.length > 0 && (
+              <div className="mt-8 pt-8 border-t border-slate-200">
+                <h2 className="text-xl font-bold text-yellow-700 mb-6 flex items-center gap-2">
+                  <span className="bg-yellow-100 p-2 rounded-lg"><CheckCircle2 className="w-5 h-5" /></span>
+                  Em Depósito
+                </h2>
+                {storedBikes.length > 0 && renderCategoryScreen('Bicicletas', storedBikes)}
+                {storedEbikes.length > 0 && renderCategoryScreen('E-Bikes', storedEbikes)}
+                {storedMotos.length > 0 && renderCategoryScreen('Motos', storedMotos)}
+                {storedSn.length > 0 && renderCategoryScreen('Vagas Sem Número', storedSn)}
+              </div>
+            )}
           </>
         )}
       </div>

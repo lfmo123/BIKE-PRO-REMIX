@@ -25,9 +25,16 @@ export function Dashboard({ vehicles, pricing, lostCards, products = [], onAddSa
   const handlePrintConference = () => {
     const allActive = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
     
-    const bikes = allActive.filter(v => v.type === 'bicycle');
-    const ebikes = allActive.filter(v => v.type === 'ebike');
-    const motos = allActive.filter(v => v.type === 'motorcycle');
+    const activeVehicles = vehicles.filter(v => v.status === 'active');
+    const storedVehicles = vehicles.filter(v => v.status === 'stored');
+    
+    const bikes = activeVehicles.filter(v => v.type === 'bicycle');
+    const ebikes = activeVehicles.filter(v => v.type === 'ebike');
+    const motos = activeVehicles.filter(v => v.type === 'motorcycle');
+    
+    const storedBikes = storedVehicles.filter(v => v.type === 'bicycle');
+    const storedEbikes = storedVehicles.filter(v => v.type === 'ebike');
+    const storedMotos = storedVehicles.filter(v => v.type === 'motorcycle');
 
     const renderCategory = (title: string, items: any[]) => {
       if (items.length === 0) return '';
@@ -36,8 +43,8 @@ export function Dashboard({ vehicles, pricing, lostCards, products = [], onAddSa
           <h2 style="font-size: 11pt; margin-bottom: 8px;">${title} (${items.length})</h2>
           <div style="display: flex; flex-wrap: wrap; gap: 8px;">
             ${items.map(v => `
-              <div style="border: 1px solid #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11pt; display: flex; align-items: center; gap: 8px;">
-                <span>#${v.cardNumber}</span>
+              <div style="border: 1px solid #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11pt; display: flex; align-items: center; gap: 8px; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 2px dashed #000;' : ''}">
+                <span>${v.status === 'stored' ? 'DEPÓSITO #' : '#'}${v.cardNumber}</span>
                 <span style="border: 1px solid #000; width: 14px; height: 14px; display: inline-block;"></span>
               </div>
             `).join('')}
@@ -52,6 +59,9 @@ export function Dashboard({ vehicles, pricing, lostCards, products = [], onAddSa
       ${renderCategory('Bikes', bikes)}
       ${renderCategory('E-Bikes', ebikes)}
       ${renderCategory('Motos', motos)}
+      ${storedBikes.length > 0 ? renderCategory('Bikes em Depósito', storedBikes) : ''}
+      ${storedEbikes.length > 0 ? renderCategory('E-Bikes em Depósito', storedEbikes) : ''}
+      ${storedMotos.length > 0 ? renderCategory('Motos em Depósito', storedMotos) : ''}
       <div class="section" style="text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;">
         <h2>Total Geral: ${allActive.length}</h2>
       </div>
