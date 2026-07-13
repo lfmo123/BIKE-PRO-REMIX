@@ -25,7 +25,7 @@ export function Conference({ vehicles }: ConferenceProps) {
           ${items.length > 0 ? `
           <div style="display: flex; flex-wrap: wrap; gap: 8px;">
             ${items.map(v => `
-              <div style="border: 1px solid #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11pt; display: flex; align-items: center; gap: 8px;">
+              <div style="border: 1px solid #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11pt; display: flex; align-items: center; gap: 8px; ${v.status === 'stored' ? 'background-color: #ffff00; color: #000;' : ''}">
                 <span>#${v.cardNumber}</span>
                 <span style="border: 1px solid #000; width: 14px; height: 14px; display: inline-block;"></span>
               </div>
@@ -87,7 +87,9 @@ export function Conference({ vehicles }: ConferenceProps) {
                   className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
                     isChecked 
                       ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
-                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                      : vehicle.status === 'stored'
+                        ? 'bg-yellow-200 border-yellow-400 text-yellow-900 hover:bg-yellow-300'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   <span className="font-bold">
