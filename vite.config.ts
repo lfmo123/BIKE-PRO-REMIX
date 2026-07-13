@@ -13,7 +13,10 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
-        manifest: false
+        manifest: false,
+        workbox: {
+          navigateFallbackDenylist: [/\/api/],
+        }
       })
     ],
     define: {
