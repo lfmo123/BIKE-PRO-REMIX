@@ -95,12 +95,12 @@ export default function App() {
       const lastBackupTime = parseInt(localStorage.getItem('lastAutoBackupTimestamp') || '0', 10);
       const now = Date.now();
       
-      // 4 horas em milissegundos
       const ONE_HOUR = 1 * 60 * 60 * 1000;
       
       const alreadyDoneThisSession = sessionStorage.getItem('backupDoneThisSession') === 'true';
       const shouldBackup = (forceInit && !alreadyDoneThisSession) || (now - lastBackupTime >= ONE_HOUR);
-      if (shouldBackup) {
+      
+      if (shouldBackup) { 
          try {
             console.log('Executando backup automático local...');
             const res = await fetch('/api/backup/export');
@@ -114,9 +114,11 @@ export default function App() {
               downloadAnchorNode.setAttribute("href", url);
               downloadAnchorNode.setAttribute("download", `bikepark_backup_auto_${dateStr}_${timeStr}.json`);
               document.body.appendChild(downloadAnchorNode);
-              downloadAnchorNode.click();
-              downloadAnchorNode.remove();
-              URL.revokeObjectURL(url);
+              setTimeout(() => {
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+                URL.revokeObjectURL(url);
+              }, 100);
               localStorage.setItem('lastAutoBackupTimestamp', now.toString());
               sessionStorage.setItem('backupDoneThisSession', 'true');
             }
@@ -125,7 +127,7 @@ export default function App() {
     };
     
     // Check right when screen opens
-    performAutoBackup(true);
+    setTimeout(() => performAutoBackup(true), 1500);
     
     // Keep checking periodically
     const backupTimer = setInterval(() => performAutoBackup(false), 5 * 60 * 1000); // Check every 5 minutes
