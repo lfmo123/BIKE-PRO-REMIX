@@ -89,6 +89,11 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
 
       if (Capacitor.isNativePlatform()) {
         try {
+          const permissions = await Filesystem.checkPermissions();
+          if (permissions.publicStorage !== 'granted') {
+            await Filesystem.requestPermissions();
+          }
+          
           await Filesystem.writeFile({
             path: fileName,
             data: jsonString,
@@ -98,18 +103,22 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
           alert('Backup salvo nos Documentos do dispositivo com sucesso!');
         } catch(err) {
           console.error('Erro ao salvar no capacitor', err);
-          alert('Erro ao salvar arquivo no dispositivo.');
+          alert('Erro ao salvar arquivo no dispositivo. Verifique as permissões.');
         }
       } else {
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.style.display = 'none';
         downloadAnchorNode.setAttribute("href", url);
         downloadAnchorNode.setAttribute("download", fileName);
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
-        downloadAnchorNode.remove();
-        URL.revokeObjectURL(url);
+        
+        setTimeout(() => {
+          document.body.removeChild(downloadAnchorNode);
+          URL.revokeObjectURL(url);
+        }, 100);
       }
     } catch (error) {
       console.error("Erro ao gerar backup:", error);
