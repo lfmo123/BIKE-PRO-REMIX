@@ -106,13 +106,15 @@ export default function App() {
               const backupData = await res.json();
               const dateStr = getLocalDateString();
               const timeStr = new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-');
-              const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+              const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
               const downloadAnchorNode = document.createElement('a');
-              downloadAnchorNode.setAttribute("href", dataStr);
+              downloadAnchorNode.setAttribute("href", url);
               downloadAnchorNode.setAttribute("download", `bikepark_backup_auto_${dateStr}_${timeStr}.json`);
               document.body.appendChild(downloadAnchorNode);
               downloadAnchorNode.click();
               downloadAnchorNode.remove();
+              URL.revokeObjectURL(url);
               localStorage.setItem('lastAutoBackupTimestamp', now.toString());
             }
           } catch(e) { console.error('Auto backup failed', e); }

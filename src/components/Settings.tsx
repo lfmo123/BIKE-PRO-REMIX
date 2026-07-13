@@ -82,13 +82,15 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
         backupData = generateBackupData();
       }
 
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
       const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("href", url);
       downloadAnchorNode.setAttribute("download", `bikepark_backup_completo_${getLocalDateString()}.json`);
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Erro ao gerar backup:", error);
       alert("Erro ao tentar baixar o backup.");
