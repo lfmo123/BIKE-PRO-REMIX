@@ -88,8 +88,6 @@ export default function App() {
     fetchOperators();
 
         // Auto backup local check
-    let interactionBackupDone = false;
-    
     const performAutoBackup = async (reason = 'timer') => {
       const isEnabled = localStorage.getItem('autoBackupEnabled');
       if (isEnabled !== 'true') return;
@@ -112,39 +110,38 @@ export default function App() {
               const timeStr = new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-');
               const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
               const url = URL.createObjectURL(blob);
+              
               const downloadAnchorNode = document.createElement('a');
+              downloadAnchorNode.style.display = 'none';
               downloadAnchorNode.setAttribute("href", url);
               downloadAnchorNode.setAttribute("download", `bikepark_backup_auto_${dateStr}_${timeStr}.json`);
               document.body.appendChild(downloadAnchorNode);
               downloadAnchorNode.click();
-              downloadAnchorNode.remove();
-              URL.revokeObjectURL(url);
+              
+              setTimeout(() => {
+                document.body.removeChild(downloadAnchorNode);
+                URL.revokeObjectURL(url);
+              }, 100);
+              
               localStorage.setItem('lastAutoBackupTimestamp', now.toString());
+              
+              // Opcional: mostrar um alerta visual de sucesso
+              // alert('Backup automático realizado com sucesso.');
             }
           } catch(e) { console.error('Auto backup failed', e); }
       }
     };
     
-    // Vinculamos à primeira interação para evitar bloqueio de popup do navegador
-    const onFirstInteraction = () => {
-      if (!interactionBackupDone) {
-        interactionBackupDone = true;
-        document.removeEventListener('click', onFirstInteraction);
-        document.removeEventListener('touchstart', onFirstInteraction);
-        performAutoBackup('startup');
-      }
-    };
+    // Roda direto no início sem exigir clique (com pequeno delay para carregar a UI)
+    setTimeout(() => {
+      performAutoBackup('startup');
+    }, 2000);
     
-    document.addEventListener('click', onFirstInteraction);
-    document.addEventListener('touchstart', onFirstInteraction);
-    
-    // Keep checking periodically
-    const backupTimer = setInterval(() => performAutoBackup('timer'), 5 * 60 * 1000); // Check every 5 minutes
+    // Checa a cada minuto se já passou 1 hora
+    const backupTimer = setInterval(() => performAutoBackup('timer'), 60 * 1000);
     
     return () => {
       clearInterval(backupTimer);
-      document.removeEventListener('click', onFirstInteraction);
-      document.removeEventListener('touchstart', onFirstInteraction);
     };
   }, []);
 
