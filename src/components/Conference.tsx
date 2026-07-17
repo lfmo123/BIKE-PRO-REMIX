@@ -54,17 +54,15 @@ export function Conference({ vehicles }: ConferenceProps) {
       <div class="subtitle" style="margin-bottom: 15px;">${new Date().toLocaleString('pt-BR')}</div>
       ${renderCategory('Bicicletas', bikes)}
       <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
-      <h2 style="font-size: 12pt; margin-bottom: 5px;">Motos e E-Bikes</h2>
-      ${renderCategory('E-Bikes', ebikes)}
+      ${renderCategory('Bicicletas Elétricas (E-Bikes)', ebikes)}
       ${renderCategory('Motos', motos)}
       <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
       ${renderCategory('Outros', sn)}
       
       ${(storedBikes.length > 0 || storedEbikes.length > 0 || storedMotos.length > 0 || storedSn.length > 0) ? '<div style="border-top: 2px solid #000; margin: 15px 0;"></div><h2 style="font-size: 14pt; margin-bottom: 10px;">Em Depósito</h2>' : ''}
       ${storedBikes.length > 0 ? renderCategory('Bicicletas (Depósito)', storedBikes) : ''}
-      ${(storedEbikes.length > 0 || storedMotos.length > 0) ? '<div style="border-top: 1px dashed #000; margin: 10px 0;"></div><h2 style="font-size: 12pt; margin-bottom: 5px;">Motos e E-Bikes (Depósito)</h2>' : ''}
-      ${storedEbikes.length > 0 ? renderCategory('E-Bikes (Depósito)', storedEbikes) : ''}
-      ${storedMotos.length > 0 ? renderCategory('Motos (Depósito)', storedMotos) : ''}
+      ${storedEbikes.length > 0 ? '<div style="border-top: 1px dashed #000; margin: 10px 0;"></div>' + renderCategory('Bicicletas Elétricas (Depósito)', storedEbikes) : ''}
+      ${storedMotos.length > 0 ? '<div style="border-top: 1px dashed #000; margin: 10px 0;"></div>' + renderCategory('Motos (Depósito)', storedMotos) : ''}
       ${storedSn.length > 0 ? '<div style="border-top: 1px dashed #000; margin: 10px 0;"></div>' + renderCategory('Outros (Depósito)', storedSn) : ''}
       <div class="section" style="text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;">
         <h2>Total Geral: ${allActive.length}</h2>
@@ -182,13 +180,14 @@ export function Conference({ vehicles }: ConferenceProps) {
             {renderCategoryScreen('Bicicletas', bikes)}
             
             <div className="mt-8 pt-8 border-t border-slate-200">
-              <h2 className="text-xl font-bold text-slate-800 mb-6">Motos e E-Bikes</h2>
-              {renderCategoryScreen('E-Bikes', ebikes)}
+              {renderCategoryScreen('Bicicletas Elétricas (E-Bikes)', ebikes)}
+            </div>
+            
+            <div className="mt-8 pt-8 border-t border-slate-200">
               {renderCategoryScreen('Motos', motos)}
             </div>
             
             <div className="mt-8 pt-8 border-t border-slate-200">
-              <h2 className="text-xl font-bold text-slate-800 mb-6">Outros</h2>
               {renderCategoryScreen('Vagas Sem Número', sn)}
             </div>
             
@@ -199,16 +198,18 @@ export function Conference({ vehicles }: ConferenceProps) {
                   Em Depósito
                 </h2>
                 {storedBikes.length > 0 && renderCategoryScreen('Bicicletas', storedBikes)}
-                {(storedEbikes.length > 0 || storedMotos.length > 0) && (
+                {storedEbikes.length > 0 && (
                   <div className="mt-6 pt-6 border-t border-yellow-200/50">
-                    <h3 className="text-lg font-bold text-yellow-800 mb-4">Motos e E-Bikes (Em Depósito)</h3>
-                    {storedEbikes.length > 0 && renderCategoryScreen('E-Bikes', storedEbikes)}
-                    {storedMotos.length > 0 && renderCategoryScreen('Motos', storedMotos)}
+                    {renderCategoryScreen('Bicicletas Elétricas (E-Bikes)', storedEbikes)}
+                  </div>
+                )}
+                {storedMotos.length > 0 && (
+                  <div className="mt-6 pt-6 border-t border-yellow-200/50">
+                    {renderCategoryScreen('Motos', storedMotos)}
                   </div>
                 )}
                 {storedSn.length > 0 && (
                   <div className="mt-6 pt-6 border-t border-yellow-200/50">
-                    <h3 className="text-lg font-bold text-yellow-800 mb-4">Outros (Em Depósito)</h3>
                     {renderCategoryScreen('Vagas Sem Número', storedSn)}
                   </div>
                 )}
