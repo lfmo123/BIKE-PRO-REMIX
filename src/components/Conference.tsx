@@ -20,15 +20,26 @@ export function Conference({ vehicles }: ConferenceProps) {
   const activeVehicles = allActive.filter(v => v.status !== 'stored');
   const storedVehicles = allActive.filter(v => v.status === 'stored');
   
-  const sn = activeVehicles.filter(v => v.cardNumber?.startsWith('SN') || v.cardNumber?.startsWith('VIP'));
-  const bikes = activeVehicles.filter(v => v.type === 'bicycle' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP'));
-  const ebikes = activeVehicles.filter(v => v.type === 'ebike' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP'));
-  const motos = activeVehicles.filter(v => v.type === 'motorcycle' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP'));
+  const sortVehicles = (arr: ParkedVehicle[]) => {
+    return arr.sort((a, b) => {
+      const numA = parseInt(a.cardNumber?.replace(/\D/g, '') || '0', 10);
+      const numB = parseInt(b.cardNumber?.replace(/\D/g, '') || '0', 10);
+      if (numA !== numB) {
+        return numA - numB;
+      }
+      return (a.cardNumber || '').localeCompare(b.cardNumber || '');
+    });
+  };
   
-  const storedSn = storedVehicles.filter(v => v.cardNumber?.startsWith('SN') || v.cardNumber?.startsWith('VIP'));
-  const storedBikes = storedVehicles.filter(v => v.type === 'bicycle' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP'));
-  const storedEbikes = storedVehicles.filter(v => v.type === 'ebike' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP'));
-  const storedMotos = storedVehicles.filter(v => v.type === 'motorcycle' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP'));
+  const sn = sortVehicles(activeVehicles.filter(v => v.cardNumber?.startsWith('SN') || v.cardNumber?.startsWith('VIP')));
+  const bikes = sortVehicles(activeVehicles.filter(v => v.type === 'bicycle' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP')));
+  const ebikes = sortVehicles(activeVehicles.filter(v => v.type === 'ebike' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP')));
+  const motos = sortVehicles(activeVehicles.filter(v => v.type === 'motorcycle' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP')));
+  
+  const storedSn = sortVehicles(storedVehicles.filter(v => v.cardNumber?.startsWith('SN') || v.cardNumber?.startsWith('VIP')));
+  const storedBikes = sortVehicles(storedVehicles.filter(v => v.type === 'bicycle' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP')));
+  const storedEbikes = sortVehicles(storedVehicles.filter(v => v.type === 'ebike' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP')));
+  const storedMotos = sortVehicles(storedVehicles.filter(v => v.type === 'motorcycle' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP')));
 
   const handlePrintConference = () => {
     const renderCategory = (title: string, items: any[]) => {
