@@ -655,7 +655,7 @@ export default function App() {
                 {activeTab === 'audit' && <Audit vehicles={vehicles} sales={sales} transactions={transactions} products={products} onRefreshAll={handleRefreshAll} />}
                 {activeTab === 'history' && <History vehicles={vehicles} onRevertCheckout={handleRevertCheckout} />}
                 {activeTab === 'reports' && <Reports vehicles={vehicles} sales={sales} transactions={transactions} />}
-                {activeTab === 'settings' && <Settings operators={operators} onAddOperator={handleAddOperator} onDeleteOperator={handleDeleteOperator} pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={fetchLostCards} onResetApp={() => setIsResetAppOpen(true)} />}
+                {activeTab === 'settings' && <Settings operators={operators} onAddOperator={handleAddOperator} onDeleteOperator={handleDeleteOperator} pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={() => { fetchLostCards(); fetchVehicles(); }} onResetApp={() => setIsResetAppOpen(true)} />}
               </motion.div>
             </AnimatePresence>
           </div>

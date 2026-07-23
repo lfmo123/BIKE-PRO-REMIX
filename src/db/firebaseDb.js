@@ -256,6 +256,16 @@ export async function removeLostCard(cardNumber) {
   await deleteDoc(doc(db, 'lostCards', cardId));
 }
 
+export async function recoverVehicleCardLost(cardNumber) {
+  const vehiclesCol = collection(db, 'vehicles');
+  const q = query(vehiclesCol, where('cardNumber', '==', cardNumber), where('cardLost', '==', true));
+  const snap = await getDocs(q);
+  const updatePromises = snap.docs.map(docSnap => 
+    updateDoc(doc(db, 'vehicles', docSnap.id), { cardLost: false })
+  );
+  await Promise.all(updatePromises);
+}
+
 export async function updateVehicleCard(id, newCardNumber) {
   const vehicleRef = doc(db, 'vehicles', id);
   const vehicleSnap = await getDoc(vehicleRef);

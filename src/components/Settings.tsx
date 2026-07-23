@@ -294,7 +294,7 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
                   <button 
                     onClick={async () => {
                       if (confirm(`O cartão ${card.cardNumber} foi encontrado? Ele voltará para a grade como disponível.`)) {
-                        await fetch(`/api/lost-cards/${card.cardNumber}`, { method: 'DELETE' });
+                        await fetch(`/api/lost-cards?cardNumber=${encodeURIComponent(card.cardNumber)}`, { method: 'DELETE' });
                         onLostCardsChange?.();
                       }
                     }}

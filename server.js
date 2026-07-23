@@ -25,6 +25,31 @@ async function startServer() {
   const dbType = ['mysql', 'json'].includes(envDbType) ? envDbType : 'firebase';
   console.log(`Usando banco de dados: ${dbType.toUpperCase()}`);
 
+  if (dbType === 'firebase') {
+    setTimeout(async () => {
+      try {
+        console.log('Running cleanup for stuck cardLost vehicles...');
+        const lostCards = await firebaseDb.getLostCards();
+        const lostCardNumbers = new Set(lostCards.map(c => c.cardNumber));
+        const vehicles = await firebaseDb.getVehicles();
+        
+        const stuckCards = new Set();
+        vehicles.forEach(v => {
+          if (v.cardLost && !lostCardNumbers.has(v.cardNumber) && v.status !== 'completed') {
+            stuckCards.add(v.cardNumber);
+          }
+        });
+        
+        for (const cardNumber of stuckCards) {
+          console.log(`Fixing stuck vehicle with card ${cardNumber}`);
+          await firebaseDb.recoverVehicleCardLost(cardNumber);
+        }
+      } catch(e) {
+        console.error('Cleanup error:', e);
+      }
+    }, 3000);
+  }
+
   if (dbType === 'mysql') {
     await initMySQL();
   } else if (dbType === 'firebase') {
@@ -685,6 +710,41 @@ async function startServer() {
   });
 
   // Remove lost card
+  app.delete('/api/lost-cards', async (req, res) => {
+    try {
+      const cardNumber = req.query.cardNumber;
+      if (!cardNumber) {
+        return res.status(400).json({ error: 'cardNumber query parameter is required' });
+      }
+      if (dbType === 'firebase') {
+        await firebaseDb.removeLostCard(cardNumber);
+        await firebaseDb.recoverVehicleCardLost(cardNumber);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        await mysqlDb.removeLostCard(cardNumber);
+        if (mysqlDb.recoverVehicleCardLost) await mysqlDb.recoverVehicleCardLost(cardNumber);
+      } else {
+        const db = readDb();
+        db.lostCards = (db.lostCards || []).filter(c => {
+          if (typeof c === 'string') return c !== cardNumber;
+          return c.cardNumber !== cardNumber;
+        });
+        db.vehicles = db.vehicles.map(v => {
+          if (v.cardNumber === cardNumber && v.cardLost) {
+            return { ...v, cardLost: false };
+          }
+          return v;
+        });
+        writeDb(db);
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to remove lost card' });
+    }
+  });
+  
+  // Keep original just in case
   app.delete('/api/lost-cards/:cardNumber', async (req, res) => {
     try {
       const { cardNumber } = req.params;
