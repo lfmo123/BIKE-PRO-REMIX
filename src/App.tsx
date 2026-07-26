@@ -653,7 +653,7 @@ export default function App() {
                 {activeTab === 'checkout' && <CheckOut vehicles={vehicles} pricing={pricing} onCheckOut={handleCheckOut} customerCards={customerCards} />}
                 {activeTab === 'cashbook' && <CashBook transactions={transactions} vehicles={vehicles} shifts={shifts} onAddTransaction={handleAddTransaction} onDeleteTransaction={handleDeleteTransaction} onPayFiado={handlePayFiado} />}
                 {activeTab === 'shifts' && <ShiftControl operators={operators} shifts={shifts} transactions={transactions} vehicles={vehicles} sales={sales} activeShift={activeShift} user={user as any} onOpenShift={handleOpenShift} onCloseShift={handleCloseShift} />}
-                {activeTab === 'cards' && <CustomerCards cards={customerCards} vehicles={vehicles} onAddCard={handleAddCard} onUpdateCard={handleUpdateCard} onDeleteCard={handleDeleteCard} onAddTransaction={handleAddTransaction} />}
+                {activeTab === 'cards' && <CustomerCards cards={customerCards} vehicles={vehicles} transactions={transactions} onAddCard={handleAddCard} onUpdateCard={handleUpdateCard} onDeleteCard={handleDeleteCard} onAddTransaction={handleAddTransaction} />}
                 {activeTab === 'store' && <Store products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} onAddSale={handleAddSale} />}
                 {activeTab === 'audit' && <Audit vehicles={vehicles} sales={sales} transactions={transactions} products={products} onRefreshAll={handleRefreshAll} />}
                 {activeTab === 'history' && <History vehicles={vehicles} onRevertCheckout={handleRevertCheckout} />}

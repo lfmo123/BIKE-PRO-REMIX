@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { CustomerCard, ParkedVehicle } from '../types';
+import { CustomerCard, ParkedVehicle, Transaction } from '../types';
 import { Grid, Plus, Search, DollarSign, Edit, Trash2 } from 'lucide-react';
 import { getLocalDateString } from '../lib/dateUtils';
 
 interface CustomerCardsProps {
   cards: CustomerCard[];
   vehicles?: ParkedVehicle[];
+  transactions?: Transaction[];
   onAddCard: (card: Omit<CustomerCard, 'id'>) => Promise<void>;
   onUpdateCard: (id: string, card: Partial<CustomerCard>) => Promise<void>;
   onDeleteCard: (id: string) => Promise<void>;
   onAddTransaction: (transaction: any) => Promise<void>;
 }
 
-export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, onDeleteCard, onAddTransaction }: CustomerCardsProps) {
+export function CustomerCards({ cards, vehicles = [], transactions = [], onAddCard, onUpdateCard, onDeleteCard, onAddTransaction }: CustomerCardsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
@@ -177,7 +178,36 @@ export function CustomerCards({ cards, vehicles = [], onAddCard, onUpdateCard, o
                 </span>
               </div>
             )}
-            
+
+            {/* Last 2 transactions */}
+            {(() => {
+              const cardTx = transactions
+                .filter(t => t.description.includes(`Cartão ${card.cardNumber} (`))
+                .sort((a, b) => b.date - a.date)
+                .slice(0, 2);
+                
+              if (cardTx.length === 0) return null;
+              
+              return (
+                <div className="mb-3 flex flex-col gap-1.5">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Últimas Movimentações</span>
+                  {cardTx.map(t => {
+                    const isEstorno = t.description.includes('Estorno');
+                    return (
+                      <div key={t.id} className="flex justify-between items-center text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <span className="text-slate-600 truncate mr-2 flex-1" title={t.description}>
+                          {new Date(t.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {isEstorno ? 'Estorno' : (card.type === 'prepaid' ? 'Crédito' : 'Pgto')}
+                        </span>
+                        <span className={`font-bold ${isEstorno ? 'text-red-600' : 'text-emerald-600'}`}>
+                          {isEstorno ? '-' : '+'}R$ {t.amount.toFixed(2)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             <div className={`p-3 rounded-xl border flex items-center justify-between mb-3 ${card.type === 'prepaid' ? 'bg-emerald-50 border-emerald-100' : 'bg-purple-50 border-purple-100'}`}>
               <div className="flex flex-col">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{card.type === 'prepaid' ? 'Saldo (Pré-pago)' : 'Fatura (Pós-pago)'}</span>
