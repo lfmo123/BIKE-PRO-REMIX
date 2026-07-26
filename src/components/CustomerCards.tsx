@@ -196,7 +196,7 @@ export function CustomerCards({ cards, vehicles = [], transactions = [], onAddCa
                     return (
                       <div key={t.id} className="flex justify-between items-center text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
                         <span className="text-slate-600 truncate mr-2 flex-1" title={t.description}>
-                          {new Date(t.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {isEstorno ? 'Estorno' : (card.type === 'prepaid' ? 'Crédito' : 'Pgto')}
+                          {new Date(t.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} - {isEstorno ? 'Estorno' : (card.type === 'prepaid' ? 'Crédito' : 'Pgto')}
                         </span>
                         <span className={`font-bold ${isEstorno ? 'text-red-600' : 'text-emerald-600'}`}>
                           {isEstorno ? '-' : '+'}R$ {t.amount.toFixed(2)}
