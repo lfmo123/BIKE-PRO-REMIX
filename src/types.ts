@@ -41,6 +41,8 @@ export interface Transaction {
   amount: number;
   date: number;
   type: 'expense' | 'income';
+  operator?: string;
+  category?: string;
 }
 
 export interface Product {

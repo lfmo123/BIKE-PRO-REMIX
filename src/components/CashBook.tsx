@@ -15,6 +15,7 @@ interface CashBookProps {
 
 export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction, onDeleteTransaction, onPayFiado }: CashBookProps) {
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('Outros');
   const [amount, setAmount] = useState('');
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [payingFiadoId, setPayingFiadoId] = useState<string | null>(null);
@@ -47,6 +48,8 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
       amount: t.amount,
       date: t.date,
       type: t.type,
+      operator: t.operator,
+      category: t.category,
       isManual: true
     })),
     ...dailyCheckouts.map(v => ({
@@ -102,6 +105,8 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
 
   const unpaidFiados = vehicles.filter(v => v.status === 'completed' && v.paymentMethod === 'fiado' && !v.isFiadoPaid);
   
+  const activeShift = shifts.find(s => s.status === 'open');
+
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description || !amount) return;
@@ -114,11 +119,14 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
       description,
       amount: parseFloat(amount),
       type: 'expense',
-      date: transactionDate
+      date: transactionDate,
+      category,
+      operator: activeShift?.operatorName || 'Admin'
     });
 
     setDescription('');
     setAmount('');
+    setCategory('Outros');
   };
 
   const handlePayGlobalFiado = async () => {
@@ -362,7 +370,22 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
             <h2 className="text-lg font-bold text-slate-900 mb-4">Nova Despesa</h2>
             <form onSubmit={handleAddTransaction} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Categoria da Despesa</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 mb-4"
+                >
+                  <option value="Manutenção">Manutenção</option>
+                  <option value="Materiais">Materiais</option>
+                  <option value="Pagamento">Pagamento</option>
+                  <option value="Retirada">Retirada (Sangria)</option>
+                  <option value="Outros">Outros</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Justificativa / Descrição</label>
                 <input
                   type="text"
                   required
@@ -418,9 +441,11 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                         </div>
                         <div>
                           <p className="font-bold text-slate-900">{entry.description}</p>
-                          <p className="text-xs text-slate-500">
-                            {new Date(entry.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                            {!entry.isManual && ' • Automático'}
+                          <p className="text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                            <span>{new Date(entry.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            {!entry.isManual && <span>• Automático</span>}
+                            {entry.category && <span>• Cat: {entry.category}</span>}
+                            {entry.operator && <span>• Op: {entry.operator}</span>}
                           </p>
                         </div>
                       </div>

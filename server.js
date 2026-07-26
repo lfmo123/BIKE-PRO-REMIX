@@ -157,9 +157,9 @@ async function startServer() {
   // Add a transaction
   app.post('/api/transactions', async (req, res) => {
     try {
-      const { description, amount, date, type } = req.body;
+      const { description, amount, date, type, operator, category } = req.body;
       const id = Math.random().toString(36).substring(2, 9);
-      const newTransaction = { id, description, amount, date: date || Date.now(), type };
+      const newTransaction = { id, description, amount, date: date || Date.now(), type, operator, category };
       
       if (dbType === 'firebase') {
         await firebaseDb.addTransaction(newTransaction);

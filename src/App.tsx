@@ -227,6 +227,9 @@ export default function App() {
 
   const handleAddTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     try {
+      if (!transaction.operator && activeShift?.operatorName) {
+        transaction.operator = activeShift.operatorName;
+      }
       const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

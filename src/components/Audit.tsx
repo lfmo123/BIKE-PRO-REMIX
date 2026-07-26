@@ -95,25 +95,23 @@ export function Audit({ vehicles, sales, transactions, products, onRefreshAll }:
       });
     });
 
-    // 3. Transactions (Only Income/Entradas, as this is for auditing receipts/payments)
+    // 3. Transactions
     transactions.forEach(t => {
-      if (t.type === 'income') {
-        // Avoid adding sales duplicated if the transaction is from sales
-        if (t.description && t.description.startsWith('Venda na Loja:')) {
-          return;
-        }
-        list.push({
-          id: t.id,
-          type: 'transaction',
-          date: t.date,
-          description: `Lançamento Caixa: ${t.description}`,
-          amount: t.amount,
-          paymentMethod: t.description?.toLowerCase().includes('cartão') ? 'card' :
-                         t.description?.toLowerCase().includes('máquina') ? 'machine' :
-                         t.description?.toLowerCase().includes('pix') ? 'pix' : 'cash',
-          originalData: t
-        });
+      // Avoid adding sales duplicated if the transaction is from sales
+      if (t.type === 'income' && t.description && t.description.startsWith('Venda na Loja:')) {
+        return;
       }
+      list.push({
+        id: t.id,
+        type: 'transaction',
+        date: t.date,
+        description: `${t.type === 'expense' ? 'Saída/Despesa' : 'Entrada'}: ${t.description}${t.operator ? ` (Op: ${t.operator})` : ''}${t.category ? ` [Cat: ${t.category}]` : ''}`,
+        amount: t.type === 'expense' ? -t.amount : t.amount,
+        paymentMethod: t.description?.toLowerCase().includes('cartão') ? 'card' :
+                       t.description?.toLowerCase().includes('máquina') ? 'machine' :
+                       t.description?.toLowerCase().includes('pix') ? 'pix' : 'cash',
+        originalData: t
+      });
     });
 
     return list.sort((a, b) => b.date - a.date);
