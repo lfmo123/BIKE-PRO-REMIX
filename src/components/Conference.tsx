@@ -47,10 +47,10 @@ export function Conference({ vehicles }: ConferenceProps) {
         <div class="section" style="margin-bottom: 10px;">
           <h2 style="font-size: 10pt; margin-bottom: 6px;">${title} (${items.length})</h2>
           ${items.length > 0 ? `
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;">
+          <div style="display: flex; flex-wrap: wrap; gap: 4px;">
             ${items.map(v => `
-              <div style="border: 1px solid #000; padding: 2px 4px; border-radius: 4px; font-weight: bold; font-size: 9pt; display: flex; align-items: center; justify-content: space-between; gap: 4px; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
-                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP#' : '#'}${v.cardNumber}</span>
+              <div style="width: calc(33.33% - 3px); box-sizing: border-box; border: 1px solid #000; padding: 2px 4px; border-radius: 4px; font-weight: bold; font-size: 9pt; display: flex; align-items: center; justify-content: space-between; gap: 4px; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
+                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP#' : '#'}${v.cardNumber || 'S/N'}</span>
                 <span style="border: 1px solid #000; width: 10px; height: 10px; display: inline-block; flex-shrink: 0;"></span>
               </div>
             `).join('')}
@@ -64,17 +64,22 @@ export function Conference({ vehicles }: ConferenceProps) {
       <h1>Conferência de Pátio</h1>
       <div class="subtitle" style="margin-bottom: 15px;">${new Date().toLocaleString('pt-BR')}</div>
       ${renderCategory('Bicicletas', bikes)}
-      <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
       ${renderCategory('Bicicletas Elétricas (E-Bikes)', ebikes)}
+      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
       ${renderCategory('Motos', motos)}
-      <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
-      ${renderCategory('Outros', sn)}
+      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
+      ${renderCategory('Vagas sem número', sn)}
       
-      ${(storedBikes.length > 0 || storedEbikes.length > 0 || storedMotos.length > 0 || storedSn.length > 0) ? '<div style="border-top: 2px solid #000; margin: 15px 0;"></div><h2 style="font-size: 14pt; margin-bottom: 10px;">Em Depósito</h2>' : ''}
-      ${storedBikes.length > 0 ? renderCategory('Bicicletas (Depósito)', storedBikes) : ''}
-      ${storedEbikes.length > 0 ? '<div style="border-top: 1px dashed #000; margin: 10px 0;"></div>' + renderCategory('Bicicletas Elétricas (Depósito)', storedEbikes) : ''}
-      ${storedMotos.length > 0 ? '<div style="border-top: 1px dashed #000; margin: 10px 0;"></div>' + renderCategory('Motos (Depósito)', storedMotos) : ''}
-      ${storedSn.length > 0 ? '<div style="border-top: 1px dashed #000; margin: 10px 0;"></div>' + renderCategory('Outros (Depósito)', storedSn) : ''}
+      <div style="border-top: 2px solid #000; margin: 15px 0;"></div><h2 style="font-size: 12pt; margin-bottom: 8px;">Em Depósito</h2>
+      ${renderCategory('Bicicletas (Depósito)', storedBikes)}
+      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
+      ${renderCategory('Bicicletas Elétricas (Depósito)', storedEbikes)}
+      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
+      ${renderCategory('Motos (Depósito)', storedMotos)}
+      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
+      ${renderCategory('Vagas sem número (Depósito)', storedSn)}
+      
       <div class="section" style="text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;">
         <h2>Total Geral: ${allActive.length}</h2>
       </div>
