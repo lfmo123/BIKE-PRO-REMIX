@@ -49,7 +49,7 @@ export function Conference({ vehicles }: ConferenceProps) {
           ${items.length > 0 ? `
           <div style="display: block;">
             ${items.map(v => `
-              <div style="display: inline-block; width: 32%; box-sizing: border-box; border: 1px solid #000; padding: 6px 8px; border-radius: 4px; font-weight: bold; font-size: 12pt; vertical-align: top; margin-bottom: 8px; margin-right: 1%; page-break-inside: avoid; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
+              <div style="display: inline-block; width: 24%; box-sizing: border-box; border: 1px solid #000; padding: 6px 8px; border-radius: 4px; font-weight: bold; font-size: 13pt; vertical-align: top; margin-bottom: 8px; margin-right: 1%; page-break-inside: avoid; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
                   <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP#' : '#'}${v.cardNumber || 'S/N'}</span>
                   <span style="border: 1px solid #000; width: 14px; height: 14px; display: inline-block; flex-shrink: 0;"></span>
