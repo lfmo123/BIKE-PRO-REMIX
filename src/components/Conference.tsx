@@ -45,11 +45,11 @@ export function Conference({ vehicles }: ConferenceProps) {
     const renderCategory = (title: string, items: any[]) => {
       return `
         <div style="margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
-          <h2 style="font-size: 38pt; margin-bottom: 6px;">${title} (${items.length})</h2>
+          <h2 style="font-size: 140pt; margin-bottom: 6px;">${title} (${items.length})</h2>
           ${items.length > 0 ? `
           <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
             ${items.map(v => `
-              <div style="box-sizing: border-box; border: 1px solid #000; padding: 6px 8px; border-radius: 4px; font-weight: bold; font-size: 25pt; page-break-inside: avoid; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
+              <div style="box-sizing: border-box; border: 1px solid #000; padding: 6px 8px; border-radius: 4px; font-weight: bold; font-size: 90pt; page-break-inside: avoid; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
                   <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP#' : '#'}${v.cardNumber || 'S/N'}</span>
                   <span style="border: 1px solid #000; width: 18px; height: 18px; display: inline-block; flex-shrink: 0;"></span>
@@ -57,29 +57,29 @@ export function Conference({ vehicles }: ConferenceProps) {
               </div>
             `).join('')}
           </div>
-          ` : `<p style="font-size: 33pt; color: #666;">Nenhum veículo</p>`}
+          ` : `<p style="font-size: 120pt; color: #666;">Nenhum veículo</p>`}
         </div>
       `;
     };
 
     const bodyHtml = `
-      <h1 style="font-size: 38pt; font-weight: 900; margin-bottom: 10px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 5px;">Conferência de Pátio</h1>
-      <div style="text-align: center; font-size: 33pt; margin-bottom: 15px; font-weight: 900;">${new Date().toLocaleString('pt-BR')}</div>
+      <h1 style="font-size: 140pt; font-weight: 900; margin-bottom: 10px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 5px;">Conferência de Pátio</h1>
+      <div style="text-align: center; font-size: 120pt; margin-bottom: 15px; font-weight: 900;">${new Date().toLocaleString('pt-BR')}</div>
       ${renderCategory('Bicicletas', bikes)}
       ${renderCategory('Bicicletas Elétricas (E-Bikes)', ebikes)}
       ${renderCategory('Motos', motos)}
       ${renderCategory('Vagas sem número', sn)}
       
-      <div style="border-top: 2px solid #000; margin: 15px 0;"></div><h2 style="font-size: 38pt; margin-bottom: 8px;">Em Depósito</h2>
+      <div style="border-top: 2px solid #000; margin: 15px 0;"></div><h2 style="font-size: 140pt; margin-bottom: 8px;">Em Depósito</h2>
       ${renderCategory('Bicicletas (Depósito)', storedBikes)}
       ${renderCategory('Bicicletas Elétricas (Depósito)', storedEbikes)}
       ${renderCategory('Motos (Depósito)', storedMotos)}
       ${renderCategory('Vagas sem número (Depósito)', storedSn)}
       
       <div style="text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px; page-break-inside: avoid;">
-        <h2 style="font-size: 38pt; font-weight: 900; margin: 0 0 10px 0; text-transform: uppercase; color: #000; text-align: center;">Total Geral: ${allActive.length}</h2>
+        <h2 style="font-size: 140pt; font-weight: 900; margin: 0 0 10px 0; text-transform: uppercase; color: #000; text-align: center;">Total Geral: ${allActive.length}</h2>
       </div>
-      <div style="text-align: center; margin-top: 30px; font-size: 33pt; color: #000; font-weight: bold; padding-bottom: 20px;">
+      <div style="text-align: center; margin-top: 30px; font-size: 120pt; color: #000; font-weight: bold; padding-bottom: 20px;">
         <p>Bikepark - Conferência</p>
       </div>
     `;
@@ -101,23 +101,23 @@ export function Conference({ vehicles }: ConferenceProps) {
   const renderCategoryScreen = (title: string, items: ParkedVehicle[]) => {
     return (
       <div className="mb-8">
-        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+        <h2 className="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
           {title} 
-          <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-sm">
+          <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">
             {items.length}
           </span>
         </h2>
         {items.length === 0 ? (
-          <p className="text-slate-400 italic text-xl">Nenhum veículo</p>
+          <p className="text-slate-400 italic text-sm">Nenhum veículo</p>
         ) : (
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
             {items.map(vehicle => {
               const isChecked = checkedIds.has(vehicle.id);
               return (
                 <button
                   key={vehicle.id}
                   onClick={() => toggleCheck(vehicle.id)}
-                  className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                  className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
                     vehicle.status === 'stored'
                       ? isChecked
                         ? 'bg-yellow-400 border-yellow-600 text-yellow-900 shadow-inner ring-2 ring-yellow-500'
@@ -127,7 +127,7 @@ export function Conference({ vehicles }: ConferenceProps) {
                         : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="font-bold text-3xl">
+                  <span className="font-bold text-sm">
                     {vehicle.cardNumber?.startsWith('SN') || vehicle.cardNumber?.startsWith('VIP') ? vehicle.cardNumber : `#${vehicle.cardNumber}`}
                   </span>
                   {isChecked ? (
