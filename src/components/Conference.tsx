@@ -45,11 +45,11 @@ export function Conference({ vehicles }: ConferenceProps) {
     const renderCategory = (title: string, items: any[]) => {
       return `
         <div style="margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
-          <h2 style="font-size: 20pt; margin-bottom: 6px;">${title} (${items.length})</h2>
+          <h2 style="font-size: 23pt; margin-bottom: 6px;">${title} (${items.length})</h2>
           ${items.length > 0 ? `
           <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
             ${items.map(v => `
-              <div style="box-sizing: border-box; border: 1px solid #000; padding: 6px 8px; border-radius: 4px; font-weight: bold; font-size: 20pt; page-break-inside: avoid; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
+              <div style="box-sizing: border-box; border: 1px solid #000; padding: 6px 8px; border-radius: 4px; font-weight: bold; font-size: 23pt; page-break-inside: avoid; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
                   <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP#' : '#'}${v.cardNumber || 'S/N'}</span>
                   <span style="border: 1px solid #000; width: 14px; height: 14px; display: inline-block; flex-shrink: 0;"></span>
@@ -57,7 +57,7 @@ export function Conference({ vehicles }: ConferenceProps) {
               </div>
             `).join('')}
           </div>
-          ` : `<p style="font-size: 16pt; color: #666;">Nenhum veículo</p>`}
+          ` : `<p style="font-size: 20pt; color: #666;">Nenhum veículo</p>`}
         </div>
       `;
     };
@@ -70,7 +70,7 @@ export function Conference({ vehicles }: ConferenceProps) {
       ${renderCategory('Motos', motos)}
       ${renderCategory('Vagas sem número', sn)}
       
-      <div style="border-top: 2px solid #000; margin: 15px 0;"></div><h2 style="font-size: 20pt; margin-bottom: 8px;">Em Depósito</h2>
+      <div style="border-top: 2px solid #000; margin: 15px 0;"></div><h2 style="font-size: 23pt; margin-bottom: 8px;">Em Depósito</h2>
       ${renderCategory('Bicicletas (Depósito)', storedBikes)}
       ${renderCategory('Bicicletas Elétricas (Depósito)', storedEbikes)}
       ${renderCategory('Motos (Depósito)', storedMotos)}
@@ -110,7 +110,7 @@ export function Conference({ vehicles }: ConferenceProps) {
         {items.length === 0 ? (
           <p className="text-slate-400 italic">Nenhum veículo</p>
         ) : (
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             {items.map(vehicle => {
               const isChecked = checkedIds.has(vehicle.id);
               return (
