@@ -45,19 +45,19 @@ export function Conference({ vehicles }: ConferenceProps) {
     const renderCategory = (title: string, items: any[]) => {
       return `
         <div style="margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
-          <h2 style="font-size: 10pt; margin-bottom: 6px;">${title} (${items.length})</h2>
+          <h2 style="font-size: 12pt; margin-bottom: 6px;">${title} (${items.length})</h2>
           ${items.length > 0 ? `
           <div style="display: block;">
             ${items.map(v => `
-              <div style="display: inline-block; width: 32%; box-sizing: border-box; border: 1px solid #000; padding: 2px 4px; border-radius: 4px; font-weight: bold; font-size: 9pt; vertical-align: top; margin-bottom: 4px; margin-right: 1%; page-break-inside: avoid; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 2px;">
+              <div style="display: inline-block; width: 32%; box-sizing: border-box; border: 1px solid #000; padding: 6px 8px; border-radius: 4px; font-weight: bold; font-size: 12pt; vertical-align: top; margin-bottom: 8px; margin-right: 1%; page-break-inside: avoid; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
                   <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP#' : '#'}${v.cardNumber || 'S/N'}</span>
-                  <span style="border: 1px solid #000; width: 10px; height: 10px; display: inline-block; flex-shrink: 0;"></span>
+                  <span style="border: 1px solid #000; width: 14px; height: 14px; display: inline-block; flex-shrink: 0;"></span>
                 </div>
               </div>
             `).join('')}
           </div>
-          ` : `<p style="font-size: 9pt; color: #666;">Nenhum veículo</p>`}
+          ` : `<p style="font-size: 11pt; color: #666;">Nenhum veículo</p>`}
         </div>
       `;
     };
