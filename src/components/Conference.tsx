@@ -114,7 +114,7 @@ export function Conference({ vehicles }: ConferenceProps) {
         {items.length === 0 ? (
           <p className="text-slate-400 italic">Nenhum veículo</p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {items.map(vehicle => {
               const isChecked = checkedIds.has(vehicle.id);
               return (
@@ -207,30 +207,22 @@ export function Conference({ vehicles }: ConferenceProps) {
               {renderCategoryScreen('Vagas Sem Número', sn)}
             </div>
             
-            {storedVehicles.length > 0 && (
-              <div className="mt-8 pt-8 border-t border-slate-200">
-                <h2 className="text-xl font-bold text-yellow-700 mb-6 flex items-center gap-2">
-                  <span className="bg-yellow-100 p-2 rounded-lg"><CheckCircle2 className="w-5 h-5" /></span>
-                  Em Depósito
-                </h2>
-                {storedBikes.length > 0 && renderCategoryScreen('Bicicletas', storedBikes)}
-                {storedEbikes.length > 0 && (
-                  <div className="mt-6 pt-6 border-t border-yellow-200/50">
-                    {renderCategoryScreen('Bicicletas Elétricas (E-Bikes)', storedEbikes)}
-                  </div>
-                )}
-                {storedMotos.length > 0 && (
-                  <div className="mt-6 pt-6 border-t border-yellow-200/50">
-                    {renderCategoryScreen('Motos', storedMotos)}
-                  </div>
-                )}
-                {storedSn.length > 0 && (
-                  <div className="mt-6 pt-6 border-t border-yellow-200/50">
-                    {renderCategoryScreen('Vagas Sem Número', storedSn)}
-                  </div>
-                )}
+            <div className="mt-8 pt-8 border-t border-slate-200">
+              <h2 className="text-xl font-bold text-yellow-700 mb-6 flex items-center gap-2">
+                <span className="bg-yellow-100 p-2 rounded-lg"><CheckCircle2 className="w-5 h-5" /></span>
+                Em Depósito
+              </h2>
+              {renderCategoryScreen('Bicicletas (Depósito)', storedBikes)}
+              <div className="mt-6 pt-6 border-t border-yellow-200/50">
+                {renderCategoryScreen('Bicicletas Elétricas (Depósito)', storedEbikes)}
               </div>
-            )}
+              <div className="mt-6 pt-6 border-t border-yellow-200/50">
+                {renderCategoryScreen('Motos (Depósito)', storedMotos)}
+              </div>
+              <div className="mt-6 pt-6 border-t border-yellow-200/50">
+                {renderCategoryScreen('Vagas Sem Número (Depósito)', storedSn)}
+              </div>
+            </div>
           </>
         )}
       </div>
