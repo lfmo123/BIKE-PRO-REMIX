@@ -12,7 +12,7 @@ export function Conference({ vehicles }: ConferenceProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredVehicles = vehicles.filter(v => 
-    v.cardNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+    (v.cardNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const allActive = filteredVehicles.filter(v => v.status === 'active' || v.status === 'stored');
@@ -44,14 +44,16 @@ export function Conference({ vehicles }: ConferenceProps) {
   const handlePrintConference = () => {
     const renderCategory = (title: string, items: any[]) => {
       return `
-        <div class="section" style="margin-bottom: 10px;">
+        <div style="margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
           <h2 style="font-size: 10pt; margin-bottom: 6px;">${title} (${items.length})</h2>
           ${items.length > 0 ? `
-          <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+          <div style="display: block;">
             ${items.map(v => `
-              <div style="width: calc(33.33% - 3px); box-sizing: border-box; border: 1px solid #000; padding: 2px 4px; border-radius: 4px; font-weight: bold; font-size: 9pt; display: flex; align-items: center; justify-content: space-between; gap: 4px; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
-                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP#' : '#'}${v.cardNumber || 'S/N'}</span>
-                <span style="border: 1px solid #000; width: 10px; height: 10px; display: inline-block; flex-shrink: 0;"></span>
+              <div style="display: inline-block; width: 24%; box-sizing: border-box; border: 1px solid #000; padding: 2px 4px; border-radius: 4px; font-weight: bold; font-size: 9pt; vertical-align: top; margin-bottom: 4px; margin-right: 1%; page-break-inside: avoid; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 2px;">
+                  <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP#' : '#'}${v.cardNumber || 'S/N'}</span>
+                  <span style="border: 1px solid #000; width: 10px; height: 10px; display: inline-block; flex-shrink: 0;"></span>
+                </div>
               </div>
             `).join('')}
           </div>
@@ -64,23 +66,17 @@ export function Conference({ vehicles }: ConferenceProps) {
       <h1>Conferência de Pátio</h1>
       <div class="subtitle" style="margin-bottom: 15px;">${new Date().toLocaleString('pt-BR')}</div>
       ${renderCategory('Bicicletas', bikes)}
-      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
       ${renderCategory('Bicicletas Elétricas (E-Bikes)', ebikes)}
-      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
       ${renderCategory('Motos', motos)}
-      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
       ${renderCategory('Vagas sem número', sn)}
       
       <div style="border-top: 2px solid #000; margin: 15px 0;"></div><h2 style="font-size: 12pt; margin-bottom: 8px;">Em Depósito</h2>
       ${renderCategory('Bicicletas (Depósito)', storedBikes)}
-      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
       ${renderCategory('Bicicletas Elétricas (Depósito)', storedEbikes)}
-      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
       ${renderCategory('Motos (Depósito)', storedMotos)}
-      <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
       ${renderCategory('Vagas sem número (Depósito)', storedSn)}
       
-      <div class="section" style="text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;">
+      <div style="text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px; page-break-inside: avoid;">
         <h2>Total Geral: ${allActive.length}</h2>
       </div>
       <div class="footer">
@@ -114,7 +110,7 @@ export function Conference({ vehicles }: ConferenceProps) {
         {items.length === 0 ? (
           <p className="text-slate-400 italic">Nenhum veículo</p>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             {items.map(vehicle => {
               const isChecked = checkedIds.has(vehicle.id);
               return (
