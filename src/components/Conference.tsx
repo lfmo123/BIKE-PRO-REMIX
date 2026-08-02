@@ -44,18 +44,18 @@ export function Conference({ vehicles }: ConferenceProps) {
   const handlePrintConference = () => {
     const renderCategory = (title: string, items: any[]) => {
       return `
-        <div class="section" style="margin-bottom: 15px;">
-          <h2 style="font-size: 11pt; margin-bottom: 8px;">${title} (${items.length})</h2>
+        <div class="section" style="margin-bottom: 10px;">
+          <h2 style="font-size: 10pt; margin-bottom: 6px;">${title} (${items.length})</h2>
           ${items.length > 0 ? `
-          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;">
             ${items.map(v => `
-              <div style="border: 1px solid #000; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11pt; display: flex; align-items: center; gap: 8px; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 2px dashed #000;' : ''}">
-                <span>${v.status === 'stored' ? 'DEPÓSITO #' : '#'}${v.cardNumber}</span>
-                <span style="border: 1px solid #000; width: 14px; height: 14px; display: inline-block;"></span>
+              <div style="border: 1px solid #000; padding: 2px 4px; border-radius: 4px; font-weight: bold; font-size: 9pt; display: flex; align-items: center; justify-content: space-between; gap: 4px; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
+                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP#' : '#'}${v.cardNumber}</span>
+                <span style="border: 1px solid #000; width: 10px; height: 10px; display: inline-block; flex-shrink: 0;"></span>
               </div>
             `).join('')}
           </div>
-          ` : `<p style="font-size: 10pt; color: #666;">Nenhum veículo</p>`}
+          ` : `<p style="font-size: 9pt; color: #666;">Nenhum veículo</p>`}
         </div>
       `;
     };
