@@ -188,12 +188,21 @@ export function Audit({ vehicles, sales, transactions, products, onRefreshAll }:
     let fiado = 0;
 
     filteredEntries.forEach(e => {
-      total += e.amount;
-      if (e.paymentMethod === 'cash') cash += e.amount;
-      else if (e.paymentMethod === 'pix') pix += e.amount;
-      else if (e.paymentMethod === 'card' || e.paymentMethod === 'postpaid_card') card += e.amount;
-      else if (e.paymentMethod === 'machine') machine += e.amount;
-      else if (e.paymentMethod === 'fiado') fiado += e.amount;
+      // Avoid double counting checkouts that are paid via distinct transactions (fiado/cards)
+      if (e.type === 'parking' && ['fiado', 'card', 'postpaid_card'].includes(e.paymentMethod)) {
+        if (e.paymentMethod === 'fiado') {
+          const v = e.originalData as any;
+          if (!v.isFiadoPaid) {
+            fiado += (v.price || 0) - (v.fiadoPaidAmount || 0);
+          }
+        }
+      } else {
+        total += e.amount;
+        if (e.paymentMethod === 'cash') cash += e.amount;
+        else if (e.paymentMethod === 'pix') pix += e.amount;
+        else if (e.paymentMethod === 'card' || e.paymentMethod === 'postpaid_card') card += e.amount;
+        else if (e.paymentMethod === 'machine') machine += e.amount;
+      }
     });
 
     return { total, cash, pix, card, machine, fiado };

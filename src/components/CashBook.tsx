@@ -89,7 +89,6 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
       if (desc.includes('MÁQUINA')) incomeMachine += amount;
       else if (desc.includes('PIX')) incomePix += amount;
       else if (desc.includes('CARTÃO')) incomeMachine += amount;
-      else if (desc.includes('FIADO')) incomeFiado += amount;
       else incomeCash += amount;
   });
 
