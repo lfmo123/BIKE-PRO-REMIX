@@ -45,7 +45,7 @@ export function Conference({ vehicles }: ConferenceProps) {
     const renderCategory = (title: string, items: any[]) => {
       return `
         <div style="margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
-          <h2 style="font-size: 12pt; margin-bottom: 6px;">${title} (${items.length})</h2>
+          <h2 style="font-size: 14pt; margin-bottom: 6px;">${title} (${items.length})</h2>
           ${items.length > 0 ? `
           <div style="display: block;">
             ${items.map(v => `
@@ -70,7 +70,7 @@ export function Conference({ vehicles }: ConferenceProps) {
       ${renderCategory('Motos', motos)}
       ${renderCategory('Vagas sem número', sn)}
       
-      <div style="border-top: 2px solid #000; margin: 15px 0;"></div><h2 style="font-size: 12pt; margin-bottom: 8px;">Em Depósito</h2>
+      <div style="border-top: 2px solid #000; margin: 15px 0;"></div><h2 style="font-size: 14pt; margin-bottom: 8px;">Em Depósito</h2>
       ${renderCategory('Bicicletas (Depósito)', storedBikes)}
       ${renderCategory('Bicicletas Elétricas (Depósito)', storedEbikes)}
       ${renderCategory('Motos (Depósito)', storedMotos)}
