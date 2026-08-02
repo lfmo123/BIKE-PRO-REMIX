@@ -63,8 +63,8 @@ export function Conference({ vehicles }: ConferenceProps) {
     };
 
     const bodyHtml = `
-      <h1>Conferência de Pátio</h1>
-      <div class="subtitle" style="margin-bottom: 15px;">${new Date().toLocaleString('pt-BR')}</div>
+      <h1 style="font-size: 35pt; font-weight: 900; margin-bottom: 10px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 5px;">Conferência de Pátio</h1>
+      <div style="text-align: center; font-size: 30pt; margin-bottom: 15px; font-weight: 900;">${new Date().toLocaleString('pt-BR')}</div>
       ${renderCategory('Bicicletas', bikes)}
       ${renderCategory('Bicicletas Elétricas (E-Bikes)', ebikes)}
       ${renderCategory('Motos', motos)}
@@ -77,9 +77,9 @@ export function Conference({ vehicles }: ConferenceProps) {
       ${renderCategory('Vagas sem número (Depósito)', storedSn)}
       
       <div style="text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px; page-break-inside: avoid;">
-        <h2>Total Geral: ${allActive.length}</h2>
+        <h2 style="font-size: 35pt; font-weight: 900; margin: 0 0 10px 0; text-transform: uppercase; color: #000; text-align: center;">Total Geral: ${allActive.length}</h2>
       </div>
-      <div class="footer">
+      <div style="text-align: center; margin-top: 30px; font-size: 30pt; color: #000; font-weight: bold; padding-bottom: 20px;">
         <p>Bikepark - Conferência</p>
       </div>
     `;
