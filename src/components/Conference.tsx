@@ -62,6 +62,24 @@ export function Conference({ vehicles, shifts }: ConferenceProps) {
   const storedEbikes = sortVehicles(storedVehicles.filter(v => v.type === 'ebike' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP')));
   const storedMotos = sortVehicles(storedVehicles.filter(v => v.type === 'motorcycle' && !v.cardNumber?.startsWith('SN') && !v.cardNumber?.startsWith('VIP')));
 
+  let displayShift;
+  if (targetDate) {
+    const [year, month, day] = targetDate.split('-').map(Number);
+    const startOfDay = new Date(year, month - 1, day).getTime();
+    const endOfDay = startOfDay + 86400000;
+    // Get the last shift that overlaps with the selected date
+    displayShift = shifts.slice().reverse().find(s => 
+      (s.startTime >= startOfDay && s.startTime < endOfDay) || 
+      (s.endTime && s.endTime >= startOfDay && s.endTime < endOfDay)
+    );
+  } else {
+    displayShift = shifts.find(s => s.status === 'open') || shifts[shifts.length - 1];
+  }
+
+  const dateText = targetDate 
+    ? `Data consultada: ${targetDate.split('-').reverse().join('/')}` 
+    : new Date().toLocaleString('pt-BR');
+
   const handlePrintConference = () => {
     const renderCategory = (title: string, items: any[]) => {
       return `
@@ -82,25 +100,7 @@ export function Conference({ vehicles, shifts }: ConferenceProps) {
         </div>
       `;
     };
-
-    let displayShift;
-    if (targetDate) {
-      const [year, month, day] = targetDate.split('-').map(Number);
-      const startOfDay = new Date(year, month - 1, day).getTime();
-      const endOfDay = startOfDay + 86400000;
-      // Get the last shift that overlaps with the selected date
-      displayShift = shifts.slice().reverse().find(s => 
-        (s.startTime >= startOfDay && s.startTime < endOfDay) || 
-        (s.endTime && s.endTime >= startOfDay && s.endTime < endOfDay)
-      );
-    } else {
-      displayShift = shifts.find(s => s.status === 'open') || shifts[shifts.length - 1];
-    }
-
-    const dateText = targetDate 
-      ? `Data consultada: ${targetDate.split('-').reverse().join('/')}` 
-      : new Date().toLocaleString('pt-BR');
-      
+    
     const bodyHtml = `
       <h1 style="font-size: 140pt; font-weight: 900; margin-bottom: 10px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 5px;">Conferência de Pátio</h1>
       <div style="text-align: center; font-size: 120pt; margin-bottom: 5px; font-weight: 900;">Data: ${dateText}</div>
@@ -187,14 +187,19 @@ export function Conference({ vehicles, shifts }: ConferenceProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-6 rounded-2xl border border-slate-100 shadow-sm gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Conferência de Pátio</h1>
-          <p className="text-slate-500 mt-1">Total de {allActive.length} veículos estacionados</p>
+          <p className="text-slate-500 mt-1 mb-2">Total de {allActive.length} veículos estacionados</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
+            <div><span className="text-slate-400">Data:</span> {dateText.replace('Data consultada: ', '')}</div>
+            <div><span className="text-slate-400">Operador:</span> {displayShift?.operatorName || 'Não informado'}</div>
+            <div><span className="text-slate-400">Troco Caixa:</span> {displayShift?.initialChange?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</div>
+          </div>
         </div>
         <button
           onClick={handlePrintConference}
-          className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-slate-800 transition-colors flex items-center shadow-sm"
+          className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-slate-800 transition-colors flex items-center shadow-sm self-start sm:self-center"
         >
           <Printer className="w-5 h-5 mr-2" />
           <span className="hidden sm:inline">Imprimir Folha</span>
