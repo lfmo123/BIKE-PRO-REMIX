@@ -31,7 +31,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, onCheckInBulk, initia
   React.useEffect(() => {
     if (isOpen) {
       setIsBulkMode(false);
-      setBulkStart('');
+      setBulkStart(initialCardNumber && !initialCardNumber.startsWith('SN') && !initialCardNumber.includes('MT') ? initialCardNumber : '');
       setBulkEnd('');
       setIsProcessing(false);
       if (initialCardNumber) {
@@ -156,18 +156,16 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, onCheckInBulk, initia
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="block text-lg font-medium text-slate-700">Tipo de Veículo</label>
-              {!initialCardNumber && (
-                <button
-                  type="button"
-                  onClick={() => setIsBulkMode(!isBulkMode)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    isBulkMode ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <Layers className="w-4 h-4" />
-                  {isBulkMode ? 'Em Massa (Ativo)' : 'Em Massa'}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setIsBulkMode(!isBulkMode)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  isBulkMode ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+                {isBulkMode ? 'Em Massa (Ativo)' : 'Em Massa'}
+              </button>
             </div>
             
             <div className="grid grid-cols-3 gap-3">
