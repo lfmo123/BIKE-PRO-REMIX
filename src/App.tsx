@@ -464,6 +464,27 @@ export default function App() {
     }
   };
 
+  const handleCheckInBulk = async (newVehicles: Omit<ParkedVehicle, 'id' | 'status'>[]) => {
+    try {
+      let successCount = 0;
+      for (const vehicle of newVehicles) {
+        const res = await fetch('/api/vehicles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(vehicle)
+        });
+        if (res.ok) successCount++;
+      }
+      fetchVehicles(); 
+      fetchLostCards();
+      setIsCheckInOpen(false);
+      return { success: true, count: successCount };
+    } catch (error) {
+      console.error('Error during bulk checkin', error);
+      return { success: false, error: 'Erro de conexão com o servidor' };
+    }
+  };
+
   const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix', customerCardId?: string) => {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}/checkout`, {
@@ -673,7 +694,10 @@ export default function App() {
           setInitialCheckInSpot('');
         }} 
         onCheckIn={handleCheckIn} 
+        onCheckInBulk={handleCheckInBulk}
         initialCardNumber={initialCheckInSpot}
+        vehicles={vehicles}
+        lostCards={lostCards}
       />
       
       <CheckOutModal 

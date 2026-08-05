@@ -1,28 +1,39 @@
 import React, { useState } from 'react';
-import { X, Bike, Zap, Motorbike } from 'lucide-react';
+import { X, Bike, Zap, Motorbike, Layers } from 'lucide-react';
 import { VehicleType, ParkedVehicle } from '../types';
 
 interface CheckInModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCheckIn: (vehicle: Omit<ParkedVehicle, 'id' | 'status'>) => Promise<void | { success: boolean, error?: string }>;
+  onCheckInBulk?: (vehicles: Omit<ParkedVehicle, 'id' | 'status'>[]) => Promise<void | { success: boolean, count?: number, error?: string }>;
   initialCardNumber?: string;
+  vehicles?: ParkedVehicle[];
+  lostCards?: { cardNumber: string }[];
 }
 
-export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: CheckInModalProps) {
+export function CheckInModal({ isOpen, onClose, onCheckIn, onCheckInBulk, initialCardNumber, vehicles = [], lostCards = [] }: CheckInModalProps) {
   const [type, setType] = useState<VehicleType>('bicycle');
   const [cardNumber, setCardNumber] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [customDate, setCustomDate] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [bulkStart, setBulkStart] = useState('');
+  const [bulkEnd, setBulkEnd] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const isSpecialGrid = initialCardNumber?.includes('MT/BE');
   const isVipGrid = initialCardNumber?.startsWith('SN');
-  const isVip = isVipGrid || cardNumber.trim().toUpperCase().startsWith('SN');
-  const isTraditionalGrid = initialCardNumber && !initialCardNumber.includes('MT/BE') && !initialCardNumber.startsWith('SN');
+  const isVip = isVipGrid || (!isBulkMode && cardNumber.trim().toUpperCase().startsWith('SN'));
 
   React.useEffect(() => {
     if (isOpen) {
+      setIsBulkMode(false);
+      setBulkStart('');
+      setBulkEnd('');
+      setIsProcessing(false);
       if (initialCardNumber) {
         setCardNumber(initialCardNumber);
         if (initialCardNumber.includes('MT/BE')) {
@@ -32,6 +43,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
         }
       } else {
         setType('bicycle');
+        setCardNumber('');
       }
       setOwnerName('');
       setErrorMsg('');
@@ -50,12 +62,68 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
     e.preventDefault();
     setErrorMsg('');
     
+    if (isBulkMode) {
+      if (!bulkStart || !bulkEnd || !customDate) return;
+      
+      const start = parseInt(bulkStart, 10);
+      const end = parseInt(bulkEnd, 10);
+      
+      if (isNaN(start) || isNaN(end) || start > end || start <= 0 || end <= 0) {
+        setErrorMsg('Intervalo inválido. Verifique os números inicial e final.');
+        return;
+      }
+      if (end - start > 150) {
+        setErrorMsg('O intervalo máximo é de 150 vagas por vez.');
+        return;
+      }
+      
+      setIsProcessing(true);
+      
+      const newVehicles: Omit<ParkedVehicle, 'id' | 'status'>[] = [];
+      const checkInTime = new Date(customDate).getTime();
+      
+      for (let i = start; i <= end; i++) {
+        const numStr = i.toString();
+        const isTaken = vehicles.some(v => v.cardNumber === numStr && (v.status === 'active' || v.status === 'stored' || v.cardLost)) || lostCards.some(c => c.cardNumber === numStr);
+        if (!isTaken) {
+          newVehicles.push({
+            type,
+            identifier: 'Não informada',
+            ownerName: 'Não informado',
+            cardNumber: numStr,
+            checkInTime,
+          });
+        }
+      }
+      
+      if (newVehicles.length === 0) {
+        setErrorMsg('Todas as vagas neste intervalo já estão ocupadas (ou com cartão perdido).');
+        setIsProcessing(false);
+        return;
+      }
+      
+      if (onCheckInBulk) {
+        const res = await onCheckInBulk(newVehicles);
+        if (res && res.success === false) {
+          setErrorMsg(res.error || 'Erro ao registrar entradas em massa.');
+        } else {
+          // onClose handled by App.tsx
+        }
+      } else {
+        setErrorMsg('Entrada em massa não suportada.');
+      }
+      
+      setIsProcessing(false);
+      return;
+    }
+
     if (!cardNumber || !customDate) return;
     if (isVip && !ownerName.trim()) {
       setErrorMsg('Para vagas sem número, o nome do cliente é obrigatório!');
       return;
     }
     
+    setIsProcessing(true);
     const res = await onCheckIn({
       type,
       identifier: 'Não informada',
@@ -64,13 +132,11 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
       checkInTime: new Date(customDate).getTime(),
     });
     
-    // Check if the parent returned an error
+    setIsProcessing(false);
     if (res && res.success === false) {
       setErrorMsg(res.error || 'Este cartão já está sendo usado!');
       return;
     }
-    
-    onClose();
   };
 
   return (
@@ -88,7 +154,22 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
         
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-3">
-            <label className="block text-lg font-medium text-slate-700">Tipo de Veículo</label>
+            <div className="flex items-center justify-between">
+              <label className="block text-lg font-medium text-slate-700">Tipo de Veículo</label>
+              {!initialCardNumber && (
+                <button
+                  type="button"
+                  onClick={() => setIsBulkMode(!isBulkMode)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    isBulkMode ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <Layers className="w-4 h-4" />
+                  {isBulkMode ? 'Em Massa (Ativo)' : 'Em Massa'}
+                </button>
+              )}
+            </div>
+            
             <div className="grid grid-cols-3 gap-3">
                 <button
                   type="button"
@@ -102,7 +183,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                   <Bike className={`w-8 h-8 mb-2 ${type === 'bicycle' ? 'text-blue-600' : ''}`} />
                   <span className="text-base font-medium">Bicicleta</span>
                 </button>
-                            
+                
                 <button
                   type="button"
                   onClick={() => setType('motorcycle')}
@@ -132,23 +213,58 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
           </div>
           
           <div className="space-y-4">
-            <div>
-              <label htmlFor="cardNumber" className="block text-lg font-medium text-slate-700 mb-2">
-                {isVip ? 'Vaga' : 'Número do Cartão'}
-              </label>
-              <input
-                id="cardNumber"
-                type="text"
-                required
-                value={cardNumber}
-                onChange={(e) => setCardNumber(e.target.value)}
-                readOnly={isVipGrid}
-                className={`w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-xl ${isVipGrid ? 'opacity-70 cursor-not-allowed' : ''}`}
-                placeholder="Ex: 12"
-              />
-            </div>
+            {isBulkMode ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="bulkStart" className="block text-lg font-medium text-slate-700 mb-2">
+                    De (Número)
+                  </label>
+                  <input
+                    id="bulkStart"
+                    type="number"
+                    min="1"
+                    required
+                    value={bulkStart}
+                    onChange={(e) => setBulkStart(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all text-xl"
+                    placeholder="Ex: 1"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="bulkEnd" className="block text-lg font-medium text-slate-700 mb-2">
+                    Até (Número)
+                  </label>
+                  <input
+                    id="bulkEnd"
+                    type="number"
+                    min="1"
+                    required
+                    value={bulkEnd}
+                    onChange={(e) => setBulkEnd(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all text-xl"
+                    placeholder="Ex: 30"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label htmlFor="cardNumber" className="block text-lg font-medium text-slate-700 mb-2">
+                  {isVip ? 'Vaga' : 'Número do Cartão'}
+                </label>
+                <input
+                  id="cardNumber"
+                  type="text"
+                  required
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                  readOnly={isVipGrid}
+                  className={`w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-xl ${isVipGrid ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  placeholder="Ex: 12"
+                />
+              </div>
+            )}
 
-            {isVip && (
+            {!isBulkMode && isVip && (
               <div>
                 <label htmlFor="ownerName" className="block text-lg font-medium text-slate-700 mb-2">
                   Nome do Cliente (Obrigatório)
@@ -164,7 +280,6 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
                 />
               </div>
             )}
-
             <div>
               <label htmlFor="checkInDate" className="block text-lg font-medium text-slate-700 mb-2">
                 Data e Hora de Entrada
@@ -189,9 +304,16 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, initialCardNumber }: 
             )}
             <button
               type="submit"
-              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-2xl transition-colors shadow-lg shadow-emerald-500/30"
+              disabled={isProcessing}
+              className={`w-full py-4 text-white rounded-xl font-bold text-2xl transition-colors shadow-lg ${
+                isProcessing 
+                  ? 'bg-slate-400 cursor-not-allowed shadow-none' 
+                  : isBulkMode
+                    ? 'bg-indigo-500 hover:bg-indigo-600 shadow-indigo-500/30'
+                    : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30'
+              }`}
             >
-              Confirmar Entrada
+              {isProcessing ? 'Processando...' : isBulkMode ? 'Entrada em Massa' : 'Confirmar Entrada'}
             </button>
           </div>
         </form>
