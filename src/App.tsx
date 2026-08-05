@@ -633,7 +633,7 @@ export default function App() {
                   />
                 )}
                 {activeTab === 'active' && <ActiveParking vehicles={vehicles} pricing={pricing} onCheckOut={setVehicleToCheckOut} onRevertCheckin={handleRevertCheckin} />}
-                {activeTab === 'conference' && <Conference vehicles={vehicles} activeShift={activeShift} />}
+                {activeTab === 'conference' && <Conference vehicles={vehicles} shifts={shifts} />}
                 {activeTab === 'stored' && <StoredVehicles vehicles={vehicles} pricing={pricing} onCheckOut={setVehicleToCheckOut} />}
                 {activeTab === 'spots' && (
                   <SpotsGrid 

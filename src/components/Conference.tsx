@@ -5,10 +5,10 @@ import { Printer, CheckCircle2, Circle, Search } from 'lucide-react';
 
 interface ConferenceProps {
   vehicles: ParkedVehicle[];
-  activeShift?: Shift;
+  shifts: Shift[];
 }
 
-export function Conference({ vehicles, activeShift }: ConferenceProps) {
+export function Conference({ vehicles, shifts }: ConferenceProps) {
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [targetDate, setTargetDate] = useState<string>(''); // YYYY-MM-DD
@@ -83,6 +83,20 @@ export function Conference({ vehicles, activeShift }: ConferenceProps) {
       `;
     };
 
+    let displayShift;
+    if (targetDate) {
+      const [year, month, day] = targetDate.split('-').map(Number);
+      const startOfDay = new Date(year, month - 1, day).getTime();
+      const endOfDay = startOfDay + 86400000;
+      // Get the last shift that overlaps with the selected date
+      displayShift = shifts.slice().reverse().find(s => 
+        (s.startTime >= startOfDay && s.startTime < endOfDay) || 
+        (s.endTime && s.endTime >= startOfDay && s.endTime < endOfDay)
+      );
+    } else {
+      displayShift = shifts.find(s => s.status === 'open') || shifts[shifts.length - 1];
+    }
+
     const dateText = targetDate 
       ? `Data consultada: ${targetDate.split('-').reverse().join('/')}` 
       : new Date().toLocaleString('pt-BR');
@@ -90,8 +104,8 @@ export function Conference({ vehicles, activeShift }: ConferenceProps) {
     const bodyHtml = `
       <h1 style="font-size: 140pt; font-weight: 900; margin-bottom: 10px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 5px;">Conferência de Pátio</h1>
       <div style="text-align: center; font-size: 120pt; margin-bottom: 5px; font-weight: 900;">Data: ${dateText}</div>
-      <div style="text-align: center; font-size: 100pt; margin-bottom: 5px;">Operador: ${activeShift?.operatorName || 'Não informado'}</div>
-      <div style="text-align: center; font-size: 100pt; margin-bottom: 15px;">Troco Caixa: ${activeShift?.initialChange?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</div>
+      <div style="text-align: center; font-size: 100pt; margin-bottom: 5px;">Operador: ${displayShift?.operatorName || 'Não informado'}</div>
+      <div style="text-align: center; font-size: 100pt; margin-bottom: 15px;">Troco Caixa: ${displayShift?.initialChange?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</div>
       ${renderCategory('Bicicletas', bikes)}
       ${renderCategory('Bicicletas Elétricas (E-Bikes)', ebikes)}
       ${renderCategory('Motos', motos)}
