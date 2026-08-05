@@ -82,8 +82,17 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, onCheckInBulk, initia
       const newVehicles: Omit<ParkedVehicle, 'id' | 'status'>[] = [];
       const checkInTime = new Date(customDate).getTime();
       
+      let prefix = '';
+      if (isSpecialGrid) {
+        prefix = 'MT/BE ';
+      } else if (isVipGrid) {
+        prefix = 'SN ';
+      } else if (type === 'motorcycle' || type === 'ebike') {
+        prefix = 'MT/BE ';
+      }
+
       for (let i = start; i <= end; i++) {
-        const numStr = i.toString();
+        const numStr = `${prefix}${i}`;
         const isTaken = vehicles.some(v => v.cardNumber === numStr && (v.status === 'active' || v.status === 'stored')) || lostCards.some(c => c.cardNumber === numStr);
         if (!isTaken) {
           newVehicles.push({
