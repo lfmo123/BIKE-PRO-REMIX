@@ -84,7 +84,7 @@ export function CheckInModal({ isOpen, onClose, onCheckIn, onCheckInBulk, initia
       
       for (let i = start; i <= end; i++) {
         const numStr = i.toString();
-        const isTaken = vehicles.some(v => v.cardNumber === numStr && (v.status === 'active' || v.status === 'stored' || v.cardLost)) || lostCards.some(c => c.cardNumber === numStr);
+        const isTaken = vehicles.some(v => v.cardNumber === numStr && (v.status === 'active' || v.status === 'stored')) || lostCards.some(c => c.cardNumber === numStr);
         if (!isTaken) {
           newVehicles.push({
             type,
