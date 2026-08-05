@@ -1,21 +1,42 @@
 import React, { useState } from 'react';
-import { ParkedVehicle } from '../types';
+import { ParkedVehicle, Shift } from '../types';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 import { Printer, CheckCircle2, Circle, Search } from 'lucide-react';
 
 interface ConferenceProps {
   vehicles: ParkedVehicle[];
+  activeShift?: Shift;
 }
 
-export function Conference({ vehicles }: ConferenceProps) {
+export function Conference({ vehicles, activeShift }: ConferenceProps) {
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [targetDate, setTargetDate] = useState<string>(''); // YYYY-MM-DD
 
-  const filteredVehicles = vehicles.filter(v => 
-    (v.cardNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getTargetTime = () => {
+    if (!targetDate) return Date.now();
+    const [year, month, day] = targetDate.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    date.setHours(23, 59, 59, 999);
+    return date.getTime();
+  };
 
-  const allActive = filteredVehicles.filter(v => v.status === 'active' || v.status === 'stored');
+  const targetTime = getTargetTime();
+
+  const filteredVehicles = vehicles.filter(v => {
+    const matchesSearch = (v.cardNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!targetDate) {
+      return matchesSearch && (v.status === 'active' || v.status === 'stored');
+    }
+
+    const checkedInBefore = v.checkInTime <= targetTime;
+    const checkedOutAfter = !v.checkOutTime || v.checkOutTime > targetTime;
+    
+    return matchesSearch && checkedInBefore && checkedOutAfter;
+  });
+
+  const allActive = filteredVehicles;
   
   const activeVehicles = allActive.filter(v => v.status !== 'stored');
   const storedVehicles = allActive.filter(v => v.status === 'stored');
@@ -62,9 +83,15 @@ export function Conference({ vehicles }: ConferenceProps) {
       `;
     };
 
+    const dateText = targetDate 
+      ? `Data consultada: ${targetDate.split('-').reverse().join('/')}` 
+      : new Date().toLocaleString('pt-BR');
+      
     const bodyHtml = `
       <h1 style="font-size: 140pt; font-weight: 900; margin-bottom: 10px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 5px;">Conferência de Pátio</h1>
-      <div style="text-align: center; font-size: 120pt; margin-bottom: 15px; font-weight: 900;">${new Date().toLocaleString('pt-BR')}</div>
+      <div style="text-align: center; font-size: 120pt; margin-bottom: 5px; font-weight: 900;">Data: ${dateText}</div>
+      <div style="text-align: center; font-size: 100pt; margin-bottom: 5px;">Operador: ${activeShift?.operatorName || 'Não informado'}</div>
+      <div style="text-align: center; font-size: 100pt; margin-bottom: 15px;">Troco Caixa: ${activeShift?.initialChange?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</div>
       ${renderCategory('Bicicletas', bikes)}
       ${renderCategory('Bicicletas Elétricas (E-Bikes)', ebikes)}
       ${renderCategory('Motos', motos)}
@@ -161,17 +188,28 @@ export function Conference({ vehicles }: ConferenceProps) {
       </div>
 
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm min-h-[500px]">
-        <div className="mb-6 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-slate-400" />
+        <div className="mb-6 flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-slate-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar por número do veículo..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Buscar por número do veículo..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-colors"
-          />
+          <div className="sm:w-48">
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+              className="block w-full px-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 text-slate-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+            />
+            <p className="text-xs text-slate-500 mt-1 pl-1">Data passada (opcional)</p>
+          </div>
         </div>
 
         {allActive.length === 0 ? (
