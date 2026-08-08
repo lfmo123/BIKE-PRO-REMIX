@@ -71,15 +71,16 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, onPayFiado }: Fiad
     let countPaid = 0;
 
     filteredFiados.forEach(v => {
+      const isPaid = !!v.isFiadoPaid;
       const price = v.price || 0;
-      const paid = v.fiadoPaidAmount || 0;
-      const remaining = Math.max(0, price - paid);
+      const paid = isPaid ? price : (v.fiadoPaidAmount || 0);
+      const remaining = isPaid ? 0 : Math.max(0, price - paid);
 
       totalOriginal += price;
       totalPaid += Math.min(price, paid);
       totalPending += remaining;
 
-      if (v.isFiadoPaid) {
+      if (isPaid) {
         countPaid++;
       } else {
         countPending++;
@@ -94,7 +95,8 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, onPayFiado }: Fiad
   const handlePay = async (v: ParkedVehicle) => {
     setIsSubmitting(true);
     try {
-      const remaining = (v.price || 0) - (v.fiadoPaidAmount || 0);
+      const isPaid = !!v.isFiadoPaid;
+      const remaining = isPaid ? 0 : Math.max(0, (v.price || 0) - (v.fiadoPaidAmount || 0));
       let amt = parseFloat(payAmount);
       if (isNaN(amt) || amt <= 0) {
         amt = remaining;
@@ -266,10 +268,10 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, onPayFiado }: Fiad
             </div>
           ) : (
             filteredFiados.map(v => {
-              const price = v.price || 0;
-              const paid = v.fiadoPaidAmount || 0;
-              const remaining = Math.max(0, price - paid);
               const isPaid = !!v.isFiadoPaid;
+              const price = v.price || 0;
+              const paid = isPaid ? price : (v.fiadoPaidAmount || 0);
+              const remaining = isPaid ? 0 : Math.max(0, price - paid);
               const isExpanded = expandedId === v.id;
               const isPayingThis = payingId === v.id;
 
@@ -546,12 +548,14 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, onPayFiado }: Fiad
               </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500">Valor Já Pago:</span>
-                <span className="font-bold text-emerald-600">R$ {(printableVehicle.fiadoPaidAmount || 0).toFixed(2)}</span>
+                <span className="font-bold text-emerald-600">
+                  R$ {(printableVehicle.isFiadoPaid ? (printableVehicle.price || 0) : (printableVehicle.fiadoPaidAmount || 0)).toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500">Saldo Pendente:</span>
                 <span className="font-bold text-orange-600">
-                  R$ {Math.max(0, (printableVehicle.price || 0) - (printableVehicle.fiadoPaidAmount || 0)).toFixed(2)}
+                  R$ {(printableVehicle.isFiadoPaid ? 0 : Math.max(0, (printableVehicle.price || 0) - (printableVehicle.fiadoPaidAmount || 0))).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
