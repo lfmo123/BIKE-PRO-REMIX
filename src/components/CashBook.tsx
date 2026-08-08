@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Transaction, ParkedVehicle, Shift } from '../types';
-import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
+import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle, FileText, Search } from 'lucide-react';
 import { getLocalDateString } from '../lib/dateUtils';
 import { DailyReportModal } from './DailyReportModal';
+import { FiadoSearchModal } from './FiadoSearchModal';
 
 interface CashBookProps {
   transactions: Transaction[];
@@ -25,6 +26,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
   const [globalFiadoMethod, setGlobalFiadoMethod] = useState<'cash'|'machine'|'card'|'pix'>('cash');
   const [globalFiadoObservation, setGlobalFiadoObservation] = useState<string>('');
   const [isDailyReportOpen, setIsDailyReportOpen] = useState(false);
+  const [isFiadoSearchOpen, setIsFiadoSearchOpen] = useState(false);
 
   // Derived today's timestamp bounds
   const [year, month, day] = selectedDate.split('-').map(Number);
@@ -160,6 +162,14 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
         
         <div className="flex flex-col sm:flex-row gap-3">
           <button
+            onClick={() => setIsFiadoSearchOpen(true)}
+            className="flex items-center justify-center space-x-2 bg-orange-100 text-orange-800 hover:bg-orange-200 px-4 py-2 border border-orange-200 rounded-xl transition-colors font-medium shadow-sm"
+          >
+            <Search className="w-5 h-5" />
+            <span>Pesquisar Fiados</span>
+          </button>
+
+          <button
             onClick={() => setIsDailyReportOpen(true)}
             className="flex items-center justify-center space-x-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-4 py-2 border border-emerald-200 rounded-xl transition-colors font-medium shadow-sm"
           >
@@ -238,9 +248,18 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
           {/* Caixa de Fiado Section */}
           <div className="bg-white rounded-2xl shadow-sm border border-orange-200 overflow-hidden">
              <div className="p-6 border-b border-orange-100 bg-orange-50/50">
-               <div className="flex items-center gap-2">
-                 <AlertTriangle className="w-5 h-5 text-orange-500" />
-                 <h2 className="text-lg font-bold text-orange-900">Caixa do Fiado</h2>
+               <div className="flex items-center justify-between gap-2">
+                 <div className="flex items-center gap-2">
+                   <AlertTriangle className="w-5 h-5 text-orange-500" />
+                   <h2 className="text-lg font-bold text-orange-900">Caixa do Fiado</h2>
+                 </div>
+                 <button
+                   onClick={() => setIsFiadoSearchOpen(true)}
+                   className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
+                 >
+                   <Search className="w-3.5 h-3.5" />
+                   Origem & Pesquisa
+                 </button>
                </div>
                <p className="text-sm text-orange-700 mt-1 mb-4">
                  Total em haver: <span className="font-bold">R$ {unpaidFiados.reduce((acc, v) => acc + ((v.price || 0) - (v.fiadoPaidAmount || 0)), 0).toFixed(2)}</span> ({unpaidFiados.length})
@@ -478,6 +497,13 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
           </div>
         </div>
       </div>
+
+      <FiadoSearchModal
+        isOpen={isFiadoSearchOpen}
+        onClose={() => setIsFiadoSearchOpen(false)}
+        vehicles={vehicles}
+        onPayFiado={onPayFiado}
+      />
     </div>
   );
 }
