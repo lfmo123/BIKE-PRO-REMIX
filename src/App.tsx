@@ -21,6 +21,7 @@ import { CheckOutModal } from './components/CheckOutModal';
 import { ResetAppModal } from './components/ResetAppModal';
 import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard, Shift, Operator } from './types';
 import { getLocalDateString } from './lib/dateUtils';
+import { parseResponseJson } from './lib/apiUtils';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
@@ -95,8 +96,8 @@ export default function App() {
     const performAutoBackup = async (reason = 'timer') => {
       let isEnabled = localStorage.getItem('autoBackupEnabled');
       if (isEnabled === null) {
-        isEnabled = 'true';
-        localStorage.setItem('autoBackupEnabled', 'true');
+        isEnabled = Capacitor.isNativePlatform() ? 'true' : 'false';
+        localStorage.setItem('autoBackupEnabled', isEnabled);
       }
       if (isEnabled !== 'true') return;
 
@@ -112,8 +113,9 @@ export default function App() {
          try {
             console.log(`Executando backup automático local (${reason})...`);
             const res = await fetch('/api/backup/export');
-            if (res.ok) {
-              const backupData = await res.json();
+            const parsed = await parseResponseJson(res, 'Erro ao exportar backup');
+            if (parsed.ok && parsed.data) {
+              const backupData = parsed.data;
               const dateStr = getLocalDateString();
               const timeStr = new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-');
               const fileName = `bikepark_backup_auto_${dateStr}_${timeStr}.json`;
@@ -154,11 +156,13 @@ export default function App() {
               }
               
               localStorage.setItem('lastAutoBackupTimestamp', now.toString());
+            } else {
+              console.warn('Auto backup não executado:', parsed.error);
             }
-          } catch(e) { console.error('Auto backup failed', e); }
+          } catch(e) { console.warn('Auto backup skipped:', e); }
       }
     };
-    
+
     // Roda direto sem exigir clique (PWA Mobile/Desktop ou Capacitor)
     // Usamos um pequeno atraso para não engasgar a renderização inicial
     setTimeout(() => {
@@ -196,7 +200,8 @@ export default function App() {
   const handleResetApp = async () => {
     try {
       const res = await fetch('/api/system/reset', { method: 'DELETE' });
-      if (res.ok) {
+      const parsed = await parseResponseJson(res, 'Erro ao zerar aplicativo.');
+      if (parsed.ok) {
         setVehicles([]);
         setTransactions([]);
         setLostCards([]);
@@ -204,8 +209,7 @@ export default function App() {
         setErrorMsg(null);
         alert('Aplicativo zerado com sucesso.');
       } else {
-        const err = await res.json();
-        setErrorMsg(err.error || 'Erro ao zerar aplicativo.');
+        setErrorMsg(parsed.error || 'Erro ao zerar aplicativo.');
       }
     } catch (e) {
       console.error('Failed to reset app', e);
@@ -449,14 +453,14 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newVehicle)
       });
-      if (res.ok) {
+      const parsed = await parseResponseJson(res, 'Erro ao registrar entrada');
+      if (parsed.ok) {
         fetchVehicles(); // refresh list
         fetchLostCards();
         setIsCheckInOpen(false);
         return { success: true };
       } else {
-        const errorData = await res.json();
-        return { success: false, error: errorData.error || 'Erro ao registrar entrada' };
+        return { success: false, error: parsed.error || 'Erro ao registrar entrada' };
       }
     } catch (error) {
       console.error('Error during checkin', error);
@@ -492,14 +496,14 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ price, paymentMethod, customerCardId })
       });
-      if (res.ok) {
+      const parsed = await parseResponseJson(res, 'Erro ao registrar checkout');
+      if (parsed.ok) {
         fetchVehicles(); // refresh list
         fetchLostCards();
         fetchCustomerCards(); // refresh balances
         setVehicleToCheckOut(null);
       } else {
-        const errorData = await res.json();
-        alert(`Erro ao registrar checkout: ${errorData.error}`);
+        alert(`Erro ao registrar checkout: ${parsed.error}`);
       }
     } catch (error) {
        console.error('Error during checkout', error);
@@ -540,12 +544,12 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lostCardName, lostCardPhone })
       });
-      if (res.ok) {
+      const parsed = await parseResponseJson(res, 'Erro ao registrar cartão perdido');
+      if (parsed.ok) {
         fetchVehicles(); // refresh list
         fetchLostCards();
       } else {
-        const data = await res.json();
-        alert('Erro ao registrar cartão perdido: ' + data.error);
+        alert('Erro ao registrar cartão perdido: ' + parsed.error);
       }
     } catch (error) {
       console.error('Failed to report lost card', error);

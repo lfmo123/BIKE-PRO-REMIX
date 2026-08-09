@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { ParkedVehicle, Sale, Transaction, Product } from '../types';
 import { getLocalDateString } from '../lib/dateUtils';
+import { parseResponseJson } from '../lib/apiUtils';
 
 interface AuditProps {
   vehicles: ParkedVehicle[];
@@ -285,13 +286,14 @@ export function Audit({ vehicles, sales, transactions, products, onRefreshAll }:
         body: JSON.stringify(payload)
       });
 
-      if (res.ok) {
+      const parsed = await parseResponseJson(res, 'Erro ao salvar alterações.');
+
+      if (parsed.ok) {
         setStatusMessage({ type: 'success', text: 'Registro atualizado com sucesso!' });
         await onRefreshAll();
         setEditingEntry(null);
       } else {
-        const err = await res.json();
-        setStatusMessage({ type: 'error', text: err.error || 'Erro ao salvar alterações.' });
+        setStatusMessage({ type: 'error', text: parsed.error || 'Erro ao salvar alterações.' });
       }
     } catch (err: any) {
       console.error(err);
@@ -319,14 +321,14 @@ export function Audit({ vehicles, sales, transactions, products, onRefreshAll }:
       }
 
       const res = await fetch(url, { method: 'DELETE' });
+      const parsed = await parseResponseJson(res, 'Erro ao excluir registro.');
 
-      if (res.ok) {
+      if (parsed.ok) {
         setStatusMessage({ type: 'success', text: 'Registro removido com sucesso!' });
         await onRefreshAll();
         setDeletingEntry(null);
       } else {
-        const err = await res.json();
-        setStatusMessage({ type: 'error', text: err.error || 'Erro ao excluir registro.' });
+        setStatusMessage({ type: 'error', text: parsed.error || 'Erro ao excluir registro.' });
       }
     } catch (err: any) {
       console.error(err);

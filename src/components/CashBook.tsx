@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Transaction, ParkedVehicle, Shift } from '../types';
-import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle, FileText, Search } from 'lucide-react';
+import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle, FileText, Search, Clock, Filter, RotateCcw } from 'lucide-react';
 import { getLocalDateString } from '../lib/dateUtils';
 import { DailyReportModal } from './DailyReportModal';
 import { FiadoSearchModal } from './FiadoSearchModal';
@@ -18,7 +18,14 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Outros');
   const [amount, setAmount] = useState('');
-  const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
+
+  // Date and Time Range State
+  const todayStr = getLocalDateString();
+  const [startDate, setStartDate] = useState<string>(todayStr);
+  const [startTime, setStartTime] = useState<string>('00:00');
+  const [endDate, setEndDate] = useState<string>(todayStr);
+  const [endTime, setEndTime] = useState<string>('23:59');
+
   const [payingFiadoId, setPayingFiadoId] = useState<string | null>(null);
   const [fiadoPaymentMethod, setFiadoPaymentMethod] = useState<'cash'|'machine'|'card'|'pix'>('cash');
   const [fiadoPaymentAmount, setFiadoPaymentAmount] = useState<string>('');
@@ -28,23 +35,72 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
   const [isDailyReportOpen, setIsDailyReportOpen] = useState(false);
   const [isFiadoSearchOpen, setIsFiadoSearchOpen] = useState(false);
 
-  // Derived today's timestamp bounds
-  const [year, month, day] = selectedDate.split('-').map(Number);
-  const startOfDay = new Date(year, month - 1, day, 0, 0, 0).getTime();
-  const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999).getTime();
+  // Derive Period Timestamps
+  const getStartTimestamp = () => {
+    if (!startDate) return 0;
+    const [y, m, d] = startDate.split('-').map(Number);
+    const [h, min] = (startTime || '00:00').split(':').map(Number);
+    return new Date(y, m - 1, d, h || 0, min || 0, 0, 0).getTime();
+  };
 
-  // Combine manual transactions + vehicle checkouts for the selected day
-  const dailyTransactions = transactions.filter(t => t.date >= startOfDay && t.date <= endOfDay);
-  const dailyCheckouts = vehicles.filter(v => 
+  const getEndTimestamp = () => {
+    if (!endDate) return Date.now();
+    const [y, m, d] = endDate.split('-').map(Number);
+    const [h, min] = (endTime || '23:59').split(':').map(Number);
+    return new Date(y, m - 1, d, h || 23, min || 59, 59, 999).getTime();
+  };
+
+  const startOfPeriod = getStartTimestamp();
+  const endOfPeriod = getEndTimestamp();
+
+  // Preset Handlers
+  const handlePreset = (preset: 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'all') => {
+    const now = new Date();
+    const today = getLocalDateString(now);
+    if (preset === 'today') {
+      setStartDate(today);
+      setStartTime('00:00');
+      setEndDate(today);
+      setEndTime('23:59');
+    } else if (preset === 'yesterday') {
+      const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      const yestStr = getLocalDateString(yest);
+      setStartDate(yestStr);
+      setStartTime('00:00');
+      setEndDate(yestStr);
+      setEndTime('23:59');
+    } else if (preset === 'last7') {
+      const d7 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+      setStartDate(getLocalDateString(d7));
+      setStartTime('00:00');
+      setEndDate(today);
+      setEndTime('23:59');
+    } else if (preset === 'thisMonth') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      setStartDate(getLocalDateString(firstDay));
+      setStartTime('00:00');
+      setEndDate(today);
+      setEndTime('23:59');
+    } else if (preset === 'all') {
+      setStartDate('2020-01-01');
+      setStartTime('00:00');
+      setEndDate(today);
+      setEndTime('23:59');
+    }
+  };
+
+  // Combine manual transactions + vehicle checkouts for the selected period
+  const periodTransactions = transactions.filter(t => t.date >= startOfPeriod && t.date <= endOfPeriod);
+  const periodCheckouts = vehicles.filter(v => 
     v.status === 'completed' && 
     !['fiado', 'card', 'postpaid_card'].includes(v.paymentMethod || '') && 
     v.checkOutTime && 
-    v.checkOutTime >= startOfDay && 
-    v.checkOutTime <= endOfDay
+    v.checkOutTime >= startOfPeriod && 
+    v.checkOutTime <= endOfPeriod
   );
 
   const combinedEntries = [
-    ...dailyTransactions.map(t => ({
+    ...periodTransactions.map(t => ({
       id: t.id,
       description: t.description,
       amount: t.amount,
@@ -54,7 +110,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
       category: t.category,
       isManual: true
     })),
-    ...dailyCheckouts.map(v => ({
+    ...periodCheckouts.map(v => ({
       id: v.id,
       description: `Check-out: ${v.identifier} (${
         v.paymentMethod === 'machine' ? 'MÁQUINA' :
@@ -74,9 +130,9 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
   let incomeCash = 0;
   let incomeMachine = 0;
   let incomePix = 0;
-  let incomeFiado = 0; // Fiado generated today
+  let incomeFiado = 0; // Fiado generated in period
 
-  dailyCheckouts.forEach(v => {
+  periodCheckouts.forEach(v => {
       const p = v.price || 0;
       if (v.paymentMethod === 'cash') incomeCash += p;
       else if (v.paymentMethod === 'machine') incomeMachine += p;
@@ -84,7 +140,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
       else incomeCash += p; // fallback
   });
 
-  const manualIncomes = dailyTransactions.filter(t => t.type === 'income');
+  const manualIncomes = periodTransactions.filter(t => t.type === 'income');
   manualIncomes.forEach(t => {
       const amount = t.amount;
       const desc = (t.description || '').toUpperCase();
@@ -95,7 +151,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
   });
 
   vehicles.forEach(v => {
-      if (v.status === 'completed' && v.paymentMethod === 'fiado' && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay) {
+      if (v.status === 'completed' && v.paymentMethod === 'fiado' && v.checkOutTime && v.checkOutTime >= startOfPeriod && v.checkOutTime <= endOfPeriod) {
           incomeFiado += (v.price || 0);
       }
   });
@@ -112,9 +168,10 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
     e.preventDefault();
     if (!description || !amount) return;
     
-    // Use current time, but force it to the selected day
+    // Use current time, but force it to the startDate
     const now = new Date();
-    const transactionDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds()).getTime();
+    const [y, m, d] = (startDate || todayStr).split('-').map(Number);
+    const transactionDate = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).getTime();
 
     await onAddTransaction({
       description,
@@ -157,10 +214,10 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Livro Caixa</h1>
-          <p className="text-slate-500">Controle financeiro diário do estacionamento</p>
+          <p className="text-slate-500">Controle financeiro e consulta por período do estacionamento</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <button
             onClick={() => setIsFiadoSearchOpen(true)}
             className="flex items-center justify-center space-x-2 bg-orange-100 text-orange-800 hover:bg-orange-200 px-4 py-2 border border-orange-200 rounded-xl transition-colors font-medium shadow-sm"
@@ -176,22 +233,134 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
             <FileText className="w-5 h-5" />
             <span>Fechamento Detalhado</span>
           </button>
+        </div>
+      </div>
 
-          <div className="flex items-center space-x-2 bg-white px-4 py-2 border border-slate-200 rounded-xl shadow-sm">
-            <Calendar className="w-5 h-5 text-slate-400" />
+      {/* Date & Time Range Filter Card */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+          <div className="flex items-center space-x-2">
+            <Filter className="w-5 h-5 text-emerald-600" />
+            <h2 className="font-bold text-slate-900 text-base">Filtro de Período e Horário</h2>
+          </div>
+
+          {/* Quick Presets */}
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-xs font-semibold text-slate-400 mr-1">Atalhos:</span>
+            <button
+              type="button"
+              onClick={() => handlePreset('today')}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 transition-colors"
+            >
+              Hoje
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePreset('yesterday')}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 transition-colors"
+            >
+              Ontem
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePreset('last7')}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 transition-colors"
+            >
+              Últimos 7 dias
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePreset('thisMonth')}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 transition-colors"
+            >
+              Este Mês
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePreset('all')}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 transition-colors"
+            >
+              Tudo
+            </button>
+          </div>
+        </div>
+
+        {/* Inputs Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Start Date */}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-emerald-600" /> Data Inicial
+            </label>
             <input 
               type="date" 
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent border-none focus:ring-0 text-slate-700 font-medium"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
             />
           </div>
+
+          {/* Start Time */}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-emerald-600" /> Hora Inicial
+            </label>
+            <input 
+              type="time" 
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            />
+          </div>
+
+          {/* End Date */}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-emerald-600" /> Data Final
+            </label>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            />
+          </div>
+
+          {/* End Time */}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-emerald-600" /> Hora Final
+            </label>
+            <input 
+              type="time" 
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            />
+          </div>
+        </div>
+
+        {/* Summary info banner */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100 gap-2">
+          <span>
+            Exibindo faturamento de <strong className="text-slate-800">{startDate.split('-').reverse().join('/')} às {startTime}</strong> até <strong className="text-slate-800">{endDate.split('-').reverse().join('/')} às {endTime}</strong>
+          </span>
+
+          {(startDate !== todayStr || startTime !== '00:00' || endDate !== todayStr || endTime !== '23:59') && (
+            <button
+              type="button"
+              onClick={() => handlePreset('today')}
+              className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-bold transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Voltar para Hoje
+            </button>
+          )}
         </div>
       </div>
 
       {isDailyReportOpen && (
         <DailyReportModal 
-          date={selectedDate}
+          date={startDate}
           vehicles={vehicles}
           transactions={transactions}
           shifts={shifts}
@@ -203,7 +372,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-sm font-medium text-slate-500 mb-1">Entradas (Dia)</p>
+              <p className="text-sm font-medium text-slate-500 mb-1">Entradas (Período)</p>
               <p className="text-2xl font-bold text-emerald-600">R$ {totalIncome.toFixed(2)}</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
@@ -215,14 +384,14 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
             <div className="flex justify-between"><span>Máquina:</span> <span className="font-semibold text-slate-800">R$ {incomeMachine.toFixed(2)}</span></div>
             {incomePix > 0 && <div className="flex justify-between"><span>PIX:</span> <span className="font-semibold text-slate-800">R$ {incomePix.toFixed(2)}</span></div>}
             <div className="flex justify-between col-span-2 border-t border-slate-50 pt-1 mt-1 text-orange-600 text-[11px]">
-              <span>Fiado Gerado Hoje (Pendente):</span> <span className="font-bold">R$ {incomeFiado.toFixed(2)}</span>
+              <span>Fiado Gerado no Período (Pendente):</span> <span className="font-bold">R$ {incomeFiado.toFixed(2)}</span>
             </div>
           </div>
         </div>
         
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Saídas (Dia)</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Saídas (Período)</p>
             <p className="text-2xl font-bold text-red-600">R$ {totalExpense.toFixed(2)}</p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center">
@@ -232,7 +401,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Saldo (Dia)</p>
+            <p className="text-sm font-medium text-slate-500 mb-1">Saldo (Período)</p>
             <p className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
               R$ {balance.toFixed(2)}
             </p>
@@ -441,8 +610,11 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
 
         <div className="lg:col-span-2">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
-            <div className="p-6 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-slate-900">Extrato do Dia</h2>
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">Extrato do Período</h2>
+              <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full">
+                {combinedEntries.length} {combinedEntries.length === 1 ? 'lançamento' : 'lançamentos'}
+              </span>
             </div>
             <div className="overflow-y-auto p-2" style={{ maxHeight: '600px' }}>
               {combinedEntries.length > 0 ? (
@@ -460,7 +632,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                         <div>
                           <p className="font-bold text-slate-900">{entry.description}</p>
                           <p className="text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                            <span>{new Date(entry.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span>{new Date(entry.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                             {!entry.isManual && <span>• Automático</span>}
                             {entry.category && <span>• Cat: {entry.category}</span>}
                             {entry.operator && <span>• Op: {entry.operator}</span>}
@@ -490,7 +662,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                     <Wallet className="w-8 h-8 text-slate-400" />
                   </div>
                   <h3 className="text-lg font-medium text-slate-900 mb-1">Nenhum registro</h3>
-                  <p className="text-slate-500">Não há movimentações para o dia selecionado.</p>
+                  <p className="text-slate-500">Não há movimentações para o período e horário selecionados.</p>
                 </div>
               )}
             </div>

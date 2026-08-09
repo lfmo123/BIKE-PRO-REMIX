@@ -4,6 +4,7 @@ import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Save, DollarSign, Download, Upload, Database, Cloud, Trash2 } from 'lucide-react';
 import { ParkedVehicle, Pricing, LostCard, Operator } from '../types';
 import { getLocalDateString } from '../lib/dateUtils';
+import { parseResponseJson } from '../lib/apiUtils';
 
 interface SettingsProps {
   operators: Operator[];
@@ -74,8 +75,9 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
       let backupData;
       try {
         const res = await fetch('/api/backup/export');
-        if (res.ok) {
-          backupData = await res.json();
+        const parsed = await parseResponseJson(res, 'Falha ao buscar backup');
+        if (parsed.ok && parsed.data) {
+          backupData = parsed.data;
         } else {
           // Se falhar o servidor por algum motivo, usa os dados locais (fallback)
           backupData = generateBackupData();
@@ -133,11 +135,16 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
   const handleTestDB = async () => {
     try {
       const res = await fetch('/api/system/db-status');
-      const data = await res.json();
-      if (data.status === 'ok') {
-        alert(data.message + '\nTipo de Banco: ' + data.dbType);
+      const parsed = await parseResponseJson(res, 'Erro ao testar banco de dados');
+      if (parsed.ok && parsed.data) {
+        const data = parsed.data;
+        if (data.status === 'ok') {
+          alert(data.message + '\nTipo de Banco: ' + data.dbType);
+        } else {
+          alert('Erro ao conectar com o banco: ' + data.message + '\nDetalhes: ' + data.error);
+        }
       } else {
-        alert('Erro ao conectar com o banco: ' + data.message + '\nDetalhes: ' + data.error);
+        alert(parsed.error || 'Erro ao comunicar com o servidor.');
       }
     } catch (error) {
        console.error(error);
