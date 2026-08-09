@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Transaction, ParkedVehicle, Shift } from '../types';
-import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle, FileText, Search, Clock, Filter, RotateCcw } from 'lucide-react';
+import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle, FileText, Search, Clock, Filter, RotateCcw, Printer } from 'lucide-react';
 import { getLocalDateString } from '../lib/dateUtils';
 import { DailyReportModal } from './DailyReportModal';
 import { FiadoSearchModal } from './FiadoSearchModal';
@@ -217,7 +217,14 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
           <p className="text-slate-500">Controle financeiro e consulta por período do estacionamento</p>
         </div>
         
-        <div className="flex flex-wrap gap-2 sm:gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center justify-center space-x-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 border border-slate-200 rounded-xl transition-colors font-medium shadow-sm"
+          >
+            <Printer className="w-5 h-5" />
+            <span>Imprimir Filtro</span>
+          </button>
           <button
             onClick={() => setIsFiadoSearchOpen(true)}
             className="flex items-center justify-center space-x-2 bg-orange-100 text-orange-800 hover:bg-orange-200 px-4 py-2 border border-orange-200 rounded-xl transition-colors font-medium shadow-sm"
@@ -236,8 +243,16 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
         </div>
       </div>
 
+      {/* Print Only Header */}
+      <div className="hidden print:block mb-6">
+        <h2 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-2 mb-2">Relatório do Livro Caixa</h2>
+        <p className="text-slate-600">
+          Período: <strong>{startDate.split('-').reverse().join('/')} {startTime}</strong> até <strong>{endDate.split('-').reverse().join('/')} {endTime}</strong>
+        </p>
+      </div>
+
       {/* Date & Time Range Filter Card */}
-      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 print:hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-100">
           <div className="flex items-center space-x-2">
             <Filter className="w-5 h-5 text-emerald-600" />
@@ -412,8 +427,8 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 flex flex-col gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
+        <div className="lg:col-span-1 flex flex-col gap-6 print:hidden">
           {/* Caixa de Fiado Section */}
           <div className="bg-white rounded-2xl shadow-sm border border-orange-200 overflow-hidden">
              <div className="p-6 border-b border-orange-100 bg-orange-50/50">
@@ -609,20 +624,20 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
         </div>
 
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col print:border-none print:shadow-none">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between print:px-0">
               <h2 className="text-lg font-bold text-slate-900">Extrato do Período</h2>
               <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full">
                 {combinedEntries.length} {combinedEntries.length === 1 ? 'lançamento' : 'lançamentos'}
               </span>
             </div>
-            <div className="overflow-y-auto p-2" style={{ maxHeight: '600px' }}>
+            <div className="overflow-y-auto print:overflow-visible p-2 print:p-0 max-h-[600px] print:max-h-none">
               {combinedEntries.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-2 print:space-y-1">
                   {combinedEntries.map((entry) => (
-                    <div key={entry.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <div key={entry.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 print:bg-transparent print:border-b print:border-slate-200 print:rounded-none print:px-0">
                       <div className="flex items-center space-x-4">
-                        <div className={`p-2 rounded-lg ${entry.type === 'income' ? 'bg-emerald-100' : 'bg-red-100'}`}>
+                        <div className={`p-2 rounded-lg print:hidden ${entry.type === 'income' ? 'bg-emerald-100' : 'bg-red-100'}`}>
                           {entry.type === 'income' ? (
                             <ArrowUpRight className="w-5 h-5 text-emerald-600" />
                           ) : (
@@ -646,7 +661,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                         {entry.isManual && (
                           <button 
                             onClick={() => onDeleteTransaction(entry.id)}
-                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors print:hidden"
                             title="Excluir"
                           >
                             <Trash2 className="w-4 h-4" />

@@ -13,3 +13,40 @@
   }
 }
 
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background-color: white !important;
+  }
+  
+  /* Esconder Sidebar (geralmente div.fixed ou nav, aqui baseado nas classes) */
+  .fixed.inset-y-0.left-0.w-64.bg-slate-900,
+  .fixed.inset-0.bg-slate-900\/50 {
+    display: none !important;
+  }
+  
+  /* Esconder Header do App.tsx */
+  header.h-20.bg-white {
+    display: none !important;
+  }
+  
+  /* Permitir scroll do main na impressão e remover cores de fundo */
+  main {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+  
+  #root, .h-screen, .min-h-screen, .flex-1 {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+  
+  /* Ajustar classes customizadas que não queremos imprimir */
+  .print\:hidden {
+    display: none !important;
+  }
+}
+
