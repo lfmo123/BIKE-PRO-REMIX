@@ -649,8 +649,8 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                           <p className="text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center sm:gap-2">
                             <span>{new Date(entry.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                             {!entry.isManual && <span>• Automático</span>}
-                            {entry.category && <span>• Cat: {entry.category}</span>}
-                            {entry.operator && <span>• Op: {entry.operator}</span>}
+                            {('category' in entry) && entry.category && <span>• Cat: {entry.category}</span>}
+                            {('operator' in entry) && entry.operator && <span>• Op: {entry.operator}</span>}
                           </p>
                         </div>
                       </div>
