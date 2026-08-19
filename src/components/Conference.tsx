@@ -87,13 +87,27 @@ export function Conference({ vehicles, shifts }: ConferenceProps) {
           <h2 style="font-size: 28pt; margin-bottom: 10px;">${title} (${items.length})</h2>
           ${items.length > 0 ? `
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
-            ${items.map(v => `
-              <div style="box-sizing: border-box; border: 1px solid #000; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 22pt; page-break-inside: avoid; text-align: center; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
-                <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
-                  <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP ' : ''}${v.cardNumber || 'S/N'}</span>
+            ${items.map(v => {
+              let displayNum = v.cardNumber || 'S/N';
+              let prefix = v.status === 'stored' ? 'DEP ' : '';
+              
+              const match = displayNum.match(/^([A-Za-z]+)[\s-]*(.*)$/);
+              let innerHtml = '';
+              if (match && match[2]) {
+                innerHtml = `<span style="display: block; font-size: 16pt; line-height: 1.1;">${prefix}${match[1]}</span>
+                             <span style="display: block; font-size: 24pt; line-height: 1.1;">${match[2]}</span>`;
+              } else {
+                innerHtml = `<span style="display: block; font-size: 22pt; line-height: 1.2;">${prefix}${displayNum}</span>`;
+              }
+
+              return `
+              <div style="box-sizing: border-box; border: 1px solid #000; padding: 8px 4px; border-radius: 6px; font-weight: bold; page-break-inside: avoid; text-align: center; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                  ${innerHtml}
                 </div>
               </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
           ` : `<p style="font-size: 24pt; color: #666;">Nenhum veículo</p>`}
         </div>
@@ -101,7 +115,7 @@ export function Conference({ vehicles, shifts }: ConferenceProps) {
     };
     
     const bodyHtml = `
-      <h1 style="font-size: 32pt; font-weight: 900; margin-bottom: 15px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 10px;">Conferência de Pátio</h1>
+      <h1 style="font-size: 28pt; font-weight: 900; margin-bottom: 15px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 10px; line-height: 1.1;">Conferência de Pátio</h1>
       <div style="text-align: center; font-size: 24pt; margin-bottom: 10px; font-weight: 900;">Data: ${dateText}</div>
       <div style="text-align: center; font-size: 22pt; margin-bottom: 10px;">Operador: ${displayShift?.operatorName || 'Não informado'}</div>
       <div style="text-align: center; font-size: 22pt; margin-bottom: 25px;">Troco Caixa: ${displayShift?.initialChange?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</div>
