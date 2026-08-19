@@ -86,23 +86,32 @@ export function Conference({ vehicles, shifts }: ConferenceProps) {
         <div style="margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
           <h2 style="font-size: 28pt; margin-bottom: 10px;">${title} (${items.length})</h2>
           ${items.length > 0 ? `
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;">
             ${items.map(v => {
               let displayNum = v.cardNumber || 'S/N';
               let prefix = v.status === 'stored' ? 'DEP ' : '';
               
-              const match = displayNum.match(/^([A-Za-z]+)[\s-]*(.*)$/);
+              const match = displayNum.match(/^([^\d]+)?(\d.*)?$/);
               let innerHtml = '';
-              if (match && match[2]) {
-                innerHtml = `<span style="display: block; font-size: 16pt; line-height: 1.1;">${prefix}${match[1]}</span>
-                             <span style="display: block; font-size: 24pt; line-height: 1.1;">${match[2]}</span>`;
+              
+              const letters = (match && match[1] ? match[1].trim() : '').replace(/[-_]$/, '').trim();
+              const numbers = match && match[2] ? match[2].trim() : '';
+              const topText = (prefix + letters).trim();
+              
+              if (topText && numbers) {
+                innerHtml = `<span style="display: block; font-size: 14pt; line-height: 1;">${topText}</span>
+                             <span style="display: block; font-size: 22pt; line-height: 1.1; word-break: break-all;">${numbers}</span>`;
+              } else if (numbers) {
+                // If only numbers, keep it centered but add a tiny hidden spacer to keep boxes uniform height if desired, 
+                // or just render the number. Let's just render the number to save space.
+                innerHtml = `<span style="display: block; font-size: 22pt; line-height: 1.1; word-break: break-all;">${prefix}${numbers}</span>`;
               } else {
-                innerHtml = `<span style="display: block; font-size: 22pt; line-height: 1.2;">${prefix}${displayNum}</span>`;
+                innerHtml = `<span style="display: block; font-size: 18pt; line-height: 1.1; word-break: break-all;">${prefix}${displayNum}</span>`;
               }
 
               return `
-              <div style="box-sizing: border-box; border: 1px solid #000; padding: 8px 4px; border-radius: 6px; font-weight: bold; page-break-inside: avoid; text-align: center; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div style="box-sizing: border-box; border: 1px solid #000; padding: 6px 2px; border-radius: 6px; font-weight: bold; page-break-inside: avoid; text-align: center; overflow: hidden; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
                   ${innerHtml}
                 </div>
               </div>
