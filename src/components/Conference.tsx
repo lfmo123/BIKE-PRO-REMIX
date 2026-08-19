@@ -84,43 +84,42 @@ export function Conference({ vehicles, shifts }: ConferenceProps) {
     const renderCategory = (title: string, items: any[]) => {
       return `
         <div style="margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
-          <h2 style="font-size: 14pt; margin-bottom: 6px;">${title} (${items.length})</h2>
+          <h2 style="font-size: 28pt; margin-bottom: 10px;">${title} (${items.length})</h2>
           ${items.length > 0 ? `
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
             ${items.map(v => `
-              <div style="box-sizing: border-box; border: 1px solid #000; padding: 6px 8px; border-radius: 4px; font-weight: bold; font-size: 11pt; page-break-inside: avoid; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-                  <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP#' : '#'}${v.cardNumber || 'S/N'}</span>
-                  <span style="border: 1px solid #000; width: 18px; height: 18px; display: inline-block; flex-shrink: 0;"></span>
+              <div style="box-sizing: border-box; border: 1px solid #000; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 22pt; page-break-inside: avoid; text-align: center; ${v.status === 'stored' ? 'background-color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #fff !important; border: 1px dashed #000;' : ''}">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                  <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.status === 'stored' ? 'DEP ' : ''}${v.cardNumber || 'S/N'}</span>
                 </div>
               </div>
             `).join('')}
           </div>
-          ` : `<p style="font-size: 12pt; color: #666;">Nenhum veículo</p>`}
+          ` : `<p style="font-size: 24pt; color: #666;">Nenhum veículo</p>`}
         </div>
       `;
     };
     
     const bodyHtml = `
-      <h1 style="font-size: 16pt; font-weight: 900; margin-bottom: 10px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 5px;">Conferência de Pátio</h1>
-      <div style="text-align: center; font-size: 12pt; margin-bottom: 5px; font-weight: 900;">Data: ${dateText}</div>
-      <div style="text-align: center; font-size: 11pt; margin-bottom: 5px;">Operador: ${displayShift?.operatorName || 'Não informado'}</div>
-      <div style="text-align: center; font-size: 11pt; margin-bottom: 15px;">Troco Caixa: ${displayShift?.initialChange?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</div>
+      <h1 style="font-size: 32pt; font-weight: 900; margin-bottom: 15px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 10px;">Conferência de Pátio</h1>
+      <div style="text-align: center; font-size: 24pt; margin-bottom: 10px; font-weight: 900;">Data: ${dateText}</div>
+      <div style="text-align: center; font-size: 22pt; margin-bottom: 10px;">Operador: ${displayShift?.operatorName || 'Não informado'}</div>
+      <div style="text-align: center; font-size: 22pt; margin-bottom: 25px;">Troco Caixa: ${displayShift?.initialChange?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</div>
       ${renderCategory('Bicicletas', bikes)}
       ${renderCategory('Bicicletas Elétricas (E-Bikes)', ebikes)}
       ${renderCategory('Motos', motos)}
       ${renderCategory('Vagas sem número', sn)}
       
-      <div style="border-top: 2px solid #000; margin: 15px 0;"></div><h2 style="font-size: 14pt; margin-bottom: 8px;">Em Depósito</h2>
+      <div style="border-top: 2px solid #000; margin: 20px 0;"></div><h2 style="font-size: 28pt; margin-bottom: 12px;">Em Depósito</h2>
       ${renderCategory('Bicicletas (Depósito)', storedBikes)}
       ${renderCategory('Bicicletas Elétricas (Depósito)', storedEbikes)}
       ${renderCategory('Motos (Depósito)', storedMotos)}
       ${renderCategory('Vagas sem número (Depósito)', storedSn)}
       
-      <div style="text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px; page-break-inside: avoid;">
-        <h2 style="font-size: 14pt; font-weight: 900; margin: 0 0 10px 0; text-transform: uppercase; color: #000; text-align: center;">Total Geral: ${allActive.length}</h2>
+      <div style="text-align: center; margin-top: 20px; border-top: 1px dashed #000; padding-top: 15px; page-break-inside: avoid;">
+        <h2 style="font-size: 28pt; font-weight: 900; margin: 0 0 15px 0; text-transform: uppercase; color: #000; text-align: center;">Total Geral: ${allActive.length}</h2>
       </div>
-      <div style="text-align: center; margin-top: 30px; font-size: 12pt; color: #000; font-weight: bold; padding-bottom: 20px;">
+      <div style="text-align: center; margin-top: 40px; font-size: 24pt; color: #000; font-weight: bold; padding-bottom: 20px;">
         <p>Bikepark - Conferência</p>
       </div>
     `;
