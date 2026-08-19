@@ -245,8 +245,8 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
 
       {/* Print Only Header */}
       <div className="hidden print:block mb-6">
-        <h2 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-2 mb-2">Relatório do Livro Caixa</h2>
-        <p className="text-slate-600">
+        <h2 className="text-xl print:text-lg font-bold text-slate-900 border-b border-slate-200 pb-2 mb-2">Relatório do Livro Caixa</h2>
+        <p className="text-slate-600 print:text-sm">
           Período: <strong>{startDate.split('-').reverse().join('/')} {startTime}</strong> até <strong>{endDate.split('-').reverse().join('/')} {endTime}</strong>
         </p>
       </div>
@@ -388,7 +388,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-medium text-slate-500 mb-1">Entradas (Período)</p>
-              <p className="text-2xl font-bold text-emerald-600">R$ {totalIncome.toFixed(2)}</p>
+              <p className="text-2xl print:text-lg font-bold text-emerald-600">R$ {totalIncome.toFixed(2)}</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
               <ArrowUpRight className="w-6 h-6 text-emerald-500" />
@@ -407,7 +407,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-slate-500 mb-1">Saídas (Período)</p>
-            <p className="text-2xl font-bold text-red-600">R$ {totalExpense.toFixed(2)}</p>
+            <p className="text-2xl print:text-lg font-bold text-red-600">R$ {totalExpense.toFixed(2)}</p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center">
             <ArrowDownRight className="w-6 h-6 text-red-500" />
@@ -417,7 +417,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-slate-500 mb-1">Saldo (Período)</p>
-            <p className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            <p className={`text-2xl print:text-lg font-bold ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
               R$ {balance.toFixed(2)}
             </p>
           </div>
@@ -626,7 +626,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
         <div className="lg:col-span-2">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col print:border-none print:shadow-none">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between print:px-0">
-              <h2 className="text-lg font-bold text-slate-900">Extrato do Período</h2>
+              <h2 className="text-lg print:text-base font-bold text-slate-900">Extrato do Período</h2>
               <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full">
                 {combinedEntries.length} {combinedEntries.length === 1 ? 'lançamento' : 'lançamentos'}
               </span>
@@ -645,7 +645,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900">{entry.description}</p>
+                          <p className="font-bold text-slate-900 print:text-sm">{entry.description}</p>
                           <p className="text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center sm:gap-2">
                             <span>{new Date(entry.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                             {!entry.isManual && <span>• Automático</span>}
@@ -655,7 +655,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
-                        <span className={`font-bold ${entry.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
+                        <span className={`font-bold print:text-sm ${entry.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
                           {entry.type === 'income' ? '+' : '-'} R$ {entry.amount.toFixed(2)}
                         </span>
                         {entry.isManual && (
