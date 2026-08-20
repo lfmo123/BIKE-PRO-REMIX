@@ -59,7 +59,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
   const entriesDaily = vehicles.filter(v => v.checkInTime >= startOfDay && v.checkInTime <= endOfDay);
   const exitsDaily = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay);
 
-  const totalRevenueDaily = completedVehiclesDaily.reduce((sum, v) => sum + (v.price || 0), 0);
+  const totalRevenueDaily = completedVehiclesDaily.reduce((sum, v) => sum + (Number(v.price) || 0), 0);
 
   // Store sales on selected date
   const salesStoreDaily = sales.filter(s => s.date >= startOfDay && s.date <= endOfDay);
@@ -75,7 +75,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
 
   const revenueByPaymentDaily = completedVehiclesDaily.reduce((acc, v) => {
     const method = v.paymentMethod || 'cash';
-    acc[method] = (acc[method] || 0) + (v.price || 0);
+    acc[method] = (acc[method] || 0) + (Number(v.price) || 0);
     return acc;
   }, {} as Record<string, number>);
 
@@ -89,7 +89,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
   ].filter(d => d.value > 0);
 
   const revenueByTypeDaily = completedVehiclesDaily.reduce((acc, v) => {
-    acc[v.type] = (acc[v.type] || 0) + (v.price || 0);
+    acc[v.type] = (acc[v.type] || 0) + (Number(v.price) || 0);
     return acc;
   }, {} as Record<string, number>);
 
@@ -103,7 +103,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
     const entries = entriesDaily.filter(v => v.type === type).length;
     const exits = exitsDaily.filter(v => v.type === type).length;
     const active = vehicles.filter(v => v.type === type && v.status === 'active').length;
-    const revenue = completedVehiclesDaily.filter(v => v.type === type).reduce((sum, v) => sum + (v.price || 0), 0);
+    const revenue = completedVehiclesDaily.filter(v => v.type === type).reduce((sum, v) => sum + (Number(v.price) || 0), 0);
     
     const typeLabel = type === 'bicycle' ? 'Bicicleta' : type === 'ebike' ? 'E-Bike' : type === 'motorcycle' ? 'Moto' : 'Carro';
     return { type: typeLabel, entries, exits, active, revenue };
@@ -120,7 +120,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
     const entries = entriesPrevDay.filter(v => v.type === type).length;
     const exits = exitsPrevDay.filter(v => v.type === type).length;
     const active = vehicles.filter(v => v.type === type && v.checkInTime < endOfPrevDay && (!v.checkOutTime || v.checkOutTime >= endOfPrevDay)).length;
-    const revenue = completedVehiclesPrevDay.filter(v => v.type === type).reduce((sum, v) => sum + (v.price || 0), 0);
+    const revenue = completedVehiclesPrevDay.filter(v => v.type === type).reduce((sum, v) => sum + (Number(v.price) || 0), 0);
     
     const typeLabel = type === 'bicycle' ? 'Bicicleta' : type === 'ebike' ? 'E-Bike' : type === 'motorcycle' ? 'Moto' : 'Carro';
     return { type: typeLabel, entries, exits, active, revenue };
@@ -134,7 +134,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
 
   const overnightRevenueDaily = overnightVehiclesDaily
     .filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay)
-    .reduce((sum, v) => sum + (v.price || 0), 0);
+    .reduce((sum, v) => sum + (Number(v.price) || 0), 0);
 
   const handlePrintDailyReport = () => {
     const formattedDate = new Date(startOfDay + 12 * 60 * 60 * 1000).toLocaleDateString('pt-BR');
@@ -148,7 +148,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
           <span>${new Date(v.checkInTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})} às ${v.checkOutTime ? new Date(v.checkOutTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '-'}</span>
           <span>${v.paymentMethod === 'card' ? 'Pré Pago' : v.paymentMethod === 'machine' ? 'Máquina' : v.paymentMethod === 'cash' ? 'Dinheiro' : v.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : v.paymentMethod === 'fiado' ? 'Fiado' : v.paymentMethod === 'pix' ? 'Pix' : v.paymentMethod || '-'}</span>
         </div>
-        <div class="print-item-total">R$ ${(v.price || 0).toFixed(2)}</div>
+        <div class="print-item-total">R$ ${(Number(v.price) || 0).toFixed(2)}</div>
       </div>
     `).join('');
 
@@ -268,11 +268,11 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
   const entriesMonthly = vehicles.filter(v => v.checkInTime >= startOfMonth && v.checkInTime <= endOfMonth);
   const exitsMonthly = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= startOfMonth && v.checkOutTime <= endOfMonth);
 
-  const totalRevenueMonthly = completedVehiclesMonthly.reduce((sum, v) => sum + (v.price || 0), 0);
+  const totalRevenueMonthly = completedVehiclesMonthly.reduce((sum, v) => sum + (Number(v.price) || 0), 0);
 
   const revenueByPaymentMonthly = completedVehiclesMonthly.reduce((acc, v) => {
     const method = v.paymentMethod || 'cash';
-    acc[method] = (acc[method] || 0) + (v.price || 0);
+    acc[method] = (acc[method] || 0) + (Number(v.price) || 0);
     return acc;
   }, {} as Record<string, number>);
 
@@ -286,7 +286,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
   ].filter(d => d.value > 0);
 
   const revenueByTypeMonthly = completedVehiclesMonthly.reduce((acc, v) => {
-    acc[v.type] = (acc[v.type] || 0) + (v.price || 0);
+    acc[v.type] = (acc[v.type] || 0) + (Number(v.price) || 0);
     return acc;
   }, {} as Record<string, number>);
 
@@ -308,7 +308,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
     
     const dayRevenue = completedVehiclesMonthly
       .filter(v => v.checkOutTime && v.checkOutTime >= timestamp && v.checkOutTime < nextDay)
-      .reduce((sum, v) => sum + (v.price || 0), 0);
+      .reduce((sum, v) => sum + (Number(v.price) || 0), 0);
 
     return {
       date: date.getDate().toString().padStart(2, '0') + '/' + (date.getMonth() + 1).toString().padStart(2, '0'),
@@ -326,11 +326,11 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
   const avgTimeCustom = calculateAverageTime(completedVehiclesCustom);
   const entriesCustom = vehicles.filter(v => v.checkInTime >= customStart && v.checkInTime <= customEnd);
   const exitsCustom = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= customStart && v.checkOutTime <= customEnd);
-  const totalRevenueCustom = completedVehiclesCustom.reduce((sum, v) => sum + (v.price || 0), 0);
+  const totalRevenueCustom = completedVehiclesCustom.reduce((sum, v) => sum + (Number(v.price) || 0), 0);
 
   const revenueByPaymentCustom = completedVehiclesCustom.reduce((acc, v) => {
     const method = v.paymentMethod || 'cash';
-    acc[method] = (acc[method] || 0) + (v.price || 0);
+    acc[method] = (acc[method] || 0) + (Number(v.price) || 0);
     return acc;
   }, {} as Record<string, number>);
 
@@ -344,7 +344,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
   ].filter(d => d.value > 0);
 
   const revenueByTypeCustom = completedVehiclesCustom.reduce((acc, v) => {
-    acc[v.type] = (acc[v.type] || 0) + (v.price || 0);
+    acc[v.type] = (acc[v.type] || 0) + (Number(v.price) || 0);
     return acc;
   }, {} as Record<string, number>);
 
@@ -370,7 +370,7 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
     
     const dayRevenue = completedVehicles
       .filter(v => v.checkOutTime && v.checkOutTime >= timestamp && v.checkOutTime < nextDay)
-      .reduce((sum, v) => sum + (v.price || 0), 0);
+      .reduce((sum, v) => sum + (Number(v.price) || 0), 0);
 
     return {
       date: date.toLocaleDateString('pt-BR', { weekday: 'short' }),

@@ -72,8 +72,8 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, onPayFiado }: Fiad
 
     filteredFiados.forEach(v => {
       const isPaid = !!v.isFiadoPaid;
-      const price = v.price || 0;
-      const paid = isPaid ? price : (v.fiadoPaidAmount || 0);
+      const price = Number(v.price) || 0;
+      const paid = isPaid ? price : (Number(v.fiadoPaidAmount) || 0);
       const remaining = isPaid ? 0 : Math.max(0, price - paid);
 
       totalOriginal += price;
@@ -269,8 +269,8 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, onPayFiado }: Fiad
           ) : (
             filteredFiados.map(v => {
               const isPaid = !!v.isFiadoPaid;
-              const price = v.price || 0;
-              const paid = isPaid ? price : (v.fiadoPaidAmount || 0);
+              const price = Number(v.price) || 0;
+              const paid = isPaid ? price : (Number(v.fiadoPaidAmount) || 0);
               const remaining = isPaid ? 0 : Math.max(0, price - paid);
               const isExpanded = expandedId === v.id;
               const isPayingThis = payingId === v.id;

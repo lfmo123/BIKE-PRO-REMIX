@@ -119,7 +119,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
         v.paymentMethod === 'postpaid_card' ? 'PÓS-PAGO' : 
         v.paymentMethod?.toUpperCase() || 'N/A'
       })`,
-      amount: v.price || 0,
+      amount: Number(v.price) || 0,
       date: v.checkOutTime || 0,
       type: 'income' as const,
       isManual: false
@@ -133,7 +133,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
   let incomeFiado = 0; // Fiado generated in period
 
   periodCheckouts.forEach(v => {
-      const p = v.price || 0;
+      const p = Number(v.price) || 0;
       if (v.paymentMethod === 'cash') incomeCash += p;
       else if (v.paymentMethod === 'machine') incomeMachine += p;
       else if (v.paymentMethod === 'pix') incomePix += p;
@@ -152,7 +152,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
 
   vehicles.forEach(v => {
       if (v.status === 'completed' && v.paymentMethod === 'fiado' && v.checkOutTime && v.checkOutTime >= startOfPeriod && v.checkOutTime <= endOfPeriod) {
-          incomeFiado += (v.price || 0);
+          incomeFiado += (Number(v.price) || 0);
       }
   });
 
@@ -197,7 +197,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
 
     for (const v of sortedFiados) {
       if (amountToDistribute <= 0) break;
-      const remainingOnVehicle = (v.price || 0) - (v.fiadoPaidAmount || 0);
+      const remainingOnVehicle = (Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0);
       if (remainingOnVehicle <= 0) continue;
 
       const amountToPayHere = Math.min(amountToDistribute, remainingOnVehicle);
@@ -446,7 +446,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                  </button>
                </div>
                <p className="text-sm text-orange-700 mt-1 mb-4">
-                 Total em haver: <span className="font-bold">R$ {unpaidFiados.reduce((acc, v) => acc + ((v.price || 0) - (v.fiadoPaidAmount || 0)), 0).toFixed(2)}</span> ({unpaidFiados.length})
+                 Total em haver: <span className="font-bold">R$ {unpaidFiados.reduce((acc, v) => acc + ((Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0)), 0).toFixed(2)}</span> ({unpaidFiados.length})
                </p>
                {unpaidFiados.length > 0 && (
                  <div className="bg-white p-3 rounded-xl border border-orange-200">
@@ -456,7 +456,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                        type="number" 
                        step="0.01" 
                        min="0.01"
-                       max={unpaidFiados.reduce((acc, v) => acc + ((v.price || 0) - (v.fiadoPaidAmount || 0)), 0).toFixed(2)}
+                       max={unpaidFiados.reduce((acc, v) => acc + ((Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0)), 0).toFixed(2)}
                        value={globalFiadoAmount}
                        onChange={(e) => setGlobalFiadoAmount(e.target.value)}
                        className="w-full text-sm p-2 rounded-lg border border-slate-200"
@@ -502,8 +502,8 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                          <p className="text-xs text-slate-500">{new Date(v.checkOutTime || 0).toLocaleDateString('pt-BR')} • {v.ownerName}</p>
                        </div>
                        <div className="text-right">
-                         <span className="font-bold text-orange-600 block">R$ {((v.price || 0) - (v.fiadoPaidAmount || 0)).toFixed(2)}</span>
-                         {v.fiadoPaidAmount ? <span className="text-xs text-slate-400 font-medium line-through">R$ {v.price?.toFixed(2)}</span> : null}
+                         <span className="font-bold text-orange-600 block">R$ {((Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0)).toFixed(2)}</span>
+                         {v.fiadoPaidAmount ? <span className="text-xs text-slate-400 font-medium line-through">R$ {Number(v.price)?.toFixed(2)}</span> : null}
                        </div>
                      </div>
                      
@@ -513,7 +513,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                              type="number" 
                              step="0.01" 
                              min="0"
-                             max={((v.price || 0) - (v.fiadoPaidAmount || 0)).toFixed(2)}
+                             max={((Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0)).toFixed(2)}
                              value={fiadoPaymentAmount}
                              onChange={(e) => setFiadoPaymentAmount(e.target.value)}
                              className="w-full text-sm p-2 rounded-lg border border-slate-200 bg-white"
@@ -539,7 +539,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                                  let amt = parseFloat(fiadoPaymentAmount);
                                  if (isNaN(amt) || amt <= 0) {
                                     // Default to full remaining if empty
-                                    amt = (v.price || 0) - (v.fiadoPaidAmount || 0);
+                                    amt = (Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0);
                                  }
                                  await onPayFiado(v.id, fiadoPaymentMethod, amt);
                                  setPayingFiadoId(null);
