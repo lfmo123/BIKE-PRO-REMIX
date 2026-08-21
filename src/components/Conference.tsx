@@ -84,7 +84,7 @@ export function Conference({ vehicles, shifts }: ConferenceProps) {
     const renderCategory = (title: string, items: any[]) => {
       return `
         <div style="margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
-          <h2 style="font-size: 28pt; margin-bottom: 10px;">${title} (${items.length})</h2>
+          <h2 style="font-size: 20pt; margin-bottom: 10px;">${title} (${items.length})</h2>
           ${items.length > 0 ? `
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;">
             ${items.map(v => {
@@ -99,14 +99,14 @@ export function Conference({ vehicles, shifts }: ConferenceProps) {
               const topText = (prefix + letters).trim();
               
               if (topText && numbers) {
-                innerHtml = `<span style="display: block; font-size: 14pt; line-height: 1;">${topText}</span>
-                             <span style="display: block; font-size: 22pt; line-height: 1.1; word-break: break-all;">${numbers}</span>`;
+                innerHtml = `<span style="display: block; font-size: 10pt; line-height: 1;">${topText}</span>
+                             <span style="display: block; font-size: 15pt; line-height: 1.1; word-break: break-all;">${numbers}</span>`;
               } else if (numbers) {
                 // If only numbers, keep it centered but add a tiny hidden spacer to keep boxes uniform height if desired, 
                 // or just render the number. Let's just render the number to save space.
-                innerHtml = `<span style="display: block; font-size: 22pt; line-height: 1.1; word-break: break-all;">${prefix}${numbers}</span>`;
+                innerHtml = `<span style="display: block; font-size: 15pt; line-height: 1.1; word-break: break-all;">${prefix}${numbers}</span>`;
               } else {
-                innerHtml = `<span style="display: block; font-size: 18pt; line-height: 1.1; word-break: break-all;">${prefix}${displayNum}</span>`;
+                innerHtml = `<span style="display: block; font-size: 13pt; line-height: 1.1; word-break: break-all;">${prefix}${displayNum}</span>`;
               }
 
               return `
@@ -118,31 +118,31 @@ export function Conference({ vehicles, shifts }: ConferenceProps) {
               `;
             }).join('')}
           </div>
-          ` : `<p style="font-size: 24pt; color: #666;">Nenhum veículo</p>`}
+          ` : `<p style="font-size: 17pt; color: #666;">Nenhum veículo</p>`}
         </div>
       `;
     };
     
     const bodyHtml = `
-      <h1 style="font-size: 28pt; font-weight: 900; margin-bottom: 15px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 10px; line-height: 1.1;">Conferência de Pátio</h1>
-      <div style="text-align: center; font-size: 24pt; margin-bottom: 10px; font-weight: 900;">Data: ${dateText}</div>
-      <div style="text-align: center; font-size: 22pt; margin-bottom: 10px;">Operador: ${displayShift?.operatorName || 'Não informado'}</div>
-      <div style="text-align: center; font-size: 22pt; margin-bottom: 25px;">Troco Caixa: ${displayShift?.initialChange?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</div>
+      <h1 style="font-size: 17pt; font-weight: 900; margin-bottom: 15px; text-align: center; text-transform: uppercase; color: #000; border-bottom: 2px dashed #000; padding-bottom: 10px; line-height: 1.1;">Conferência de Pátio</h1>
+      <div style="text-align: center; font-size: 14pt; margin-bottom: 10px; font-weight: 900;">Data: ${dateText}</div>
+      <div style="text-align: center; font-size: 13pt; margin-bottom: 10px;">Operador: ${displayShift?.operatorName || 'Não informado'}</div>
+      <div style="text-align: center; font-size: 13pt; margin-bottom: 25px;">Troco Caixa: ${displayShift?.initialChange?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</div>
       ${renderCategory('Bicicletas', bikes)}
       ${renderCategory('Bicicletas Elétricas (E-Bikes)', ebikes)}
       ${renderCategory('Motos', motos)}
       ${renderCategory('Vagas sem número', sn)}
       
-      <div style="border-top: 2px solid #000; margin: 20px 0;"></div><h2 style="font-size: 28pt; margin-bottom: 12px;">Em Depósito</h2>
+      <div style="border-top: 2px solid #000; margin: 20px 0;"></div><h2 style="font-size: 20pt; margin-bottom: 12px;">Em Depósito</h2>
       ${renderCategory('Bicicletas (Depósito)', storedBikes)}
       ${renderCategory('Bicicletas Elétricas (Depósito)', storedEbikes)}
       ${renderCategory('Motos (Depósito)', storedMotos)}
       ${renderCategory('Vagas sem número (Depósito)', storedSn)}
       
       <div style="text-align: center; margin-top: 20px; border-top: 1px dashed #000; padding-top: 15px; page-break-inside: avoid;">
-        <h2 style="font-size: 28pt; font-weight: 900; margin: 0 0 15px 0; text-transform: uppercase; color: #000; text-align: center;">Total Geral: ${allActive.length}</h2>
+        <h2 style="font-size: 20pt; font-weight: 900; margin: 0 0 15px 0; text-transform: uppercase; color: #000; text-align: center;">Total Geral: ${allActive.length}</h2>
       </div>
-      <div style="text-align: center; margin-top: 40px; font-size: 24pt; color: #000; font-weight: bold; padding-bottom: 20px;">
+      <div style="text-align: center; margin-top: 40px; font-size: 17pt; color: #000; font-weight: bold; padding-bottom: 20px;">
         <p>Bikepark - Conferência</p>
       </div>
     `;
