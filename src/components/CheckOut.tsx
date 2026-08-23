@@ -33,13 +33,17 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
     }
   }, [vehicles, selectedVehicle]);
 
-  // Optionally auto-select a card if the vehicle has a matching one by chance
+  // Optionally auto-select a card if the vehicle has a matching one
   useEffect(() => {
     if (selectedVehicle && (paymentMethod === 'card' || paymentMethod === 'postpaid_card')) {
-       // try to guess the card by spot/badge number if it matches a card exactly
-       const match = customerCards.find(c => c.cardNumber === selectedVehicle.cardNumber && c.type === (paymentMethod === 'card' ? 'prepaid' : 'postpaid'));
-       if (match) setSelectedCardId(match.id);
-       else setSelectedCardId('');
+       const match = customerCards.find(c => 
+         (selectedVehicle.customerCardId && c.id === selectedVehicle.customerCardId) ||
+         (c.cardNumber && c.cardNumber.toLowerCase() === selectedVehicle.cardNumber.toLowerCase())
+       );
+       if (match) {
+         setSelectedCardId(match.id);
+         setPaymentMethod(match.type === 'postpaid' ? 'postpaid_card' : 'card');
+       }
     }
   }, [selectedVehicle, paymentMethod, customerCards]);
 
@@ -80,8 +84,8 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
   };
 
   const availableCards = useMemo(() => {
-    return customerCards.filter(c => c.type === (paymentMethod === 'card' ? 'prepaid' : 'postpaid'));
-  }, [customerCards, paymentMethod]);
+    return customerCards;
+  }, [customerCards]);
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -211,7 +215,7 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
               
               <div className="space-y-4 mb-8">
                 <label className="block text-sm font-medium text-slate-700">Selecione o Método de Pagamento</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cash')}
@@ -240,28 +244,18 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('card')}
+                    onClick={() => {
+                      const card = customerCards.find(c => c.id === selectedCardId);
+                      setPaymentMethod(card ? (card.type === 'postpaid' ? 'postpaid_card' : 'card') : 'card');
+                    }}
                     className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                      paymentMethod === 'card' 
-                        ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                      paymentMethod === 'card' || paymentMethod === 'postpaid_card'
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
                         : 'border-slate-100 hover:border-slate-200 text-slate-500'
                     }`}
                   >
-                    <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'card' ? 'text-blue-600' : ''}`} />
-                    <span className="text-sm font-medium text-center">Pré Pago</span>
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('postpaid_card')}
-                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                      paymentMethod === 'postpaid_card' 
-                        ? 'border-purple-500 bg-purple-50 text-purple-700' 
-                        : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                    }`}
-                  >
-                    <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'postpaid_card' ? 'text-purple-600' : ''}`} />
-                    <span className="text-sm font-medium text-center leading-tight">Cartão<br/>Pós-Pago</span>
+                    <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'card' || paymentMethod === 'postpaid_card' ? 'text-indigo-600' : ''}`} />
+                    <span className="text-sm font-medium text-center">Cartão</span>
                   </button>
                 </div>
               </div>
@@ -271,13 +265,20 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                   <label className="block text-sm font-medium text-slate-700">Selecione o Cartão Cliente</label>
                   <select
                     value={selectedCardId}
-                    onChange={(e) => setSelectedCardId(e.target.value)}
-                    className="w-full py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedCardId(id);
+                      const card = customerCards.find(c => c.id === id);
+                      if (card) {
+                        setPaymentMethod(card.type === 'postpaid' ? 'postpaid_card' : 'card');
+                      }
+                    }}
+                    className="w-full py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="">Selecione um cartão...</option>
+                    <option value="">Selecione um cartão ou digite para buscar...</option>
                     {availableCards.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.cardNumber} - {c.ownerName} (Saldo: R$ {Number(c.balance || 0).toFixed(2)})
+                        {c.cardNumber} - {c.ownerName} [{c.type === 'prepaid' ? 'Pré-Pago' : 'Pós-Pago'}] ({c.type === 'prepaid' ? `Saldo: R$ ${(Number(c.balance) || 0).toFixed(2)}` : `Fatura: R$ ${(Number(c.balance) || 0).toFixed(2)}`})
                       </option>
                     ))}
                   </select>
@@ -286,7 +287,7 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                       {(() => {
                         const card = availableCards.find(c => c.id === selectedCardId);
                         const price = calculatePrice(selectedVehicle, pricing, now);
-                        if (card && (card.balance || 0) < price) {
+                        if (card && (Number(card.balance) || 0) < price) {
                           return <span className="text-red-500 flex items-center mt-1"><AlertCircle className="w-4 h-4 mr-1"/> Saldo insuficiente.</span>;
                         }
                         return null;
@@ -304,7 +305,7 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                     (!selectedCardId || (paymentMethod === 'card' && (() => {
                       const card = availableCards.find(c => c.id === selectedCardId);
                       const price = calculatePrice(selectedVehicle, pricing, now);
-                      return !card || (card.balance || 0) < price;
+                      return !card || (Number(card.balance) || 0) < price;
                     })()))
                   }
                   className="w-full py-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-slate-900/20 flex items-center justify-center"
