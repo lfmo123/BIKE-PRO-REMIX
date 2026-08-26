@@ -202,14 +202,27 @@ export async function revertCheckIn(id) {
   return true;
 }
 
-export async function checkOutVehicle(id, price, paymentMethod, checkOutTime) {
+export async function checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId, checkInTime) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
-  const query = `
-    UPDATE vehicles 
-    SET status = 'completed', checkOutTime = ?, price = ?, paymentMethod = ?
-    WHERE id = ?
-  `;
-  await getPool().query(query, [checkOutTime, price, paymentMethod, id]);
+  
+  let query, params;
+  if (checkInTime) {
+    query = `
+      UPDATE vehicles 
+      SET status = 'completed', checkOutTime = ?, price = ?, paymentMethod = ?, customerCardId = ?, checkInTime = ?
+      WHERE id = ?
+    `;
+    params = [checkOutTime, price, paymentMethod, customerCardId || null, checkInTime, id];
+  } else {
+    query = `
+      UPDATE vehicles 
+      SET status = 'completed', checkOutTime = ?, price = ?, paymentMethod = ?, customerCardId = ?
+      WHERE id = ?
+    `;
+    params = [checkOutTime, price, paymentMethod, customerCardId || null, id];
+  }
+
+  await getPool().query(query, params);
   
   const [rows] = await getPool().query('SELECT * FROM vehicles WHERE id = ?', [id]);
   if (!rows || rows.length === 0) return null;

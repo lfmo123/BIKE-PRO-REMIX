@@ -8,7 +8,7 @@ interface CheckOutProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
   customerCards: CustomerCard[];
-  onCheckOut: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix', customerCardId?: string) => void;
+  onCheckOut: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix', customerCardId?: string, checkInTime?: number, checkOutTime?: number) => void;
 }
 
 export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: CheckOutProps) {
@@ -17,11 +17,17 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix'>('cash');
   const [selectedCardId, setSelectedCardId] = useState<string>('');
   const [now, setNow] = useState(Date.now());
+  const [editedCheckIn, setEditedCheckIn] = useState('');
+  const [editedCheckOut, setEditedCheckOut] = useState('');
 
   useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 60000);
+    const interval = setInterval(() => {
+      if (!editedCheckOut) {
+        setNow(Date.now());
+      }
+    }, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [editedCheckOut]);
 
   // Update selected vehicle if it gets checked out (it will be removed from active)
   useEffect(() => {
@@ -30,8 +36,22 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
       if (!stillActive) {
         setSelectedVehicle(null);
       }
+    } else {
+      setEditedCheckIn('');
+      setEditedCheckOut('');
     }
   }, [vehicles, selectedVehicle]);
+
+  useEffect(() => {
+    if (selectedVehicle) {
+      const formatLocal = (t: number) => {
+        const d = new Date(t);
+        return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+      };
+      setEditedCheckIn(formatLocal(selectedVehicle.checkInTime));
+      setEditedCheckOut(formatLocal(Date.now()));
+    }
+  }, [selectedVehicle?.id]);
 
   // Optionally auto-select a card if the vehicle has a matching one
   useEffect(() => {
@@ -75,17 +95,24 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
 
   const handleConfirm = () => {
     if (selectedVehicle) {
-      let price = calculatePrice(selectedVehicle, pricing, now);
-      onCheckOut(selectedVehicle.id, price, paymentMethod, selectedCardId || undefined);
+      let price = currentPrice;
+      onCheckOut(selectedVehicle.id, price, paymentMethod, selectedCardId || undefined, checkInMs, checkOutMs);
       setSelectedVehicle(null);
       setSearchTerm('');
       setSelectedCardId('');
+      setEditedCheckIn('');
+      setEditedCheckOut('');
     }
   };
 
   const availableCards = useMemo(() => {
     return customerCards;
   }, [customerCards]);
+
+  const checkInMs = editedCheckIn ? new Date(editedCheckIn).getTime() : (selectedVehicle?.checkInTime || 0);
+  const checkOutMs = editedCheckOut ? new Date(editedCheckOut).getTime() : now;
+  
+  const currentPrice = selectedVehicle ? calculatePrice({ ...selectedVehicle, checkInTime: checkInMs }, pricing, checkOutMs) : 0;
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -188,22 +215,39 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                     </span>
                     <span className="font-bold text-slate-900 text-lg">
                       {(() => {
-                        const breakdown = getBilledBreakdown(selectedVehicle, pricing, now);
+                        const breakdown = getBilledBreakdown({ ...selectedVehicle, checkInTime: checkInMs }, pricing, checkOutMs);
                         return `${breakdown.days} diária${breakdown.days > 1 ? 's' : ''}`;
                       })()}
                     </span>
-                    <span className="text-xs text-slate-500 mt-1">
-                      Duração: {formatDuration(selectedVehicle.checkInTime, now)}
+                    <span className="text-xs text-slate-500 mt-1 mb-2">
+                      Duração: {formatDuration(checkInMs, checkOutMs)}
                     </span>
-                    <span className="text-xs text-slate-400 mt-0.5">
-                      Entrada: {new Date(selectedVehicle.checkInTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    <div className="flex flex-col gap-2 w-full mt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400 w-12">Entrada:</span>
+                        <input 
+                          type="datetime-local" 
+                          value={editedCheckIn}
+                          onChange={(e) => setEditedCheckIn(e.target.value)}
+                          className="flex-1 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded p-1"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400 w-12">Saída:</span>
+                        <input 
+                          type="datetime-local" 
+                          value={editedCheckOut}
+                          onChange={(e) => setEditedCheckOut(e.target.value)}
+                          className="flex-1 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded p-1"
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-slate-100 flex flex-col">
                     <span className="text-sm font-medium text-slate-500 mb-1 flex items-center">
                       <DollarSign className="w-4 h-4 mr-1.5" /> Valor a Pagar
                     </span>
-                    <span className="font-bold text-emerald-600 text-2xl">R$ {calculatePrice(selectedVehicle, pricing, now).toFixed(2)}</span>
+                    <span className="font-bold text-emerald-600 text-2xl">R$ {currentPrice.toFixed(2)}</span>
                     {selectedVehicle.cardLost && pricing.lostCardFee && (
                       <span className="text-xs text-red-500 mt-1 leading-tight">
                         + {pricing.lostCardFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} taxa
@@ -286,8 +330,7 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                     <div className="text-sm">
                       {(() => {
                         const card = availableCards.find(c => c.id === selectedCardId);
-                        const price = calculatePrice(selectedVehicle, pricing, now);
-                        if (card && (Number(card.balance) || 0) < price) {
+                        if (card && (Number(card.balance) || 0) < currentPrice) {
                           return <span className="text-red-500 flex items-center mt-1"><AlertCircle className="w-4 h-4 mr-1"/> Saldo insuficiente.</span>;
                         }
                         return null;
@@ -304,8 +347,7 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                     (paymentMethod === 'card' || paymentMethod === 'postpaid_card') && 
                     (!selectedCardId || (paymentMethod === 'card' && (() => {
                       const card = availableCards.find(c => c.id === selectedCardId);
-                      const price = calculatePrice(selectedVehicle, pricing, now);
-                      return !card || (Number(card.balance) || 0) < price;
+                      return !card || (Number(card.balance) || 0) < currentPrice;
                     })()))
                   }
                   className="w-full py-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-slate-900/20 flex items-center justify-center"

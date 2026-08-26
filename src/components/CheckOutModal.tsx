@@ -8,7 +8,7 @@ interface CheckOutModalProps {
   pricing: Pricing;
   customerCards?: CustomerCard[];
   onClose: () => void;
-  onConfirm: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix', customerCardId?: string) => void;
+  onConfirm: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix', customerCardId?: string, checkInTime?: number, checkOutTime?: number) => void;
   onReportLostCard?: (vehicleId: string, lostCardName: string, lostCardPhone: string) => void;
   onRevertCheckin?: (vehicleId: string) => void;
 }
@@ -26,14 +26,27 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
   const [revertIntent, setRevertIntent] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  
+  const [editedCheckIn, setEditedCheckIn] = useState('');
+  const [editedCheckOut, setEditedCheckOut] = useState('');
 
   useEffect(() => {
     if (vehicle) {
-      setNow(Date.now());
+      const nowTs = Date.now();
+      setNow(nowTs);
       setShowLostForm(false);
       setLostName(vehicle.lostCardName || '');
       setLostPhone(vehicle.lostCardPhone || '');
-      const calcPrice = calculatePrice(vehicle, pricing, Date.now());
+      
+      const formatLocal = (t: number) => {
+        const d = new Date(t);
+        return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+      };
+      
+      setEditedCheckIn(formatLocal(vehicle.checkInTime));
+      setEditedCheckOut(formatLocal(nowTs));
+
+      const calcPrice = calculatePrice(vehicle, pricing, nowTs);
       setCustomPrice(calcPrice.toFixed(2));
       
       // Try to auto-match a customer card if vehicle already had one or if cardNumber matches
@@ -54,7 +67,16 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
 
   if (!vehicle) return null;
 
-  const price = calculatePrice(vehicle, pricing, now);
+  const checkInMs = editedCheckIn ? new Date(editedCheckIn).getTime() : vehicle.checkInTime;
+  const checkOutMs = editedCheckOut ? new Date(editedCheckOut).getTime() : now;
+  const price = calculatePrice({ ...vehicle, checkInTime: checkInMs }, pricing, checkOutMs);
+  
+  useEffect(() => {
+    if (editedCheckIn || editedCheckOut) {
+      setCustomPrice(price.toFixed(2));
+    }
+  }, [editedCheckIn, editedCheckOut]); // purposefully omitting price since we want to trigger specifically on time edit
+
   const selectedCard = customerCards.find(c => c.id === customerCardId);
 
   return (
@@ -83,15 +105,25 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
             <div className="grid grid-cols-2 gap-1.5 mb-2 text-base bg-white p-2.5 rounded-lg border border-slate-100">
               <div>
                 <span className="font-medium text-slate-500 block text-sm">Entrada</span>
-                <span className="font-bold text-slate-900">{new Date(vehicle.checkInTime).toLocaleString('pt-BR')}</span>
+                <input 
+                  type="datetime-local" 
+                  value={editedCheckIn}
+                  onChange={(e) => setEditedCheckIn(e.target.value)}
+                  className="font-bold text-slate-900 w-full outline-none bg-transparent border-b border-transparent focus:border-indigo-300 text-sm"
+                />
               </div>
               <div>
                 <span className="font-medium text-slate-500 block text-sm">Saída</span>
-                <span className="font-bold text-slate-900">{new Date(now).toLocaleString('pt-BR')}</span>
+                <input 
+                  type="datetime-local" 
+                  value={editedCheckOut}
+                  onChange={(e) => setEditedCheckOut(e.target.value)}
+                  className="font-bold text-slate-900 w-full outline-none bg-transparent border-b border-transparent focus:border-indigo-300 text-sm"
+                />
               </div>
               <div className="col-span-2 pt-1 border-t border-slate-50 flex justify-between items-center mt-1">
                 <span className="font-medium text-slate-500 text-sm">Tempo:</span>
-                <span className="font-bold text-slate-900">{formatDuration(vehicle.checkInTime, now)}</span>
+                <span className="font-bold text-slate-900">{formatDuration(checkInMs, checkOutMs)}</span>
               </div>
             </div>
 
@@ -102,7 +134,7 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
                 </span>
                 <span className="font-bold text-slate-900 text-lg">
                   {(() => {
-                    const breakdown = getBilledBreakdown(vehicle, pricing, now);
+                    const breakdown = getBilledBreakdown({ ...vehicle, checkInTime: checkInMs }, pricing, checkOutMs);
                     return `${breakdown.days} diária${breakdown.days > 1 ? 's' : ''}`;
                   })()}
                 </span>
@@ -322,7 +354,7 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
             )}
 
             <button
-              onClick={() => onConfirm(vehicle.id, parseFloat(customPrice) || 0, paymentMethod, customerCardId)}
+              onClick={() => onConfirm(vehicle.id, parseFloat(customPrice) || 0, paymentMethod, customerCardId, checkInMs, checkOutMs)}
               disabled={(paymentMethod === 'card' || paymentMethod === 'postpaid_card') && !customerCardId}
               className={`w-full py-3 sm:py-4 rounded-xl font-bold text-lg sm:text-xl transition-colors shadow-lg mt-1
                 ${(paymentMethod === 'card' || paymentMethod === 'postpaid_card') && !customerCardId

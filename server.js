@@ -206,16 +206,16 @@ async function startServer() {
   app.put('/api/vehicles/:id/checkout', async (req, res) => {
     try {
       const { id } = req.params;
-      const { price, paymentMethod, customerCardId } = req.body;
-      const checkOutTime = Date.now();
+      const { price, paymentMethod, customerCardId, checkInTime, checkOutTime: providedCheckOutTime } = req.body;
+      const checkOutTime = providedCheckOutTime || Date.now();
       
       let updatedVehicle;
       
       if (dbType === 'firebase') {
-        updatedVehicle = await firebaseDb.checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId);
+        updatedVehicle = await firebaseDb.checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId, checkInTime);
       } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
-        updatedVehicle = await mysqlDb.checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId);
+        updatedVehicle = await mysqlDb.checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId, checkInTime);
       } else {
         const db = readDb();
         const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
@@ -228,6 +228,11 @@ async function startServer() {
             paymentMethod,
             customerCardId // save it inside the vehicle history too
           };
+          
+          if (checkInTime) {
+            db.vehicles[vehicleIndex].checkInTime = checkInTime;
+          }
+          
           writeDb(db);
           updatedVehicle = db.vehicles[vehicleIndex];
         }

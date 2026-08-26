@@ -489,12 +489,12 @@ export default function App() {
     }
   };
 
-  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix', customerCardId?: string) => {
+  const handleCheckOut = async (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix', customerCardId?: string, checkInTime?: number, checkOutTime?: number) => {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}/checkout`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ price, paymentMethod, customerCardId })
+        body: JSON.stringify({ price, paymentMethod, customerCardId, checkInTime, checkOutTime })
       });
       const parsed = await parseResponseJson(res, 'Erro ao registrar checkout');
       if (parsed.ok) {
