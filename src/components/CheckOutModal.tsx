@@ -65,17 +65,17 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
     }
   }, [vehicle, customerCards]);
 
-  if (!vehicle) return null;
-
-  const checkInMs = editedCheckIn ? new Date(editedCheckIn).getTime() : vehicle.checkInTime;
+  const checkInMs = editedCheckIn ? new Date(editedCheckIn).getTime() : (vehicle?.checkInTime || 0);
   const checkOutMs = editedCheckOut ? new Date(editedCheckOut).getTime() : now;
-  const price = calculatePrice({ ...vehicle, checkInTime: checkInMs }, pricing, checkOutMs);
+  const price = vehicle ? calculatePrice({ ...vehicle, checkInTime: checkInMs }, pricing, checkOutMs) : 0;
   
   useEffect(() => {
     if (editedCheckIn || editedCheckOut) {
       setCustomPrice(price.toFixed(2));
     }
   }, [editedCheckIn, editedCheckOut]); // purposefully omitting price since we want to trigger specifically on time edit
+
+  if (!vehicle) return null;
 
   const selectedCard = customerCards.find(c => c.id === customerCardId);
 
