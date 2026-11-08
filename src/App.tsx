@@ -104,10 +104,11 @@ export default function App() {
       const lastBackupTime = parseInt(localStorage.getItem('lastAutoBackupTimestamp') || '0', 10);
       const now = Date.now();
       
-      const ONE_HOUR = 1 * 60 * 60 * 1000;
+      const TWELVE_HOURS = 12 * 60 * 60 * 1000;
       
-      // Permitir backup de inicialização (startup) ou a cada hora
-      const shouldBackup = (reason === 'startup') || (now - lastBackupTime >= ONE_HOUR);
+      // Reconhece se o backup já foi feito (manual ou automático) nas últimas 12 horas.
+      // Se já foi feito há menos de 12 horas, não baixa novamente mesmo ao reiniciar o app.
+      const shouldBackup = (now - lastBackupTime >= TWELVE_HOURS);
       
       if (shouldBackup) { 
          try {

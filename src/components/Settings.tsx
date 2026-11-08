@@ -122,6 +122,9 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
           URL.revokeObjectURL(url);
         }, 100);
       }
+
+      // Atualiza a marcação de tempo para o sistema reconhecer que um backup foi realizado
+      localStorage.setItem('lastAutoBackupTimestamp', Date.now().toString());
     } catch (error) {
       console.error("Erro ao gerar backup:", error);
       alert("Erro ao tentar baixar o backup.");
@@ -390,8 +393,20 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
                 Baixar backup automaticamente
               </label>
               <p className="text-xs text-slate-500 mt-1">
-                Uma cópia do banco de dados será baixada assim que abrir o software e depois a cada hora. Note que para valer é preciso clicar em "Salvar Configurações" caso essa opção esteja na sessão acima, mas agora funciona ao marcar!
+                Uma cópia do banco de dados é feita automaticamente a cada 12 horas. Se você baixar manualmente ou já tiver recebido o backup nas últimas 12 horas, o sistema não baixará novamente até completar o ciclo.
               </p>
+              {(() => {
+                const lastTs = parseInt(localStorage.getItem('lastAutoBackupTimestamp') || '0', 10);
+                if (lastTs > 0) {
+                  return (
+                    <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-md border border-emerald-200">
+                      <span>✓ Último backup realizado:</span>
+                      <span>{new Date(lastTs).toLocaleString('pt-BR')}</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
         </div>

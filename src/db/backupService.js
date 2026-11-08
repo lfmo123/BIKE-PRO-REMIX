@@ -53,8 +53,8 @@ export function initBackupService(dbType) {
   // Run on startup
   performBackup();
 
-  // Run every hour
-  cron.schedule('0 * * * *', performBackup);
+  // Run every 12 hours (e.g., at 00:00 and 12:00)
+  cron.schedule('0 */12 * * *', performBackup);
 }
 
 async function uploadToGoogleDrive(filePath) {
