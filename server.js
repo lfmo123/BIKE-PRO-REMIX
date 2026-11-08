@@ -22,7 +22,22 @@ async function startServer() {
 
   // Define qual banco de dados usar ('mysql', 'firebase' ou 'json')
   const envDbType = process.env.DB_TYPE;
-  const dbType = ['mysql', 'json'].includes(envDbType) ? envDbType : 'firebase';
+  let dbType = ['mysql', 'json'].includes(envDbType) ? envDbType : 'firebase';
+
+  if (dbType === 'firebase') {
+    // Testa conectividade real com o Firebase (detecta PERMISSION_DENIED / Billing desabilitado / offline)
+    try {
+      const probePromise = firebaseDb.getPricing();
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout conectando ao Firebase")), 4000));
+      await Promise.race([probePromise, timeoutPromise]);
+      console.log("Firebase conectado e operacional.");
+    } catch (firebaseErr) {
+      console.warn("⚠️ Atenção: Firebase indisponível ou billing desativado no GCP (" + (firebaseErr.message || firebaseErr) + ").");
+      console.warn("🔄 Alternando automaticamente para o banco de dados Local (JSON) para manter o sistema 100% funcional sem travamentos!");
+      dbType = 'json';
+    }
+  }
+
   console.log(`Usando banco de dados: ${dbType.toUpperCase()}`);
 
   if (dbType === 'firebase') {
@@ -55,7 +70,7 @@ async function startServer() {
   } else if (dbType === 'firebase') {
     console.log("Firebase initialized");
   } else {
-    // using local json db
+    console.log("Banco de dados local (JSON) inicializado com sucesso.");
   }
   
   // Start backup service for whatever database we are using 
