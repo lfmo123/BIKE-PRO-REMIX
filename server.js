@@ -28,7 +28,7 @@ async function startServer() {
     // Testa conectividade real com o Firebase (detecta PERMISSION_DENIED / Billing desabilitado / offline)
     try {
       const probePromise = firebaseDb.getPricing();
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout conectando ao Firebase")), 4000));
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout conectando ao Firebase")), 10000));
       await Promise.race([probePromise, timeoutPromise]);
       console.log("Firebase conectado e operacional.");
     } catch (firebaseErr) {
