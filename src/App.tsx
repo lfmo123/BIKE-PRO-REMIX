@@ -24,6 +24,7 @@ import { getLocalDateString } from './lib/dateUtils';
 import { parseResponseJson } from './lib/apiUtils';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { getDeviceModules, DeviceModulesConfig } from './lib/deviceModules';
 
 const defaultPricing: Pricing = {
   bicycle: 5,
@@ -53,6 +54,17 @@ export default function App() {
   const [initialCheckInSpot, setInitialCheckInSpot] = useState<string>('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [vehicleToCheckOut, setVehicleToCheckOut] = useState<ParkedVehicle | null>(null);
+  const [deviceModules, setDeviceModules] = useState<DeviceModulesConfig>(getDeviceModules());
+
+  useEffect(() => {
+    const handleModulesChanged = () => {
+      setDeviceModules(getDeviceModules());
+    };
+    window.addEventListener('bikepark_modules_changed', handleModulesChanged);
+    return () => {
+      window.removeEventListener('bikepark_modules_changed', handleModulesChanged);
+    };
+  }, []);
 
   const fetchOperators = async () => {
     try {
@@ -590,6 +602,7 @@ export default function App() {
         user={user as any} 
         isOpen={isMobileMenuOpen}
         setIsOpen={setIsMobileMenuOpen}
+        modules={deviceModules}
       />
       
       <main className="flex-1 flex flex-col relative overflow-hidden w-full">
@@ -658,7 +671,7 @@ export default function App() {
                     }}
                   />
                 )}
-                {activeTab === 'active' && <ActiveParking vehicles={vehicles} pricing={pricing} onCheckOut={setVehicleToCheckOut} onRevertCheckin={handleRevertCheckin} />}
+                {activeTab === 'active' && <ActiveParking vehicles={vehicles} pricing={pricing} deviceConfig={deviceModules} onCheckOut={setVehicleToCheckOut} onRevertCheckin={handleRevertCheckin} />}
                 {activeTab === 'conference' && <Conference vehicles={vehicles} shifts={shifts} />}
                 {activeTab === 'stored' && <StoredVehicles vehicles={vehicles} pricing={pricing} onCheckOut={setVehicleToCheckOut} />}
                 {activeTab === 'spots' && (
@@ -682,7 +695,7 @@ export default function App() {
                 {activeTab === 'cards' && <CustomerCards cards={customerCards} vehicles={vehicles} transactions={transactions} onAddCard={handleAddCard} onUpdateCard={handleUpdateCard} onDeleteCard={handleDeleteCard} onAddTransaction={handleAddTransaction} />}
                 {activeTab === 'store' && <Store products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} onAddSale={handleAddSale} />}
                 {activeTab === 'audit' && <Audit vehicles={vehicles} sales={sales} transactions={transactions} products={products} onRefreshAll={handleRefreshAll} />}
-                {activeTab === 'history' && <History vehicles={vehicles} onRevertCheckout={handleRevertCheckout} />}
+                {activeTab === 'history' && <History vehicles={vehicles} deviceConfig={deviceModules} onRevertCheckout={handleRevertCheckout} />}
                 {activeTab === 'reports' && <Reports vehicles={vehicles} sales={sales} transactions={transactions} />}
                 {activeTab === 'settings' && <Settings operators={operators} onAddOperator={handleAddOperator} onDeleteOperator={handleDeleteOperator} pricing={pricing} vehicles={vehicles} onSavePricing={handleSavePricing} lostCards={lostCards} onLostCardsChange={() => { fetchLostCards(); fetchVehicles(); }} onResetApp={() => setIsResetAppOpen(true)} />}
               </motion.div>
@@ -709,6 +722,7 @@ export default function App() {
         vehicle={vehicleToCheckOut} 
         pricing={pricing} 
         customerCards={customerCards}
+        deviceConfig={deviceModules}
         onClose={() => setVehicleToCheckOut(null)} 
         onConfirm={handleCheckOut} 
         onReportLostCard={handleReportLostCard}

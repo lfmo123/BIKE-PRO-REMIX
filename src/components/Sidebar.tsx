@@ -1,6 +1,8 @@
 import React from 'react';
 import { LayoutDashboard, Bike, History, Settings, BarChart3, LogOut, LogOutIcon, Grid, PackageOpen, Wallet, StoreIcon, CreditCard, LockIcon, ShieldCheck, ClipboardCheck } from 'lucide-react';
 
+import { DeviceModulesConfig } from '../lib/deviceModules';
+
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -8,10 +10,11 @@ interface SidebarProps {
   user: any;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
+  modules?: DeviceModulesConfig;
 }
 
-export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIsOpen }: SidebarProps) {
-  const navItems = [
+export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIsOpen, modules }: SidebarProps) {
+  const allNavItems = [
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'active', label: 'Vagas Ativas', icon: Bike },
     { id: 'conference', label: 'Conferência', icon: ClipboardCheck },
@@ -26,6 +29,12 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
     { id: 'audit', label: 'Auditoria', icon: ShieldCheck },
     { id: 'settings', label: 'Configurações', icon: Settings },
   ];
+
+  const navItems = allNavItems.filter((item) => {
+    if (!modules) return true;
+    if (item.id === 'settings') return true; // Configurações sempre visível para administração
+    return (modules as any)[item.id] !== false;
+  });
 
   return (
     <>

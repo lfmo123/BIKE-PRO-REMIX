@@ -4,14 +4,17 @@ import { ParkedVehicle, VehicleType, Pricing } from '../types';
 import { calculatePrice, formatDuration } from '../lib/pricing';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 
+import { DeviceFeaturesConfig } from '../lib/deviceModules';
+
 interface ActiveParkingProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
+  deviceConfig?: DeviceFeaturesConfig;
   onCheckOut: (vehicle: ParkedVehicle) => void;
   onRevertCheckin?: (vehicleId: string) => void;
 }
 
-export function ActiveParking({ vehicles, pricing, onCheckOut, onRevertCheckin }: ActiveParkingProps) {
+export function ActiveParking({ vehicles, pricing, deviceConfig, onCheckOut, onRevertCheckin }: ActiveParkingProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<VehicleType | 'all'>('all');
   const [revertIntent, setRevertIntent] = useState<string | null>(null);
@@ -166,13 +169,15 @@ export function ActiveParking({ vehicles, pricing, onCheckOut, onRevertCheckin }
                 </div>
               </div>
               
-              <button 
-                onClick={() => onCheckOut(vehicle)}
-                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-medium transition-colors flex items-center justify-center"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Registrar Saída
-              </button>
+              {deviceConfig?.canCheckOut !== false && (
+                <button 
+                  onClick={() => onCheckOut(vehicle)}
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-medium transition-colors flex items-center justify-center"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Registrar Saída
+                </button>
+              )}
             </div>
           </div>
         )})}

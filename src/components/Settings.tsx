@@ -1,10 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { Save, DollarSign, Download, Upload, Database, Cloud, Trash2 } from 'lucide-react';
+import { Save, DollarSign, Download, Upload, Database, Cloud, Trash2, Smartphone, Lock, Check, Key, Eye, EyeOff, Shield } from 'lucide-react';
 import { ParkedVehicle, Pricing, LostCard, Operator } from '../types';
 import { getLocalDateString } from '../lib/dateUtils';
 import { parseResponseJson } from '../lib/apiUtils';
+import { 
+  DeviceModulesConfig, 
+  getDeviceModules, 
+  saveDeviceModules, 
+  PRESET_PROFILES, 
+  PresetProfile,
+  getAdminPin,
+  setAdminPin,
+  verifyAdminPin
+} from '../lib/deviceModules';
 
 interface SettingsProps {
   operators: Operator[];
@@ -25,10 +35,64 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
   const [isRestoring, setIsRestoring] = useState(false);
   const [operatorName, setOperatorName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [modules, setModules] = useState<DeviceModulesConfig>(getDeviceModules());
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [showNewPinSection, setShowNewPinSection] = useState(false);
+  const [newPin, setNewPin] = useState('');
+  const [newPinConfirm, setNewPinConfirm] = useState('');
+  const [pinSuccessMsg, setPinSuccessMsg] = useState('');
 
   useEffect(() => {
     setLocalPricing(pricing);
+    setModules(getDeviceModules());
   }, [pricing]);
+
+  const handleUnlockModules = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (verifyAdminPin(pinInput)) {
+      setIsUnlocked(true);
+      setPinError('');
+      setPinInput('');
+    } else {
+      setPinError('PIN incorreto. Tente novamente.');
+    }
+  };
+
+  const handleToggleModule = (key: keyof DeviceModulesConfig) => {
+    if (!isUnlocked) return;
+    const updated = { ...modules, [key]: !modules[key] };
+    setModules(updated);
+    saveDeviceModules(updated);
+  };
+
+  const handleApplyPreset = (presetKey: PresetProfile) => {
+    if (!isUnlocked) return;
+    const preset = PRESET_PROFILES[presetKey];
+    if (preset) {
+      setModules(preset.config);
+      saveDeviceModules(preset.config);
+    }
+  };
+
+  const handleChangePin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPin.length < 4) {
+      alert('O PIN deve ter pelo menos 4 dígitos.');
+      return;
+    }
+    if (newPin !== newPinConfirm) {
+      alert('A confirmação do PIN não confere.');
+      return;
+    }
+    setAdminPin(newPin);
+    setNewPin('');
+    setNewPinConfirm('');
+    setShowNewPinSection(false);
+    setPinSuccessMsg('Senha PIN alterada com sucesso!');
+    setTimeout(() => setPinSuccessMsg(''), 4000);
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -193,6 +257,296 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Configurações</h1>
+      </div>
+
+      {/* MÓDULOS DESTE DISPOSITIVO & PIN */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="bg-indigo-100 p-2 rounded-lg">
+              <Smartphone className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Módulos deste Dispositivo</h2>
+              <p className="text-xs text-slate-500">
+                Personalize quais menus e funções ficam visíveis especificamente neste aparelho.
+              </p>
+            </div>
+          </div>
+          {isUnlocked && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-md border border-emerald-200">
+              <Check className="w-3.5 h-3.5" /> Desbloqueado
+            </span>
+          )}
+        </div>
+
+        {!isUnlocked ? (
+          <form onSubmit={handleUnlockModules} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+            <div className="flex items-center gap-2 text-slate-700 text-sm font-semibold">
+              <Lock className="w-4 h-4 text-slate-500" />
+              <span>Digite o PIN de Administrador para configurar este aparelho</span>
+            </div>
+            <p className="text-xs text-slate-500">
+              Proteção para evitar que operadores no pátio ativem telas restritas (PIN padrão de fábrica: <strong className="text-slate-700 font-mono">1234</strong>).
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={8}
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                placeholder="Digite o PIN (ex: 1234)"
+                className="flex-1 px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+              />
+              <button
+                type="submit"
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Key className="w-4 h-4" /> Desbloquear
+              </button>
+            </div>
+            {pinError && <p className="text-xs text-red-600 font-medium">{pinError}</p>}
+          </form>
+        ) : (
+          <div className="space-y-6">
+            {/* Perfis Rápidos */}
+            <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+              <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 mb-2">
+                ⚡ Perfis Prontos de Operação
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {(['all', 'patio', 'caixa'] as PresetProfile[]).map((key) => {
+                  const p = PRESET_PROFILES[key];
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handleApplyPreset(key)}
+                      className="p-3 text-left bg-white hover:bg-indigo-50 border border-indigo-200 hover:border-indigo-400 rounded-xl transition-all shadow-xs flex flex-col justify-between"
+                    >
+                      <span className="text-xs font-bold text-slate-800">{p.name}</span>
+                      <span className="text-[11px] text-slate-500 mt-1 line-clamp-2">{p.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Módulos Individuais */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
+                📋 Módulos Ativos neste Aparelho
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {[
+                  { key: 'dashboard', label: 'Painel Geral', desc: 'Resumo e indicadores principais' },
+                  { key: 'active', label: 'Vagas Ativas', desc: 'Listagem de veículos no pátio' },
+                  { key: 'conference', label: 'Conferência de Pátio', desc: 'Auditoria e conferência física' },
+                  { key: 'spots', label: 'Grade de Vagas', desc: 'Visualização gráfica de vagas numeradas' },
+                  { key: 'stored', label: 'Em Depósito', desc: 'Veículos abandonados ou retidos' },
+                  { key: 'cards', label: 'Cartões Mensalistas', desc: 'Pré-pago e pós-pago de clientes' },
+                  { key: 'shifts', label: 'Fechamento de Caixa', desc: 'Abertura, turnos e conferência de caixa' },
+                  { key: 'cashbook', label: 'Livro Caixa', desc: 'Registro de entradas e saídas extras' },
+                  { key: 'store', label: 'Loja & Estoque', desc: 'Venda de peças, acessórios e bebidas' },
+                  { key: 'history', label: 'Histórico de Saídas', desc: 'Consultas de veículos finalizados' },
+                  { key: 'reports', label: 'Relatórios Financeiros', desc: 'Gráficos e estatísticas de faturamento' },
+                  { key: 'audit', label: 'Auditoria do Sistema', desc: 'Rastreio de ações dos operadores' },
+                ].map((item) => {
+                  const isEnabled = (modules as any)[item.key] !== false;
+                  return (
+                    <div
+                      key={item.key}
+                      onClick={() => handleToggleModule(item.key as keyof DeviceModulesConfig)}
+                      className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                        isEnabled
+                          ? 'bg-slate-50 border-slate-300'
+                          : 'bg-white border-slate-200 opacity-60'
+                      }`}
+                    >
+                      <div className="pr-2">
+                        <p className={`text-sm font-semibold ${isEnabled ? 'text-slate-900' : 'text-slate-500'}`}>
+                          {item.label}
+                        </p>
+                        <p className="text-xs text-slate-500">{item.desc}</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isEnabled}
+                        onChange={() => {}}
+                        className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Permissões de Funções Específicas */}
+            <div className="pt-4 border-t border-slate-200">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                🔒 Permissões e Ações Específicas neste Aparelho
+              </label>
+              <p className="text-xs text-slate-500 mb-3">
+                Desative botões críticos para impedir descontos indevidos, edições de horário ou saídas não autorizadas.
+              </p>
+
+              <div className="space-y-4">
+                {/* Entrada e Pátio */}
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    🚲 Entrada & Pátio
+                  </h4>
+                  <div className="space-y-2">
+                    {[
+                      { key: 'canCheckIn', label: 'Permitir Nova Entrada de Veículo', desc: 'Exibe o botão de check-in' },
+                      { key: 'canCheckInBulk', label: 'Permitir Entrada em Lote / Várias Vagas', desc: 'Preenchimento rápido de múltiplos cartões' },
+                      { key: 'canPrintTicket', label: 'Permitir Imprimir Ticket / Cupom', desc: 'Geração de comprovante térmico de entrada' },
+                      { key: 'canRevertCheckin', label: 'Permitir Cancelar Entrada Recente', desc: 'Reversão de veículo que acabou de entrar' },
+                    ].map((item) => {
+                      const isEnabled = (modules as any)[item.key] !== false;
+                      return (
+                        <label key={item.key} className="flex items-start justify-between cursor-pointer p-1.5 rounded-lg hover:bg-white transition-colors">
+                          <div className="pr-2">
+                            <span className={`text-xs font-semibold ${isEnabled ? 'text-slate-900' : 'text-slate-500'}`}>{item.label}</span>
+                            <p className="text-[11px] text-slate-500">{item.desc}</p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={() => handleToggleModule(item.key as keyof DeviceModulesConfig)}
+                            className="mt-0.5 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Saída e Cobrança */}
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    💳 Saída, Cobrança & Checkout
+                  </h4>
+                  <div className="space-y-2">
+                    {[
+                      { key: 'canCheckOut', label: 'Permitir Realizar Saída / Cobrança', desc: 'Habilita o botão de finalizar estadia' },
+                      { key: 'canEditCheckoutPrice', label: 'Permitir Alterar Valor Cobrado Manualmente', desc: 'Desabilitar impede operador de dar desconto/alterar o cálculo' },
+                      { key: 'canEditCheckoutTimes', label: 'Permitir Editar Horários de Entrada/Saída', desc: 'Desabilitar bloqueia alteração manual do tempo estacionado' },
+                      { key: 'canReportLostCard', label: 'Permitir Lançar Cartão Perdido com Taxa', desc: 'Cobrança de taxa por extravio' },
+                      { key: 'canAcceptFiado', label: 'Permitir Pagamento Fiado / Débito em Conta', desc: 'Habilita opção Fiado na tela de pagamento' },
+                      { key: 'canRevertCheckout', label: 'Permitir Reverter Saída Finalizada', desc: 'Reabrir veículo no histórico de saídas' },
+                    ].map((item) => {
+                      const isEnabled = (modules as any)[item.key] !== false;
+                      return (
+                        <label key={item.key} className="flex items-start justify-between cursor-pointer p-1.5 rounded-lg hover:bg-white transition-colors">
+                          <div className="pr-2">
+                            <span className={`text-xs font-semibold ${isEnabled ? 'text-slate-900' : 'text-slate-500'}`}>{item.label}</span>
+                            <p className="text-[11px] text-slate-500">{item.desc}</p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={() => handleToggleModule(item.key as keyof DeviceModulesConfig)}
+                            className="mt-0.5 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Caixa, Loja & Clientes */}
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    🏪 Caixa, Loja & Mensalistas
+                  </h4>
+                  <div className="space-y-2">
+                    {[
+                      { key: 'canManageShifts', label: 'Permitir Abertura / Fechamento de Turno', desc: 'Operação de caixa e sangria' },
+                      { key: 'canManageCashbook', label: 'Permitir Lançar Receitas/Despesas Extras', desc: 'Lançamentos diretos no Livro Caixa' },
+                      { key: 'canSellProducts', label: 'Permitir Venda de Produtos da Loja', desc: 'Venda de peças, acessórios e bebidas' },
+                      { key: 'canManageInventory', label: 'Permitir Alterar Estoque e Preço de Produtos', desc: 'Cadastro e ajuste de mercadorias' },
+                      { key: 'canManageCards', label: 'Permitir Cadastrar/Alterar Mensalistas', desc: 'Recarga de créditos e criação de cartões' },
+                    ].map((item) => {
+                      const isEnabled = (modules as any)[item.key] !== false;
+                      return (
+                        <label key={item.key} className="flex items-start justify-between cursor-pointer p-1.5 rounded-lg hover:bg-white transition-colors">
+                          <div className="pr-2">
+                            <span className={`text-xs font-semibold ${isEnabled ? 'text-slate-900' : 'text-slate-500'}`}>{item.label}</span>
+                            <p className="text-[11px] text-slate-500">{item.desc}</p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={() => handleToggleModule(item.key as keyof DeviceModulesConfig)}
+                            className="mt-0.5 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Alteração do PIN */}
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowNewPinSection(!showNewPinSection)}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  {showNewPinSection ? 'Cancelar alteração do PIN' : 'Alterar PIN de Administrador deste aparelho'}
+                </button>
+                {pinSuccessMsg && <p className="text-xs text-emerald-600 font-bold mt-1">{pinSuccessMsg}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsUnlocked(false)}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1"
+              >
+                <Lock className="w-3.5 h-3.5" /> Bloquear Configuração
+              </button>
+            </div>
+
+            {showNewPinSection && (
+              <form onSubmit={handleChangePin} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <p className="text-xs font-bold text-slate-700">Definir Novo PIN de Segurança</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={8}
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value)}
+                    placeholder="Novo PIN (mín. 4 dígitos)"
+                    className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs"
+                    required
+                  />
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={8}
+                    value={newPinConfirm}
+                    onChange={(e) => setNewPinConfirm(e.target.value)}
+                    placeholder="Confirmar Novo PIN"
+                    className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold"
+                >
+                  Salvar Novo PIN
+                </button>
+              </form>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">

@@ -3,12 +3,15 @@ import { Bike, Zap, Motorbike, Search, Calendar, Clock, DollarSign, CreditCard, 
 import { ParkedVehicle, VehicleType } from '../types';
 import { getLocalDateString } from '../lib/dateUtils';
 
+import { DeviceFeaturesConfig } from '../lib/deviceModules';
+
 interface HistoryProps {
   vehicles: ParkedVehicle[];
+  deviceConfig?: DeviceFeaturesConfig;
   onRevertCheckout?: (vehicleId: string) => void;
 }
 
-export function History({ vehicles, onRevertCheckout }: HistoryProps) {
+export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<VehicleType | 'all'>('all');
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
@@ -214,7 +217,7 @@ export function History({ vehicles, onRevertCheckout }: HistoryProps) {
                         <th className="p-2">Horário</th>
                         <th className="p-2">Duração</th>
                         <th className="p-2 text-right">Valor</th>
-                        {onRevertCheckout && <th className="p-2 text-center">Ações</th>}
+                        {onRevertCheckout && deviceConfig?.canRevertCheckout !== false && <th className="p-2 text-center">Ações</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -230,7 +233,7 @@ export function History({ vehicles, onRevertCheckout }: HistoryProps) {
                             {formatDuration(v.checkInTime, v.checkOutTime)}
                           </td>
                           <td className="p-2 text-right">R$ {(v.price || 0).toFixed(2)}</td>
-                          {onRevertCheckout && (
+                          {onRevertCheckout && deviceConfig?.canRevertCheckout !== false && (
                             <td className="p-2 text-center text-xs">
                               <button 
                                 onClick={() => setRevertIntent(v.id)}
@@ -244,7 +247,7 @@ export function History({ vehicles, onRevertCheckout }: HistoryProps) {
                           )}
                         </tr>
                       ))}
-                      {selectedCardHistory.length === 0 && <tr><td colSpan={onRevertCheckout ? 6 : 5} className="p-4 text-center">Nenhum uso para este cartão no dia.</td></tr>}
+                      {selectedCardHistory.length === 0 && <tr><td colSpan={onRevertCheckout && deviceConfig?.canRevertCheckout !== false ? 6 : 5} className="p-4 text-center">Nenhum uso para este cartão no dia.</td></tr>}
                     </tbody>
                   </table>
                 );

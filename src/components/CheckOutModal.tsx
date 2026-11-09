@@ -3,17 +3,20 @@ import { X, Clock, DollarSign, CreditCard, Banknote, Smartphone, AlertTriangle, 
 import { ParkedVehicle, Pricing, CustomerCard } from '../types';
 import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/pricing';
 
+import { DeviceFeaturesConfig } from '../lib/deviceModules';
+
 interface CheckOutModalProps {
   vehicle: ParkedVehicle | null;
   pricing: Pricing;
   customerCards?: CustomerCard[];
+  deviceConfig?: DeviceFeaturesConfig;
   onClose: () => void;
   onConfirm: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix', customerCardId?: string, checkInTime?: number, checkOutTime?: number) => void;
   onReportLostCard?: (vehicleId: string, lostCardName: string, lostCardPhone: string) => void;
   onRevertCheckin?: (vehicleId: string) => void;
 }
 
-export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, onConfirm, onReportLostCard, onRevertCheckin }: CheckOutModalProps) {
+export function CheckOutModal({ vehicle, pricing, customerCards = [], deviceConfig, onClose, onConfirm, onReportLostCard, onRevertCheckin }: CheckOutModalProps) {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix'>('machine');
   const [now, setNow] = useState(Date.now());
   const [showLostForm, setShowLostForm] = useState(false);
@@ -108,8 +111,9 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
                 <input 
                   type="datetime-local" 
                   value={editedCheckIn}
+                  disabled={deviceConfig?.canEditCheckoutTimes === false}
                   onChange={(e) => setEditedCheckIn(e.target.value)}
-                  className="font-bold text-slate-900 w-full outline-none bg-transparent border-b border-transparent focus:border-indigo-300 text-sm"
+                  className={`font-bold text-slate-900 w-full outline-none bg-transparent border-b text-sm ${deviceConfig?.canEditCheckoutTimes === false ? 'border-transparent cursor-not-allowed opacity-80' : 'border-transparent focus:border-indigo-300'}`}
                 />
               </div>
               <div>
@@ -117,8 +121,9 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
                 <input 
                   type="datetime-local" 
                   value={editedCheckOut}
+                  disabled={deviceConfig?.canEditCheckoutTimes === false}
                   onChange={(e) => setEditedCheckOut(e.target.value)}
-                  className="font-bold text-slate-900 w-full outline-none bg-transparent border-b border-transparent focus:border-indigo-300 text-sm"
+                  className={`font-bold text-slate-900 w-full outline-none bg-transparent border-b text-sm ${deviceConfig?.canEditCheckoutTimes === false ? 'border-transparent cursor-not-allowed opacity-80' : 'border-transparent focus:border-indigo-300'}`}
                 />
               </div>
               <div className="col-span-2 pt-1 border-t border-slate-50 flex justify-between items-center mt-1">
@@ -147,9 +152,14 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
                   type="number"
                   min="0"
                   step="0.01"
+                  disabled={deviceConfig?.canEditCheckoutPrice === false}
                   value={customPrice}
                   onChange={(e) => setCustomPrice(e.target.value)}
-                  className="font-bold text-emerald-600 text-xl leading-none w-full bg-transparent outline-none p-0 border-b border-emerald-200 focus:border-emerald-500 transition-colors"
+                  className={`font-bold text-emerald-600 text-xl leading-none w-full bg-transparent outline-none p-0 border-b transition-colors ${
+                    deviceConfig?.canEditCheckoutPrice === false 
+                      ? 'border-transparent cursor-not-allowed select-none' 
+                      : 'border-emerald-200 focus:border-emerald-500'
+                  }`}
                 />
                 {vehicle.cardLost && pricing.lostCardFee && (
                   <span className="text-xs text-red-500 leading-tight mt-1 mb-0.5">
@@ -210,21 +220,23 @@ export function CheckOutModal({ vehicle, pricing, customerCards = [], onClose, o
                 <span className="text-xs sm:text-sm font-medium text-center">Cartão</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('fiado')}
-                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border-2 transition-all ${
-                  paymentMethod === 'fiado' 
-                    ? 'border-red-500 bg-red-50 text-red-700' 
-                    : 'border-slate-100 hover:border-slate-200 text-slate-500'
-                }`}
-              >
-                <AlertTriangle className={`w-5 h-5 mb-1 ${paymentMethod === 'fiado' ? 'text-red-600' : ''}`} />
-                <span className="text-xs sm:text-sm font-medium text-center">Fiado</span>
-              </button>
+              {deviceConfig?.canAcceptFiado !== false && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('fiado')}
+                  className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border-2 transition-all ${
+                    paymentMethod === 'fiado' 
+                      ? 'border-red-500 bg-red-50 text-red-700' 
+                      : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                  }`}
+                >
+                  <AlertTriangle className={`w-5 h-5 mb-1 ${paymentMethod === 'fiado' ? 'text-red-600' : ''}`} />
+                  <span className="text-xs sm:text-sm font-medium text-center">Fiado</span>
+                </button>
+              )}
             </div>
 
-            {!vehicle.cardLost && !showLostForm && (
+            {deviceConfig?.canReportLostCard !== false && !vehicle.cardLost && !showLostForm && (
               <div className="pt-0.5 flex justify-end">
                 <button
                   type="button"
