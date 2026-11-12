@@ -287,7 +287,7 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
               <span>Digite o PIN de Administrador para configurar este aparelho</span>
             </div>
             <p className="text-xs text-slate-500">
-              Proteção para evitar que operadores no pátio ativem telas restritas (PIN padrão de fábrica: <strong className="text-slate-700 font-mono">1234</strong>).
+              Acesso restrito ao administrador do estabelecimento.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
@@ -296,7 +296,7 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
                 maxLength={8}
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value)}
-                placeholder="Digite o PIN (ex: 1234)"
+                placeholder="Digite o PIN de segurança"
                 className="flex-1 px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
               />
               <button
