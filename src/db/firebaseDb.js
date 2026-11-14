@@ -1,5 +1,18 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, query, where, orderBy, writeBatch } from 'firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  getDoc,
+  query,
+  where,
+  writeBatch,
+  runTransaction
+} from 'firebase/firestore';
 import fs from 'fs';
 import path from 'path';
 
@@ -16,14 +29,26 @@ try {
   console.error("Failed to initialize Firebase:", error);
 }
 
+function getSafeCardLockId(cardNumber) {
+  return encodeURIComponent(String(cardNumber || '').trim().toUpperCase()).replace(/\./g, '%2E') || 'EMPTY';
+}
+
+function removeUndefinedFields(obj) {
+  const clean = {};
+  Object.entries(obj || {}).forEach(([k, v]) => {
+    if (v !== undefined) clean[k] = v;
+  });
+  return clean;
+}
+
 // ------------------------------------
 // Vehicles
 // ------------------------------------
 export async function getVehicles() {
-  const q = query(collection(db, 'vehicles')); // Optionally add orderBy('checkInTime', 'desc') if indexed
+  const q = query(collection(db, 'vehicles'));
   const snapshot = await getDocs(q);
   let vehicles = [];
-  
+
   const thirtyDaysAgo = Date.now() - 2592000000;
   const activeSpotMap = new Map();
 
@@ -33,7 +58,7 @@ export async function getVehicles() {
       v.status = 'stored';
       updateDoc(docSnap.ref, { status: 'stored' }).catch(console.error);
     }
-    
+
     if ((v.status === 'active' || v.status === 'stored') && v.cardNumber) {
       const existing = activeSpotMap.get(v.cardNumber);
       if (existing) {
@@ -51,14 +76,13 @@ export async function getVehicles() {
     vehicles.push(v);
   });
 
-  // Filter out any we marked for deletion
   vehicles = vehicles.filter(v => {
     if ((v.status === 'active' || v.status === 'stored') && v.cardNumber) {
       return activeSpotMap.get(v.cardNumber).id === v.id;
     }
     return true;
   });
-  
+
   return vehicles.sort((a, b) => b.checkInTime - a.checkInTime);
 }
 
@@ -74,8 +98,46 @@ export async function checkSpotTaken(cardNumber) {
 }
 
 export async function checkInVehicle(vehicle) {
-  await setDoc(doc(db, 'vehicles', vehicle.id), vehicle);
-  return vehicle;
+  const cleanVehicle = removeUndefinedFields(vehicle);
+  const lockId = getSafeCardLockId(cleanVehicle.cardNumber);
+  const lockRef = doc(db, 'spotLocks', lockId);
+  const vehicleRef = doc(db, 'vehicles', cleanVehicle.id);
+
+  // Primeiro verifica veículos legados sem lock
+  const legacyTaken = await checkSpotTaken(cleanVehicle.cardNumber);
+  if (legacyTaken) {
+    const err = new Error('Esta vaga/cartão já está ocupada por outro veículo.');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  await runTransaction(db, async (tx) => {
+    const lockSnap = await tx.get(lockRef);
+    let existingVehSnap = null;
+    if (lockSnap.exists() && lockSnap.data().active && lockSnap.data().vehicleId) {
+      existingVehSnap = await tx.get(doc(db, 'vehicles', lockSnap.data().vehicleId));
+    }
+
+    if (
+      existingVehSnap &&
+      existingVehSnap.exists() &&
+      (existingVehSnap.data().status === 'active' || existingVehSnap.data().status === 'stored')
+    ) {
+      const err = new Error('Esta vaga/cartão acabou de ser ocupada em outro aparelho.');
+      err.statusCode = 409;
+      throw err;
+    }
+
+    tx.set(vehicleRef, cleanVehicle);
+    tx.set(lockRef, {
+      cardNumber: cleanVehicle.cardNumber,
+      vehicleId: cleanVehicle.id,
+      active: true,
+      updatedAt: Date.now()
+    });
+  });
+
+  return cleanVehicle;
 }
 
 export async function revertCheckOut(id) {
@@ -83,69 +145,136 @@ export async function revertCheckOut(id) {
   const vehicleSnap = await getDoc(vehicleRef);
   if (!vehicleSnap.exists()) return null;
   const data = vehicleSnap.data();
-  
+
   await updateDoc(vehicleRef, {
     status: 'active',
     checkOutTime: null,
     price: null,
     paymentMethod: null
   });
-  
+
+  if (data.cardNumber) {
+    const lockRef = doc(db, 'spotLocks', getSafeCardLockId(data.cardNumber));
+    await setDoc(lockRef, {
+      cardNumber: data.cardNumber,
+      vehicleId: id,
+      active: true,
+      updatedAt: Date.now()
+    }).catch(console.error);
+  }
+
   return { ...data, status: 'active', checkOutTime: null, price: null, paymentMethod: null };
 }
 
 export async function revertCheckIn(id) {
   const vehicleRef = doc(db, 'vehicles', id);
+  const snap = await getDoc(vehicleRef);
+  const cardNumber = snap.exists() ? snap.data().cardNumber : null;
   await deleteDoc(vehicleRef);
+  if (cardNumber) {
+    const lockRef = doc(db, 'spotLocks', getSafeCardLockId(cardNumber));
+    await setDoc(lockRef, { active: false, updatedAt: Date.now() }, { merge: true }).catch(console.error);
+  }
   return true;
 }
 
-export async function checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId, checkInTime) {
+export async function checkOutVehicle(
+  id,
+  price,
+  paymentMethod,
+  checkOutTime,
+  customerCardId,
+  checkInTime,
+  checkOutOperatorName
+) {
   const vehicleRef = doc(db, 'vehicles', id);
-  const vehicleSnap = await getDoc(vehicleRef);
-  if (!vehicleSnap.exists()) return null;
-  
-  const updatedData = {
-    status: 'completed',
-    price,
-    paymentMethod,
-    checkOutTime
-  };
-  
-  if (checkInTime) {
-    updatedData.checkInTime = checkInTime;
+
+  // Resolve customerCardId caso não tenha sido passado explicitamente mas seja pagamento de cartão
+  let resolvedCardId = customerCardId;
+  if (!resolvedCardId && (paymentMethod === 'card' || paymentMethod === 'postpaid_card')) {
+    const vPreSnap = await getDoc(vehicleRef);
+    if (vPreSnap.exists()) {
+      const vData = vPreSnap.data();
+      const cardsSnap = await getDocs(query(collection(db, 'customerCards'), where('cardNumber', '==', vData.cardNumber)));
+      if (!cardsSnap.empty) {
+        resolvedCardId = cardsSnap.docs[0].id;
+      }
+    }
   }
-  
-  if (customerCardId) {
-    updatedData.customerCardId = customerCardId;
-  }
-  
-  await updateDoc(vehicleRef, updatedData);
-  return { ...vehicleSnap.data(), ...updatedData };
+
+  const cardRef =
+    (paymentMethod === 'card' || paymentMethod === 'postpaid_card') && resolvedCardId
+      ? doc(db, 'customerCards', resolvedCardId)
+      : null;
+
+  const result = await runTransaction(db, async (tx) => {
+    const vehicleSnap = await tx.get(vehicleRef);
+    if (!vehicleSnap.exists()) return null;
+
+    const currentData = vehicleSnap.data();
+    if (currentData.status === 'completed') {
+      const err = new Error('Este veículo já foi finalizado em outro dispositivo.');
+      err.statusCode = 409;
+      throw err;
+    }
+
+    let cardSnap = null;
+    if (cardRef) {
+      cardSnap = await tx.get(cardRef);
+    }
+
+    const updatedData = removeUndefinedFields({
+      status: 'completed',
+      price,
+      paymentMethod,
+      checkOutTime,
+      checkInTime: checkInTime || undefined,
+      customerCardId: resolvedCardId || undefined,
+      checkOutOperatorName: checkOutOperatorName || undefined
+    });
+
+    tx.update(vehicleRef, updatedData);
+
+    if (currentData.cardNumber) {
+      const lockRef = doc(db, 'spotLocks', getSafeCardLockId(currentData.cardNumber));
+      tx.set(lockRef, { active: false, updatedAt: Date.now() }, { merge: true });
+    }
+
+    if (cardSnap && cardSnap.exists()) {
+      const cardData = cardSnap.data();
+      const prevBalance = Number(cardData.balance) || 0;
+      const numPrice = Number(price) || 0;
+      const newBalance = paymentMethod === 'card' ? prevBalance - numPrice : prevBalance + numPrice;
+      tx.update(cardRef, { balance: newBalance });
+    }
+
+    return { ...currentData, ...updatedData };
+  });
+
+  return result;
 }
 
 export async function payFiado(id, paymentMethod, paymentDate, amountToPay) {
   const vehicleRef = doc(db, 'vehicles', id);
-  const vehicleSnap = await getDoc(vehicleRef);
-  if (!vehicleSnap.exists()) return null;
-  
-  const currentData = vehicleSnap.data();
-  const currentPaid = currentData.fiadoPaidAmount || 0;
-  const newPaid = currentPaid + amountToPay;
-  const isFullyPaid = newPaid >= currentData.price;
-  
-  const updatedData = {
-    fiadoPaidAmount: newPaid,
-    fiadoPaymentDate: paymentDate,
-    fiadoPaymentMethod: paymentMethod
-  };
-  
-  if (isFullyPaid) {
-    updatedData.isFiadoPaid = true;
-  }
-  
-  await updateDoc(vehicleRef, updatedData);
-  return { ...currentData, ...updatedData };
+  return runTransaction(db, async (tx) => {
+    const vehicleSnap = await tx.get(vehicleRef);
+    if (!vehicleSnap.exists()) return null;
+
+    const currentData = vehicleSnap.data();
+    const currentPaid = Number(currentData.fiadoPaidAmount) || 0;
+    const newPaid = currentPaid + Number(amountToPay || 0);
+    const isFullyPaid = newPaid >= (Number(currentData.price) || 0);
+
+    const updatedData = {
+      fiadoPaidAmount: newPaid,
+      fiadoPaymentDate: paymentDate,
+      fiadoPaymentMethod: paymentMethod,
+      ...(isFullyPaid ? { isFiadoPaid: true } : {})
+    };
+
+    tx.update(vehicleRef, updatedData);
+    return { ...currentData, ...updatedData };
+  });
 }
 
 // ------------------------------------
@@ -159,8 +288,9 @@ export async function getTransactions() {
 }
 
 export async function addTransaction(transaction) {
-  await setDoc(doc(db, 'transactions', transaction.id), transaction);
-  return transaction;
+  const clean = removeUndefinedFields(transaction);
+  await setDoc(doc(db, 'transactions', clean.id), clean);
+  return clean;
 }
 
 export async function removeTransaction(id) {
@@ -178,17 +308,20 @@ export async function getCustomerCards() {
 }
 
 export async function addCustomerCard(card) {
-  await setDoc(doc(db, 'customerCards', card.id), card);
-  return card;
+  const clean = removeUndefinedFields(card);
+  await setDoc(doc(db, 'customerCards', clean.id), clean);
+  return clean;
 }
 
 export async function updateCustomerCard(id, data) {
   const cardRef = doc(db, 'customerCards', id);
-  const cardSnap = await getDoc(cardRef);
-  if (!cardSnap.exists()) return null;
-  const updatedData = { ...cardSnap.data(), ...data };
-  await updateDoc(cardRef, updatedData);
-  return updatedData;
+  return runTransaction(db, async (tx) => {
+    const cardSnap = await tx.get(cardRef);
+    if (!cardSnap.exists()) return null;
+    const updatedData = removeUndefinedFields({ ...cardSnap.data(), ...data });
+    tx.update(cardRef, updatedData);
+    return updatedData;
+  });
 }
 
 export async function removeCustomerCard(id) {
@@ -206,8 +339,9 @@ export async function getOperators() {
 }
 
 export async function addOperator(operator) {
-  await setDoc(doc(db, 'operators', operator.id), operator);
-  return operator;
+  const clean = removeUndefinedFields(operator);
+  await setDoc(doc(db, 'operators', clean.id), clean);
+  return clean;
 }
 
 export async function removeOperator(id) {
@@ -225,17 +359,20 @@ export async function getShifts() {
 }
 
 export async function addShift(shift) {
-  await setDoc(doc(db, 'shifts', shift.id), shift);
-  return shift;
+  const clean = removeUndefinedFields(shift);
+  await setDoc(doc(db, 'shifts', clean.id), clean);
+  return clean;
 }
 
 export async function updateShift(id, data) {
   const shiftRef = doc(db, 'shifts', id);
-  const shiftSnap = await getDoc(shiftRef);
-  if (!shiftSnap.exists()) return null;
-  const updatedData = { ...shiftSnap.data(), ...data };
-  await updateDoc(shiftRef, updatedData);
-  return updatedData;
+  return runTransaction(db, async (tx) => {
+    const shiftSnap = await tx.get(shiftRef);
+    if (!shiftSnap.exists()) return null;
+    const updatedData = removeUndefinedFields({ ...shiftSnap.data(), ...data });
+    tx.update(shiftRef, updatedData);
+    return updatedData;
+  });
 }
 
 // ------------------------------------
@@ -249,7 +386,7 @@ export async function getLostCards() {
 }
 
 export async function addLostCard(cardNumber, name, phone) {
-  const cardId = cardNumber.replace(/\W/g, ''); // alphanumeric only for id
+  const cardId = cardNumber.replace(/\W/g, '');
   const newCard = { cardNumber, name, phone, date: Date.now() };
   await setDoc(doc(db, 'lostCards', cardId), newCard);
   return newCard;
@@ -264,7 +401,7 @@ export async function recoverVehicleCardLost(cardNumber) {
   const vehiclesCol = collection(db, 'vehicles');
   const q = query(vehiclesCol, where('cardNumber', '==', cardNumber), where('cardLost', '==', true));
   const snap = await getDocs(q);
-  const updatePromises = snap.docs.map(docSnap => 
+  const updatePromises = snap.docs.map(docSnap =>
     updateDoc(doc(db, 'vehicles', docSnap.id), { cardLost: false })
   );
   await Promise.all(updatePromises);
@@ -282,10 +419,10 @@ export async function reportLostCard(vehicleId, lostCardName, lostCardPhone) {
   const vehicleRef = doc(db, 'vehicles', vehicleId);
   const vehicleSnap = await getDoc(vehicleRef);
   if (!vehicleSnap.exists()) return null;
-  
+
   const updatedData = { cardLost: true, lostCardName, lostCardPhone };
   await updateDoc(vehicleRef, updatedData);
-  
+
   return { ...vehicleSnap.data(), ...updatedData };
 }
 
@@ -297,15 +434,13 @@ export async function getPricing() {
   let pricingData;
   if (docSnap.exists()) {
     pricingData = docSnap.data();
-    // Check if it's the old bad structure
     if (pricingData.bicycle && typeof pricingData.bicycle === 'object') {
-       pricingData = null;
+      pricingData = null;
     }
   }
   if (pricingData) {
     return pricingData;
   }
-  // Default pricing
   const defaultPricing = {
     bicycle: 15,
     ebike: 20,
@@ -319,9 +454,9 @@ export async function getPricing() {
 }
 
 export async function updatePricing(newPricing) {
-  await updateDoc(doc(db, 'config', 'pricing'), newPricing);
-  const updated = await getPricing();
-  return updated;
+  const clean = removeUndefinedFields(newPricing);
+  await setDoc(doc(db, 'config', 'pricing'), clean, { merge: true });
+  return getPricing();
 }
 
 // ------------------------------------
@@ -335,13 +470,15 @@ export async function getProducts() {
 }
 
 export async function addProduct(product) {
-  await setDoc(doc(db, 'products', product.id), product);
-  return product;
+  const clean = removeUndefinedFields(product);
+  await setDoc(doc(db, 'products', clean.id), clean);
+  return clean;
 }
 
 export async function updateProduct(product) {
-  await updateDoc(doc(db, 'products', product.id), product);
-  return product;
+  const clean = removeUndefinedFields(product);
+  await updateDoc(doc(db, 'products', clean.id), clean);
+  return clean;
 }
 
 export async function removeProduct(id) {
@@ -356,32 +493,39 @@ export async function getSales() {
 }
 
 export async function addSale(sale) {
-  await setDoc(doc(db, 'sales', sale.id), sale);
-  
-  // Also update product stock
-  const productRef = doc(db, 'products', sale.productId);
-  const productSnap = await getDoc(productRef);
-  if (productSnap.exists()) {
-    const product = productSnap.data();
-    await updateDoc(productRef, { stock: Math.max(0, product.stock - sale.quantity) });
-  }
-
-  // And add to cashbook transactions
+  const cleanSale = removeUndefinedFields(sale);
+  const saleRef = doc(db, 'sales', cleanSale.id);
+  const productRef = doc(db, 'products', cleanSale.productId);
   const transId = Math.random().toString(36).substring(2, 9);
-  const paymentText = sale.paymentMethod === 'machine' ? 'MÁQUINA' :
-                      sale.paymentMethod === 'card' ? 'CARTÃO' :
-                      sale.paymentMethod === 'cash' ? 'DINHEIRO' :
-                      sale.paymentMethod === 'pix' ? 'PIX' :
-                      sale.paymentMethod ? sale.paymentMethod.toUpperCase() : 'N/A';
-  await addTransaction({
-    id: transId,
-    description: `Venda na Loja: ${sale.quantity}x ${sale.productName} (${paymentText})`,
-    amount: sale.totalPrice,
-    date: sale.date,
-    type: 'income'
+  const transRef = doc(db, 'transactions', transId);
+
+  const paymentText = cleanSale.paymentMethod === 'machine' ? 'MÁQUINA' :
+                      cleanSale.paymentMethod === 'card' ? 'CARTÃO' :
+                      cleanSale.paymentMethod === 'cash' ? 'DINHEIRO' :
+                      cleanSale.paymentMethod === 'pix' ? 'PIX' :
+                      cleanSale.paymentMethod ? cleanSale.paymentMethod.toUpperCase() : 'N/A';
+
+  await runTransaction(db, async (tx) => {
+    const productSnap = await tx.get(productRef);
+    tx.set(saleRef, cleanSale);
+
+    if (productSnap.exists()) {
+      const product = productSnap.data();
+      const newStock = Math.max(0, (Number(product.stock) || 0) - (Number(cleanSale.quantity) || 0));
+      tx.update(productRef, { stock: newStock });
+    }
+
+    tx.set(transRef, removeUndefinedFields({
+      id: transId,
+      description: `Venda na Loja: ${cleanSale.quantity}x ${cleanSale.productName} (${paymentText})`,
+      amount: cleanSale.totalPrice,
+      date: cleanSale.date,
+      type: 'income',
+      operator: cleanSale.operatorName || undefined
+    }));
   });
 
-  return sale;
+  return cleanSale;
 }
 
 export async function updateSale(id, data) {
@@ -389,24 +533,25 @@ export async function updateSale(id, data) {
   const saleSnap = await getDoc(saleRef);
   if (!saleSnap.exists()) return null;
   const oldSale = saleSnap.data();
-  const updatedData = { ...oldSale, ...data };
+  const updatedData = removeUndefinedFields({ ...oldSale, ...data });
   await updateDoc(saleRef, updatedData);
 
-  // If quantity or product changed, adjust stock
   if (data.quantity !== undefined || data.productId !== undefined) {
     const oldQty = Number(oldSale.quantity) || 0;
     const newQty = Number(data.quantity ?? oldSale.quantity) || 0;
     const qtyDiff = newQty - oldQty;
     const prodId = data.productId ?? oldSale.productId;
     const productRef = doc(db, 'products', prodId);
-    const productSnap = await getDoc(productRef);
-    if (productSnap.exists()) {
-      const product = productSnap.data();
-      await updateDoc(productRef, { stock: Math.max(0, (Number(product.stock) || 0) - qtyDiff) });
-    }
+
+    await runTransaction(db, async (tx) => {
+      const productSnap = await tx.get(productRef);
+      if (productSnap.exists()) {
+        const product = productSnap.data();
+        tx.update(productRef, { stock: Math.max(0, (Number(product.stock) || 0) - qtyDiff) });
+      }
+    });
   }
 
-  // Update associated transaction
   const transSnap = await getDocs(query(collection(db, 'transactions'), where('date', '==', oldSale.date)));
   const paymentText = updatedData.paymentMethod === 'machine' ? 'MÁQUINA' :
                       updatedData.paymentMethod === 'card' ? 'CARTÃO' :
@@ -429,20 +574,20 @@ export async function removeSale(id) {
   const saleSnap = await getDoc(saleRef);
   if (saleSnap.exists()) {
     const sale = saleSnap.data();
-    // Restore stock
     const productRef = doc(db, 'products', sale.productId);
-    const productSnap = await getDoc(productRef);
-    if (productSnap.exists()) {
-      const product = productSnap.data();
-      await updateDoc(productRef, { stock: (Number(product.stock) || 0) + (Number(sale.quantity) || 0) });
-    }
-    // Delete associated transaction
+    await runTransaction(db, async (tx) => {
+      const productSnap = await tx.get(productRef);
+      if (productSnap.exists()) {
+        const product = productSnap.data();
+        tx.update(productRef, { stock: (Number(product.stock) || 0) + (Number(sale.quantity) || 0) });
+      }
+      tx.delete(saleRef);
+    });
+
     const transSnap = await getDocs(query(collection(db, 'transactions'), where('date', '==', sale.date)));
     transSnap.forEach((docSnap) => {
       deleteDoc(docSnap.ref).catch(console.error);
     });
-    // Delete sale
-    await deleteDoc(saleRef);
   }
 }
 
@@ -450,44 +595,142 @@ export async function updateVehicle(id, data) {
   const vehicleRef = doc(db, 'vehicles', id);
   const vehicleSnap = await getDoc(vehicleRef);
   if (!vehicleSnap.exists()) return null;
-  const updatedData = { ...vehicleSnap.data(), ...data };
+  const updatedData = removeUndefinedFields({ ...vehicleSnap.data(), ...data });
   await updateDoc(vehicleRef, updatedData);
   return updatedData;
 }
 
 export async function removeVehicle(id) {
-  await deleteDoc(doc(db, 'vehicles', id));
+  const vehicleRef = doc(db, 'vehicles', id);
+  const snap = await getDoc(vehicleRef);
+  const cardNumber = snap.exists() ? snap.data().cardNumber : null;
+  await deleteDoc(vehicleRef);
+  if (cardNumber) {
+    const lockRef = doc(db, 'spotLocks', getSafeCardLockId(cardNumber));
+    await setDoc(lockRef, { active: false, updatedAt: Date.now() }, { merge: true }).catch(console.error);
+  }
 }
 
 export async function updateTransaction(id, data) {
   const transRef = doc(db, 'transactions', id);
   const transSnap = await getDoc(transRef);
   if (!transSnap.exists()) return null;
-  const updatedData = { ...transSnap.data(), ...data };
+  const updatedData = removeUndefinedFields({ ...transSnap.data(), ...data });
   await updateDoc(transRef, updatedData);
   return updatedData;
 }
 
+async function commitInChunks(operations) {
+  const CHUNK_SIZE = 400;
+  for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
+    const chunk = operations.slice(i, i + CHUNK_SIZE);
+    const batch = writeBatch(db);
+    chunk.forEach(op => op(batch));
+    await batch.commit();
+  }
+}
+
 export async function resetDatabase() {
-  const batch = writeBatch(db);
-  
-  // Get and delete all vehicles
+  const ops = [];
   const vehiclesSnapshot = await getDocs(collection(db, 'vehicles'));
-  vehiclesSnapshot.forEach((document) => {
-    batch.delete(doc(db, 'vehicles', document.id));
-  });
+  vehiclesSnapshot.forEach((document) => ops.push((b) => b.delete(doc(db, 'vehicles', document.id))));
 
-  // Get and delete all transactions
   const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
-  transactionsSnapshot.forEach((document) => {
-    batch.delete(doc(db, 'transactions', document.id));
-  });
+  transactionsSnapshot.forEach((document) => ops.push((b) => b.delete(doc(db, 'transactions', document.id))));
 
-  // Get and delete all lost cards
   const lostCardsSnapshot = await getDocs(collection(db, 'lostCards'));
-  lostCardsSnapshot.forEach((document) => {
-    batch.delete(doc(db, 'lostCards', document.id));
-  });
+  lostCardsSnapshot.forEach((document) => ops.push((b) => b.delete(doc(db, 'lostCards', document.id))));
 
-  await batch.commit();
+  const locksSnapshot = await getDocs(collection(db, 'spotLocks'));
+  locksSnapshot.forEach((document) => ops.push((b) => b.delete(doc(db, 'spotLocks', document.id))));
+
+  await commitInChunks(ops);
+}
+
+export async function restoreBackup(data) {
+  const ops = [];
+
+  if (data.pricing && typeof data.pricing === 'object') {
+    ops.push((b) => b.set(doc(db, 'config', 'pricing'), removeUndefinedFields(data.pricing), { merge: true }));
+  }
+
+  if (Array.isArray(data.vehicles)) {
+    data.vehicles.forEach((v) => {
+      if (v && v.id) {
+        const clean = removeUndefinedFields(v);
+        ops.push((b) => b.set(doc(db, 'vehicles', String(clean.id)), clean));
+        if ((clean.status === 'active' || clean.status === 'stored') && clean.cardNumber) {
+          ops.push((b) => b.set(doc(db, 'spotLocks', getSafeCardLockId(clean.cardNumber)), {
+            cardNumber: clean.cardNumber,
+            vehicleId: String(clean.id),
+            active: true,
+            updatedAt: Date.now()
+          }));
+        }
+      }
+    });
+  }
+
+  if (Array.isArray(data.transactions)) {
+    data.transactions.forEach((t) => {
+      if (t && t.id) {
+        ops.push((b) => b.set(doc(db, 'transactions', String(t.id)), removeUndefinedFields(t)));
+      }
+    });
+  }
+
+  if (Array.isArray(data.lostCards)) {
+    data.lostCards.forEach((lc) => {
+      const cardObj = typeof lc === 'string' ? { cardNumber: lc } : lc;
+      if (cardObj && cardObj.cardNumber) {
+        const cardId = String(cardObj.cardNumber).replace(/\W/g, '');
+        if (cardId) {
+          ops.push((b) => b.set(doc(db, 'lostCards', cardId), removeUndefinedFields(cardObj)));
+        }
+      }
+    });
+  }
+
+  if (Array.isArray(data.customerCards)) {
+    data.customerCards.forEach((cc) => {
+      if (cc && cc.id) {
+        ops.push((b) => b.set(doc(db, 'customerCards', String(cc.id)), removeUndefinedFields(cc)));
+      }
+    });
+  }
+
+  if (Array.isArray(data.products)) {
+    data.products.forEach((p) => {
+      if (p && p.id) {
+        ops.push((b) => b.set(doc(db, 'products', String(p.id)), removeUndefinedFields(p)));
+      }
+    });
+  }
+
+  if (Array.isArray(data.sales)) {
+    data.sales.forEach((s) => {
+      if (s && s.id) {
+        ops.push((b) => b.set(doc(db, 'sales', String(s.id)), removeUndefinedFields(s)));
+      }
+    });
+  }
+
+  if (Array.isArray(data.shifts)) {
+    data.shifts.forEach((sh) => {
+      if (sh && sh.id) {
+        ops.push((b) => b.set(doc(db, 'shifts', String(sh.id)), removeUndefinedFields(sh)));
+      }
+    });
+  }
+
+  if (Array.isArray(data.operators)) {
+    data.operators.forEach((op) => {
+      if (op && op.id) {
+        ops.push((b) => b.set(doc(db, 'operators', String(op.id)), removeUndefinedFields(op)));
+      }
+    });
+  }
+
+  await commitInChunks(ops);
+  return { restoredCount: ops.length };
 }

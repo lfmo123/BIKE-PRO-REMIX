@@ -1,17 +1,43 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Bike, Zap, Motorbike, Clock, DollarSign, CreditCard, Banknote, Smartphone, ChevronRight, LogOut, ArrowLeft, AlertCircle, Printer } from 'lucide-react';
+import {
+  Search,
+  Bike,
+  Zap,
+  Motorbike,
+  Clock,
+  DollarSign,
+  CreditCard,
+  Banknote,
+  ChevronRight,
+  LogOut,
+  ArrowLeft,
+  AlertCircle,
+  Terminal,
+  QrCode,
+  Copy,
+  Check
+} from 'lucide-react';
 import { ParkedVehicle, Pricing, VehicleType, CustomerCard } from '../types';
 import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/pricing';
-import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
+import { DeviceFeaturesConfig } from '../lib/deviceModules';
+import { generatePixPayload, generateQrDataUrl } from '../lib/pixUtils';
 
 interface CheckOutProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
   customerCards: CustomerCard[];
-  onCheckOut: (vehicleId: string, price: number, paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix', customerCardId?: string, checkInTime?: number, checkOutTime?: number) => void;
+  deviceConfig?: DeviceFeaturesConfig;
+  onCheckOut: (
+    vehicleId: string,
+    price: number,
+    paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix',
+    customerCardId?: string,
+    checkInTime?: number,
+    checkOutTime?: number
+  ) => void;
 }
 
-export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: CheckOutProps) {
+export function CheckOut({ vehicles, pricing, customerCards, deviceConfig, onCheckOut }: CheckOutProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<ParkedVehicle | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix'>('cash');
@@ -19,6 +45,11 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
   const [now, setNow] = useState(Date.now());
   const [editedCheckIn, setEditedCheckIn] = useState('');
   const [editedCheckOut, setEditedCheckOut] = useState('');
+  const [pixQrUrl, setPixQrUrl] = useState('');
+  const [pixPayload, setPixPayload] = useState('');
+  const [pixCopied, setPixCopied] = useState(false);
+
+  const hourlyEnabled = Boolean(deviceConfig?.enableHourlyPricing);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -29,7 +60,6 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
     return () => clearInterval(interval);
   }, [editedCheckOut]);
 
-  // Update selected vehicle if it gets checked out (it will be removed from active)
   useEffect(() => {
     if (selectedVehicle) {
       const stillActive = vehicles.find(v => v.id === selectedVehicle.id && (v.status === 'active' || v.status === 'stored'));
@@ -46,57 +76,98 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
     if (selectedVehicle) {
       const formatLocal = (t: number) => {
         const d = new Date(t);
-        return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+        return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
       };
       setEditedCheckIn(formatLocal(selectedVehicle.checkInTime));
       setEditedCheckOut(formatLocal(Date.now()));
     }
   }, [selectedVehicle?.id]);
 
-  // Optionally auto-select a card if the vehicle has a matching one
   useEffect(() => {
     if (selectedVehicle && (paymentMethod === 'card' || paymentMethod === 'postpaid_card')) {
-       const match = customerCards.find(c => 
-         (selectedVehicle.customerCardId && c.id === selectedVehicle.customerCardId) ||
-         (c.cardNumber && c.cardNumber.toLowerCase() === selectedVehicle.cardNumber.toLowerCase())
-       );
-       if (match) {
-         setSelectedCardId(match.id);
-         setPaymentMethod(match.type === 'postpaid' ? 'postpaid_card' : 'card');
-       }
+      const match = customerCards.find(
+        c =>
+          (selectedVehicle.customerCardId && c.id === selectedVehicle.customerCardId) ||
+          (c.cardNumber && c.cardNumber.toLowerCase() === selectedVehicle.cardNumber.toLowerCase())
+      );
+      if (match) {
+        setSelectedCardId(match.id);
+        setPaymentMethod(match.type === 'postpaid' ? 'postpaid_card' : 'card');
+      }
     }
   }, [selectedVehicle, paymentMethod, customerCards]);
 
+  const checkInMs = editedCheckIn ? new Date(editedCheckIn).getTime() : selectedVehicle?.checkInTime || 0;
+  const checkOutMs = editedCheckOut ? new Date(editedCheckOut).getTime() : now;
+  const currentPrice = selectedVehicle
+    ? calculatePrice({ ...selectedVehicle, checkInTime: checkInMs }, pricing, checkOutMs, hourlyEnabled)
+    : 0;
+
+  useEffect(() => {
+    let active = true;
+    const buildPix = async () => {
+      if (!selectedVehicle || !deviceConfig?.enablePixQrCode || paymentMethod !== 'pix' || !pricing.pixKey) {
+        setPixPayload('');
+        setPixQrUrl('');
+        return;
+      }
+      const payload = generatePixPayload({
+        pixKey: pricing.pixKey,
+        merchantName: pricing.pixMerchantName || 'BIKEPARK',
+        merchantCity: pricing.pixMerchantCity || 'BRASIL',
+        amount: currentPrice,
+        txid: `BP${selectedVehicle.id}`
+      });
+      if (!active) return;
+      setPixPayload(payload);
+      if (payload) {
+        const url = await generateQrDataUrl(payload, 180);
+        if (active) setPixQrUrl(url);
+      }
+    };
+    buildPix();
+    return () => {
+      active = false;
+    };
+  }, [selectedVehicle?.id, paymentMethod, currentPrice, pricing.pixKey, pricing.pixMerchantName, pricing.pixMerchantCity, deviceConfig?.enablePixQrCode]);
+
   const activeVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
-  
+
   const filteredVehicles = activeVehicles.filter(v => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
-    return v.identifier.toLowerCase().includes(term) || 
-           v.ownerName.toLowerCase().includes(term) ||
-           v.cardNumber.toLowerCase().includes(term);
+    return (
+      v.identifier.toLowerCase().includes(term) ||
+      v.ownerName.toLowerCase().includes(term) ||
+      v.cardNumber.toLowerCase().includes(term)
+    );
   });
 
   const getIcon = (type: VehicleType) => {
     switch (type) {
-      case 'bicycle': return <Bike className="w-5 h-5 text-blue-600" />;
-      case 'ebike': return <Zap className="w-5 h-5 text-emerald-600" />;
-      case 'motorcycle': return <Motorbike className="w-5 h-5 text-purple-600" />;
+      case 'bicycle':
+        return <Bike className="w-5 h-5 text-blue-600" />;
+      case 'ebike':
+        return <Zap className="w-5 h-5 text-emerald-600" />;
+      case 'motorcycle':
+        return <Motorbike className="w-5 h-5 text-purple-600" />;
     }
   };
 
   const getBgColor = (type: VehicleType) => {
     switch (type) {
-      case 'bicycle': return 'bg-blue-100';
-      case 'ebike': return 'bg-emerald-100';
-      case 'motorcycle': return 'bg-purple-100';
+      case 'bicycle':
+        return 'bg-blue-100';
+      case 'ebike':
+        return 'bg-emerald-100';
+      case 'motorcycle':
+        return 'bg-purple-100';
     }
   };
 
   const handleConfirm = () => {
     if (selectedVehicle) {
-      let price = currentPrice;
-      onCheckOut(selectedVehicle.id, price, paymentMethod, selectedCardId || undefined, checkInMs, checkOutMs);
+      onCheckOut(selectedVehicle.id, currentPrice, paymentMethod, selectedCardId || undefined, checkInMs, checkOutMs);
       setSelectedVehicle(null);
       setSearchTerm('');
       setSelectedCardId('');
@@ -105,37 +176,33 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
     }
   };
 
-  const availableCards = useMemo(() => {
-    return customerCards;
-  }, [customerCards]);
-
-  const checkInMs = editedCheckIn ? new Date(editedCheckIn).getTime() : (selectedVehicle?.checkInTime || 0);
-  const checkOutMs = editedCheckOut ? new Date(editedCheckOut).getTime() : now;
-  
-  const currentPrice = selectedVehicle ? calculatePrice({ ...selectedVehicle, checkInTime: checkInMs }, pricing, checkOutMs) : 0;
+  const availableCards = useMemo(() => customerCards, [customerCards]);
 
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900">Registrar Saída</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Registrar Saída</h1>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-        {/* Left Column: Search and List */}
-        <div className={`w-full lg:w-1/2 flex-col bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden ${selectedVehicle ? 'hidden lg:flex' : 'flex'}`}>
-          <div className="p-4 border-b border-slate-100 shrink-0">
+        <div
+          className={`w-full lg:w-1/2 flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden ${
+            selectedVehicle ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Buscar por placa, dono ou cartão..." 
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              <input
+                type="text"
+                placeholder="Buscar por placa, dono ou cartão..."
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-slate-900 dark:text-slate-100"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto p-2">
             {filteredVehicles.length > 0 ? (
               <div className="space-y-2">
@@ -144,26 +211,24 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                     key={vehicle.id}
                     onClick={() => setSelectedVehicle(vehicle)}
                     className={`w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between ${
-                      selectedVehicle?.id === vehicle.id 
-                        ? 'bg-emerald-50 border-emerald-200 ring-1 ring-emerald-500' 
-                        : 'bg-white border-slate-100 hover:border-slate-300 hover:bg-slate-50'
+                      selectedVehicle?.id === vehicle.id
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 ring-1 ring-emerald-500'
+                        : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                     }`}
                   >
                     <div className="flex items-center space-x-4">
-                      <div className={`p-3 rounded-xl ${getBgColor(vehicle.type)}`}>
-                        {getIcon(vehicle.type)}
-                      </div>
+                      <div className={`p-3 rounded-xl ${getBgColor(vehicle.type)}`}>{getIcon(vehicle.type)}</div>
                       <div>
-                        <h3 className="font-bold text-slate-900">{vehicle.identifier}</h3>
-                        <p className="text-sm text-slate-500">{vehicle.ownerName}</p>
+                        <h3 className="font-bold text-slate-900 dark:text-slate-100">{vehicle.identifier}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{vehicle.ownerName}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
-                        <div className="bg-slate-100 text-slate-700 font-bold px-2 py-1 rounded-lg text-xs inline-block mb-1">
+                        <div className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold px-2 py-1 rounded-lg text-xs inline-block mb-1">
                           Cartão {vehicle.cardNumber}
                         </div>
-                        <div className="text-xs text-slate-500 flex items-center justify-end">
+                        <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-end">
                           <Clock className="w-3 h-3 mr-1" />
                           {formatDuration(vehicle.checkInTime, now)}
                         </div>
@@ -176,78 +241,78 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-slate-500 p-8 text-center">
                 <Search className="w-12 h-12 text-slate-300 mb-4" />
-                <p className="font-medium text-slate-900">Nenhum veículo encontrado</p>
+                <p className="font-medium text-slate-900 dark:text-slate-100">Nenhum veículo encontrado</p>
                 <p className="text-sm mt-1">Tente buscar por outro termo ou verifique se o veículo já registrou saída.</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Column: Checkout Details */}
         <div className={`w-full lg:w-1/2 flex-col ${selectedVehicle ? 'flex' : 'hidden lg:flex'}`}>
           {selectedVehicle ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-6 flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="flex items-center mb-6">
-                <button 
+                <button
                   onClick={() => setSelectedVehicle(null)}
                   className="mr-4 p-2 -ml-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg lg:hidden"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
-                <h2 className="text-xl font-bold text-slate-900">Detalhes do Pagamento</h2>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Detalhes do Pagamento</h2>
               </div>
-              
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-6">
+
+              <div className="bg-slate-50 dark:bg-slate-800/70 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6">
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h3 className="font-bold text-slate-900 text-xl">{selectedVehicle.identifier}</h3>
-                    <p className="text-slate-500">{selectedVehicle.ownerName}</p>
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xl">{selectedVehicle.identifier}</h3>
+                    <p className="text-slate-500 dark:text-slate-400">{selectedVehicle.ownerName}</p>
                   </div>
-                  <span className="bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-sm">
+                  <span className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold px-3 py-1.5 rounded-lg text-sm">
                     Cartão {selectedVehicle.cardNumber}
                   </span>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4 mt-6">
-                  <div className="bg-white p-4 rounded-xl border border-slate-100 flex flex-col">
-                    <span className="text-sm font-medium text-slate-500 mb-1 flex items-center">
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col">
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1 flex items-center">
                       <Clock className="w-4 h-4 mr-1.5" /> Tempo Cobrado
                     </span>
-                    <span className="font-bold text-slate-900 text-lg">
-                      {(() => {
-                        const breakdown = getBilledBreakdown({ ...selectedVehicle, checkInTime: checkInMs }, pricing, checkOutMs);
-                        return `${breakdown.days} diária${breakdown.days > 1 ? 's' : ''}`;
-                      })()}
+                    <span className="font-bold text-slate-900 dark:text-slate-100 text-lg">
+                      {getBilledBreakdown({ ...selectedVehicle, checkInTime: checkInMs }, pricing, checkOutMs, hourlyEnabled).label}
                     </span>
-                    <span className="text-xs text-slate-500 mt-1 mb-2">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-2">
                       Duração: {formatDuration(checkInMs, checkOutMs)}
                     </span>
                     <div className="flex flex-col gap-2 w-full mt-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-400 w-12">Entrada:</span>
-                        <input 
-                          type="datetime-local" 
+                        <input
+                          type="datetime-local"
                           value={editedCheckIn}
+                          disabled={deviceConfig?.canEditCheckoutTimes === false}
                           onChange={(e) => setEditedCheckIn(e.target.value)}
-                          className="flex-1 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded p-1"
+                          className="flex-1 text-xs text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded p-1"
                         />
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-400 w-12">Saída:</span>
-                        <input 
-                          type="datetime-local" 
+                        <input
+                          type="datetime-local"
                           value={editedCheckOut}
+                          disabled={deviceConfig?.canEditCheckoutTimes === false}
                           onChange={(e) => setEditedCheckOut(e.target.value)}
-                          className="flex-1 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded p-1"
+                          className="flex-1 text-xs text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded p-1"
                         />
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white p-4 rounded-xl border border-slate-100 flex flex-col">
-                    <span className="text-sm font-medium text-slate-500 mb-1 flex items-center">
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col">
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1 flex items-center">
                       <DollarSign className="w-4 h-4 mr-1.5" /> Valor a Pagar
                     </span>
-                    <span className="font-bold text-emerald-600 text-2xl">R$ {currentPrice.toFixed(2)}</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400 text-2xl tabular-nums">
+                      R$ {currentPrice.toFixed(2)}
+                    </span>
                     {selectedVehicle.cardLost && pricing.lostCardFee && (
                       <span className="text-xs text-red-500 mt-1 leading-tight">
                         + {pricing.lostCardFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} taxa
@@ -256,17 +321,17 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                   </div>
                 </div>
               </div>
-              
-              <div className="space-y-4 mb-8">
-                <label className="block text-sm font-medium text-slate-700">Selecione o Método de Pagamento</label>
-                <div className="grid grid-cols-3 gap-4">
+
+              <div className="space-y-4 mb-6">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Selecione o Método de Pagamento</label>
+                <div className={`grid gap-3 ${deviceConfig?.enablePixQrCode ? 'grid-cols-4' : 'grid-cols-3'}`}>
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cash')}
                     className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                      paymentMethod === 'cash' 
-                        ? 'border-amber-500 bg-amber-50 text-amber-700' 
-                        : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                      paymentMethod === 'cash'
+                        ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
+                        : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 text-slate-500 dark:text-slate-400'
                     }`}
                   >
                     <Banknote className={`w-6 h-6 mb-2 ${paymentMethod === 'cash' ? 'text-amber-600' : ''}`} />
@@ -277,14 +342,29 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                     type="button"
                     onClick={() => setPaymentMethod('machine')}
                     className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                      paymentMethod === 'machine' 
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
-                        : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                      paymentMethod === 'machine'
+                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300'
+                        : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 text-slate-500 dark:text-slate-400'
                     }`}
                   >
                     <Terminal className={`w-6 h-6 mb-2 ${paymentMethod === 'machine' ? 'text-indigo-600' : ''}`} />
                     <span className="text-sm font-medium">Máquina</span>
                   </button>
+
+                  {deviceConfig?.enablePixQrCode && (
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('pix')}
+                      className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                        paymentMethod === 'pix'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+                          : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      <QrCode className={`w-6 h-6 mb-2 ${paymentMethod === 'pix' ? 'text-emerald-600' : ''}`} />
+                      <span className="text-sm font-medium">PIX</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -294,8 +374,8 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                     }}
                     className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
                       paymentMethod === 'card' || paymentMethod === 'postpaid_card'
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
-                        : 'border-slate-100 hover:border-slate-200 text-slate-500'
+                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300'
+                        : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 text-slate-500 dark:text-slate-400'
                     }`}
                   >
                     <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'card' || paymentMethod === 'postpaid_card' ? 'text-indigo-600' : ''}`} />
@@ -303,10 +383,40 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                   </button>
                 </div>
               </div>
-              
+
+              {deviceConfig?.enablePixQrCode && paymentMethod === 'pix' && (
+                <div className="mb-6 p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex items-center gap-4">
+                  {pricing.pixKey ? (
+                    <>
+                      {pixQrUrl && <img src={pixQrUrl} alt="QR Code PIX" className="w-28 h-28 rounded-xl bg-white p-1.5 border border-emerald-200" />}
+                      <div className="flex-1 space-y-2">
+                        <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200">PIX Dinâmico R$ {currentPrice.toFixed(2)}</p>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!pixPayload) return;
+                            await navigator.clipboard.writeText(pixPayload).catch(() => {});
+                            setPixCopied(true);
+                            setTimeout(() => setPixCopied(false), 2000);
+                          }}
+                          className="px-3 py-2 bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5"
+                        >
+                          {pixCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          {pixCopied ? 'Copiado!' : 'Copiar PIX Copia e Cola'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                      Configure sua chave PIX em Configurações → Tarifas para gerar o QR Code.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {(paymentMethod === 'card' || paymentMethod === 'postpaid_card') && (
-                <div className="mb-8 space-y-2">
-                  <label className="block text-sm font-medium text-slate-700">Selecione o Cartão Cliente</label>
+                <div className="mb-6 space-y-2">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Selecione o Cartão Cliente</label>
                   <select
                     value={selectedCardId}
                     onChange={(e) => {
@@ -317,12 +427,16 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                         setPaymentMethod(card.type === 'postpaid' ? 'postpaid_card' : 'card');
                       }
                     }}
-                    className="w-full py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full py-3 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-slate-100"
                   >
                     <option value="">Selecione um cartão ou digite para buscar...</option>
                     {availableCards.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.cardNumber} - {c.ownerName} [{c.type === 'prepaid' ? 'Pré-Pago' : 'Pós-Pago'}] ({c.type === 'prepaid' ? `Saldo: R$ ${(Number(c.balance) || 0).toFixed(2)}` : `Fatura: R$ ${(Number(c.balance) || 0).toFixed(2)}`})
+                        {c.cardNumber} - {c.ownerName} [{c.type === 'prepaid' ? 'Pré-Pago' : 'Pós-Pago'}] (
+                        {c.type === 'prepaid'
+                          ? `Saldo: R$ ${(Number(c.balance) || 0).toFixed(2)}`
+                          : `Fatura: R$ ${(Number(c.balance) || 0).toFixed(2)}`}
+                        )
                       </option>
                     ))}
                   </select>
@@ -331,7 +445,11 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                       {(() => {
                         const card = availableCards.find(c => c.id === selectedCardId);
                         if (card && (Number(card.balance) || 0) < currentPrice) {
-                          return <span className="text-red-500 flex items-center mt-1"><AlertCircle className="w-4 h-4 mr-1"/> Saldo insuficiente.</span>;
+                          return (
+                            <span className="text-red-500 flex items-center mt-1">
+                              <AlertCircle className="w-4 h-4 mr-1" /> Saldo insuficiente.
+                            </span>
+                          );
                         }
                         return null;
                       })()}
@@ -339,18 +457,20 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
                   )}
                 </div>
               )}
-              
+
               <div className="mt-auto">
                 <button
                   onClick={handleConfirm}
                   disabled={
-                    (paymentMethod === 'card' || paymentMethod === 'postpaid_card') && 
-                    (!selectedCardId || (paymentMethod === 'card' && (() => {
-                      const card = availableCards.find(c => c.id === selectedCardId);
-                      return !card || (Number(card.balance) || 0) < currentPrice;
-                    })()))
+                    (paymentMethod === 'card' || paymentMethod === 'postpaid_card') &&
+                    (!selectedCardId ||
+                      (paymentMethod === 'card' &&
+                        (() => {
+                          const card = availableCards.find(c => c.id === selectedCardId);
+                          return !card || (Number(card.balance) || 0) < currentPrice;
+                        })()))
                   }
-                  className="w-full py-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-slate-900/20 flex items-center justify-center"
+                  className="w-full py-4 bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-slate-900/20 flex items-center justify-center"
                 >
                   <LogOut className="w-5 h-5 mr-2" />
                   Confirmar Pagamento
@@ -358,9 +478,9 @@ export function CheckOut({ vehicles, pricing, customerCards, onCheckOut }: Check
               </div>
             </div>
           ) : (
-            <div className="bg-slate-50 rounded-2xl border border-slate-100 border-dashed flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
-              <LogOut className="w-16 h-16 mb-4 text-slate-300" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">Nenhum veículo selecionado</h3>
+            <div className="bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800 border-dashed flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
+              <LogOut className="w-16 h-16 mb-4 text-slate-300 dark:text-slate-600" />
+              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">Nenhum veículo selecionado</h3>
               <p>Selecione um veículo na lista ao lado para visualizar os detalhes e registrar a saída.</p>
             </div>
           )}

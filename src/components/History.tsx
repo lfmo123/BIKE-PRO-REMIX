@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Bike, Zap, Motorbike, Search, Calendar, Clock, DollarSign, CreditCard, Banknote, Smartphone, X, Undo2 } from 'lucide-react';
+import { Bike, Zap, Motorbike, Search, Calendar, Clock, CreditCard, Banknote, X, Undo2, Download } from 'lucide-react';
 import { ParkedVehicle, VehicleType } from '../types';
 import { getLocalDateString } from '../lib/dateUtils';
-
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
+import { exportToCsv } from '../lib/csvExport';
 
 interface HistoryProps {
   vehicles: ParkedVehicle[];
@@ -85,18 +85,48 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
     ? completedVehicles.filter(v => v.cardNumber === selectedCardForHistory && (v.checkOutTime || 0) >= startOfDay && (v.checkOutTime || 0) <= endOfDay)
     : [];
 
+  const handleExportCsv = () => {
+    exportToCsv(
+      `historico_estacionamento_${selectedDate}`,
+      ['Cartão', 'Tipo', 'Cliente', 'Veículo', 'Entrada', 'Saída', 'Valor (R$)', 'Pagamento', 'Operador Entrada', 'Operador Saída'],
+      filteredVehicles.map(v => [
+        v.cardNumber,
+        v.type === 'bicycle' ? 'Bicicleta' : v.type === 'ebike' ? 'E-Bike' : 'Moto',
+        v.ownerName,
+        v.identifier,
+        new Date(v.checkInTime).toLocaleString('pt-BR'),
+        v.checkOutTime ? new Date(v.checkOutTime).toLocaleString('pt-BR') : '',
+        (Number(v.price) || 0).toFixed(2).replace('.', ','),
+        v.paymentMethod || '',
+        v.operatorName || '',
+        v.checkOutOperatorName || ''
+      ])
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Histórico de Estacionamento</h1>
-        <div className="flex items-center space-x-2 bg-white rounded-xl shadow-sm border border-slate-200 p-1 pl-3 transition-shadow hover:shadow-md">
-          <Calendar className="w-5 h-5 text-emerald-500" />
-          <input 
-            type="date" 
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-transparent border-0 focus:ring-0 text-slate-700 font-bold p-2 outline-none cursor-pointer"
-          />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Histórico de Estacionamento</h1>
+        <div className="flex items-center gap-2">
+          {deviceConfig?.enableCsvExport && (
+            <button
+              onClick={handleExportCsv}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Exportar CSV
+            </button>
+          )}
+          <div className="flex items-center space-x-2 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-1 pl-3 transition-shadow hover:shadow-md">
+            <Calendar className="w-5 h-5 text-emerald-500" />
+            <input 
+              type="date" 
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent border-0 focus:ring-0 text-slate-700 dark:text-slate-200 font-bold p-2 outline-none cursor-pointer"
+            />
+          </div>
         </div>
       </div>
 
@@ -223,7 +253,14 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
                     <tbody className="divide-y">
                       {selectedCardHistory.map((v: any, index: number) => (
                         <tr key={index}>
-                          <td className="p-2 font-medium">{v.identifier}</td>
+                          <td className="p-2 font-medium">
+                            {v.identifier}
+                            {(v.operatorName || v.checkOutOperatorName) && (
+                              <span className="block text-[10px] text-slate-400">
+                                Op: {v.checkOutOperatorName || v.operatorName}
+                              </span>
+                            )}
+                          </td>
                           <td className="p-2 capitalize">{v.type === 'bicycle' ? 'Bicicleta' : v.type === 'ebike' ? 'E-Bike' : 'Moto'}</td>
                           <td className="p-2 text-xs">
                             In: {new Date(v.checkInTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}<br/>

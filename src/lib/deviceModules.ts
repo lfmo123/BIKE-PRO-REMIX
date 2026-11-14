@@ -37,9 +37,49 @@ export interface DeviceFeaturesConfig {
   canSellProducts: boolean;     // Realizar vendas de itens da loja
   canManageInventory: boolean;  // Cadastrar/editar produtos e estoque da loja
   canManageCards: boolean;      // Cadastrar novos mensalistas, recarregar créditos ou excluir
+
+  // --- Recursos Modernos Opcionais (TODOS DESATIVADOS POR PADRÃO) ---
+  // Atendimento & Cobrança
+  enablePixQrCode: boolean;         // QR Code PIX Dinâmico (BR Code + Copia e Cola) no checkout e loja
+  enableWhatsappReceipts: boolean;  // Envio de recibos e cobrança via WhatsApp Web/App
+  enableQrTicketScanner: boolean;   // QR Code no ticket de entrada + Leitor por Câmera
+  enableCheckInPhoto: boolean;      // Foto e checklist de avarias na entrada do veículo
+
+  // Motor de Tarifação & Mensalistas
+  enableHourlyPricing: boolean;     // Cobrança por tolerância, hora e fração (em vez de diária fixa)
+  enableCardExpiryAlerts: boolean;  // Controle e alertas de vencimento de mensalistas
+
+  // Infraestrutura, Offline & Segurança
+  enableOfflineQueue: boolean;      // Fila Offline-First com sincronização automática ao reconectar
+  enableOperatorLogin: boolean;     // Login / Troca rápida de operador por PIN individual + rastreio
+  enableFullBackupRestore: boolean; // Restauração completa de backup JSON direto no servidor/nuvem
+
+  // Visual, Produtividade & Relatórios
+  enableDarkMode: boolean;          // Modo Escuro (Tema Dark) neste dispositivo
+  enableKeyboardShortcuts: boolean; // Atalhos de teclado no PC (F2 Entrada, F4 Busca/Saída, Esc)
+  enablePeakHoursChart: boolean;    // Gráfico de horários de pico nos Relatórios
+  enableCsvExport: boolean;         // Exportação de tabelas/relatórios para Excel (CSV)
+  enableSmartAlerts: boolean;       // Painel de alertas inteligentes (estoque baixo, fiado antigo, lotação)
 }
 
 export type PresetProfile = 'all' | 'patio' | 'caixa';
+
+export const NEW_FEATURES_DEFAULTS = {
+  enablePixQrCode: false,
+  enableWhatsappReceipts: false,
+  enableQrTicketScanner: false,
+  enableCheckInPhoto: false,
+  enableHourlyPricing: false,
+  enableCardExpiryAlerts: false,
+  enableOfflineQueue: false,
+  enableOperatorLogin: false,
+  enableFullBackupRestore: false,
+  enableDarkMode: false,
+  enableKeyboardShortcuts: false,
+  enablePeakHoursChart: false,
+  enableCsvExport: false,
+  enableSmartAlerts: false,
+};
 
 export const DEFAULT_DEVICE_CONFIG: DeviceFeaturesConfig = {
   dashboard: true,
@@ -74,14 +114,17 @@ export const DEFAULT_DEVICE_CONFIG: DeviceFeaturesConfig = {
   canSellProducts: true,
   canManageInventory: true,
   canManageCards: true,
+
+  ...NEW_FEATURES_DEFAULTS,
 };
 
 export const PRESET_PROFILES: Record<PresetProfile, { name: string; description: string; config: DeviceFeaturesConfig }> = {
   all: {
     name: 'Administrador Completo',
-    description: 'Acesso irrestrito a todos os módulos e todas as ações operacionais e financeiras.',
+    description: 'Acesso irrestrito aos módulos principais. Recursos avançados opcionais permanecem desativados até você habilitá-los.',
     config: {
-      ...DEFAULT_DEVICE_CONFIG
+      ...DEFAULT_DEVICE_CONFIG,
+      ...NEW_FEATURES_DEFAULTS,
     }
   },
   patio: {
@@ -104,10 +147,10 @@ export const PRESET_PROFILES: Record<PresetProfile, { name: string; description:
 
       canCheckIn: true,
       canCheckInBulk: true,
-      canRevertCheckin: false,  // Reversão bloqueada
+      canRevertCheckin: false,
       canPrintTicket: true,
 
-      canCheckOut: false,        // Saída bloqueada no pátio (vai pro caixa)
+      canCheckOut: false,
       canEditCheckoutPrice: false,
       canEditCheckoutTimes: false,
       canReportLostCard: false,
@@ -120,6 +163,8 @@ export const PRESET_PROFILES: Record<PresetProfile, { name: string; description:
       canSellProducts: false,
       canManageInventory: false,
       canManageCards: false,
+
+      ...NEW_FEATURES_DEFAULTS,
     }
   },
   caixa: {
@@ -158,6 +203,8 @@ export const PRESET_PROFILES: Record<PresetProfile, { name: string; description:
       canSellProducts: true,
       canManageInventory: true,
       canManageCards: true,
+
+      ...NEW_FEATURES_DEFAULTS,
     }
   }
 };

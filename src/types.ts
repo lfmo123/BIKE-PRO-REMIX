@@ -15,9 +15,10 @@ export interface ParkedVehicle {
   cardNumber: string; // Card number corresponding to the parking bay
   checkInTime: number; // timestamp
   checkOutTime?: number;
-  status: 'active' | 'completed';
+  status: 'active' | 'completed' | 'stored';
   price?: number;
   paymentMethod?: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix';
+  customerCardId?: string;
   cardLost?: boolean;
   lostCardName?: string;
   lostCardPhone?: string;
@@ -25,6 +26,12 @@ export interface ParkedVehicle {
   fiadoPaymentDate?: number;
   fiadoPaidAmount?: number;
   fiadoPaymentMethod?: string;
+  // Optional modern fields (used when respective device features are enabled)
+  damageNotes?: string;
+  photoData?: string;
+  operatorName?: string;
+  checkOutOperatorName?: string;
+  qrCode?: string;
 }
 
 export interface Pricing {
@@ -33,6 +40,16 @@ export interface Pricing {
   motorcycle: number; // per day/overnight
   totalSpots?: number; // Total number of spots
   lostCardFee?: number;
+  // Optional PIX BRCode settings
+  pixKey?: string;
+  pixMerchantName?: string;
+  pixMerchantCity?: string;
+  // Optional Hourly / Fraction / Tolerance settings (active only when enableHourlyPricing is enabled)
+  graceMinutes?: number;
+  firstHourRate?: number;
+  additionalFractionMinutes?: number;
+  additionalFractionRate?: number;
+  dailyCapHours?: number;
 }
 
 export interface Transaction {
@@ -58,8 +75,10 @@ export interface CustomerCard {
   ownerName: string;
   phone: string;
   type: 'prepaid' | 'postpaid';
-  balance: number; // Positive if prepaid has credits, negative if postpaid has debt
+  balance: number; // Positive if prepaid has credits, positive/debt if postpaid
   lastPaymentMethod?: string;
+  expirationDate?: string; // YYYY-MM-DD (used when enableCardExpiryAlerts is enabled)
+  monthlyFee?: number;
 }
 
 export interface Sale {
@@ -70,6 +89,7 @@ export interface Sale {
   totalPrice: number;
   date: number;
   paymentMethod?: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix';
+  operatorName?: string;
 }
 
 export interface Shift {
@@ -81,17 +101,20 @@ export interface Shift {
   finalChange?: number;
   status: 'open' | 'closed';
   summary?: {
-     totalIncome: number;
-     totalExpense: number;
-     totalCash: number;
-     totalCard: number;
-     totalPix: number;
-     totalMachine: number;
-     overnightCount: number;
+    totalIncome: number;
+    totalExpense: number;
+    totalCash: number;
+    totalCard: number;
+    totalPix: number;
+    totalMachine: number;
+    overnightCount: number;
+    checkIns?: number;
+    checkOuts?: number;
   };
 }
 
 export interface Operator {
   id: string;
   name: string;
+  pin?: string; // Optional individual PIN (used when enableOperatorLogin is enabled)
 }

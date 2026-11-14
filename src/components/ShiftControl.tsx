@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shift, Transaction, ParkedVehicle, Sale, Operator } from '../types';
 import { CheckSquare, LockIcon, Loader2, ArrowUpRight, ArrowDownRight, Clock, User, Banknote } from 'lucide-react';
 import { ShiftDetailsModal } from './ShiftDetailsModal';
+import { DeviceFeaturesConfig } from '../lib/deviceModules';
 
 interface ShiftControlProps {
   operators: Operator[];
@@ -11,17 +12,28 @@ interface ShiftControlProps {
   sales: Sale[];
   activeShift: Shift | undefined;
   user: { email: string; displayName: string };
+  deviceConfig?: DeviceFeaturesConfig;
+  activeOperator?: string;
   onOpenShift: (operatorName: string, initialChange: number, startTime?: number) => Promise<void>;
   onCloseShift: (shift: Shift) => Promise<void>;
 }
 
-export function ShiftControl({ operators, shifts, transactions, vehicles, sales, activeShift, user, onOpenShift, onCloseShift }: ShiftControlProps) {
+export function ShiftControl({ operators, shifts, transactions, vehicles, sales, activeShift, user, deviceConfig, activeOperator, onOpenShift, onCloseShift }: ShiftControlProps) {
   const [operatorName, setOperatorName] = useState('');
   const [initialChange, setInitialChange] = useState('');
   const [finalChange, setFinalChange] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedShiftForPrint, setSelectedShiftForPrint] = useState<Shift | null>(null);
   const [retroactiveStart, setRetroactiveStart] = useState('');
+
+  const canManageShifts = deviceConfig?.canManageShifts !== false;
+
+  useEffect(() => {
+    if (deviceConfig?.enableOperatorLogin && activeOperator && !operatorName) {
+      const exists = operators.some(o => o.name === activeOperator);
+      if (exists) setOperatorName(activeOperator);
+    }
+  }, [activeOperator, operators, deviceConfig?.enableOperatorLogin]);
   
   // Calculate potential summary if shift is open
   const calculateCurrentSummary = () => {
@@ -190,14 +202,18 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
                               />
                           </div>
                       </div>
-                      <button 
-                          disabled={isProcessing}
-                          type="submit" 
-                          className="w-full py-4 mt-4 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 disabled:bg-slate-300"
-                      >
-                          {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckSquare className="w-5 h-5" />}
-                          Abrir Caixa
-                      </button>
+                      {canManageShifts ? (
+                        <button 
+                            disabled={isProcessing}
+                            type="submit" 
+                            className="w-full py-4 mt-4 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 disabled:bg-slate-300"
+                        >
+                            {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckSquare className="w-5 h-5" />}
+                            Abrir Caixa
+                        </button>
+                      ) : (
+                        <p className="text-xs text-center text-slate-500 py-2">Abertura de turno desabilitada neste dispositivo.</p>
+                      )}
                   </form>
               ) : (
                   <form onSubmit={handleCloseShift} className="space-y-6">
@@ -251,14 +267,18 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
                           <p className="text-xs text-slate-500 mt-1">Insira o valor em dinheiro que ficará no caixa para o próximo turno.</p>
                       </div>
 
-                      <button 
-                          disabled={isProcessing}
-                          type="submit" 
-                          className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 disabled:bg-slate-500"
-                      >
-                          {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <LockIcon className="w-5 h-5" />}
-                          Conferir e Fechar Turno
-                      </button>
+                      {canManageShifts ? (
+                        <button 
+                            disabled={isProcessing}
+                            type="submit" 
+                            className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 disabled:bg-slate-500"
+                        >
+                            {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <LockIcon className="w-5 h-5" />}
+                            Conferir e Fechar Turno
+                        </button>
+                      ) : (
+                        <p className="text-xs text-center text-slate-500 py-2">Fechamento de turno desabilitado neste dispositivo.</p>
+                      )}
                   </form>
               )}
           </div>

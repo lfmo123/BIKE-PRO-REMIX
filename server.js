@@ -18,7 +18,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '15mb' }));
 
   // Define qual banco de dados usar ('mysql', 'firebase' ou 'json')
   const envDbType = process.env.DB_TYPE;
@@ -113,31 +113,40 @@ async function startServer() {
   // Check-in a new vehicle
   app.post('/api/vehicles', async (req, res) => {
     try {
-      let { type, identifier, ownerName, cardNumber, checkInTime: reqCheckInTime } = req.body;
+      let { type, identifier, ownerName, cardNumber, checkInTime: reqCheckInTime, damageNotes, photoData, operatorName, qrCode } = req.body;
       cardNumber = (cardNumber || '').trim().toUpperCase();
       identifier = (identifier || '').trim().toUpperCase();
       
       const id = Math.random().toString(36).substring(2, 9);
       const checkInTime = reqCheckInTime || Date.now();
       const status = 'active';
-      const newVehicle = { id, type, identifier, ownerName, cardNumber, checkInTime, status };
+      const newVehicle = {
+        id,
+        type,
+        identifier,
+        ownerName,
+        cardNumber,
+        checkInTime,
+        status,
+        ...(damageNotes ? { damageNotes } : {}),
+        ...(photoData ? { photoData } : {}),
+        ...(operatorName ? { operatorName } : {}),
+        ...(qrCode ? { qrCode } : {})
+      };
 
       if (dbType === 'firebase') {
-        const isSpotTaken = await firebaseDb.checkSpotTaken(cardNumber);
-        if (isSpotTaken) return res.status(400).json({ error: 'Spot is already occupied' });
-        
         await firebaseDb.checkInVehicle(newVehicle);
         res.status(201).json(newVehicle);
       } else if (dbType === 'mysql') {
         const isSpotTaken = await mySqlCheckSpotTaken(cardNumber);
-        if (isSpotTaken) return res.status(400).json({ error: 'Spot is already occupied' });
+        if (isSpotTaken) return res.status(409).json({ error: 'Esta vaga/cartão já está ocupada.' });
         
         await mySqlCheckInVehicle(newVehicle);
         res.status(201).json(newVehicle);
       } else {
         const db = readDb();
         const isSpotTaken = db.vehicles.some(v => v.cardNumber === cardNumber && (v.status === 'active' || v.status === 'stored'));
-        if (isSpotTaken) return res.status(400).json({ error: 'Spot is already occupied' });
+        if (isSpotTaken) return res.status(409).json({ error: 'Esta vaga/cartão já está ocupada.' });
         
         db.vehicles.push(newVehicle);
         writeDb(db);
@@ -145,7 +154,8 @@ async function startServer() {
       }
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: error.message || 'Failed to check-in vehicle' });
+      const statusCode = error.statusCode || 500;
+      res.status(statusCode).json({ error: error.message || 'Failed to check-in vehicle' });
     }
   });
 
@@ -221,13 +231,21 @@ async function startServer() {
   app.put('/api/vehicles/:id/checkout', async (req, res) => {
     try {
       const { id } = req.params;
-      const { price, paymentMethod, customerCardId, checkInTime, checkOutTime: providedCheckOutTime } = req.body;
+      const { price, paymentMethod, customerCardId, checkInTime, checkOutTime: providedCheckOutTime, checkOutOperatorName } = req.body;
       const checkOutTime = providedCheckOutTime || Date.now();
       
       let updatedVehicle;
       
       if (dbType === 'firebase') {
-        updatedVehicle = await firebaseDb.checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId, checkInTime);
+        updatedVehicle = await firebaseDb.checkOutVehicle(
+          id,
+          price,
+          paymentMethod,
+          checkOutTime,
+          customerCardId,
+          checkInTime,
+          checkOutOperatorName
+        );
       } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
         updatedVehicle = await mysqlDb.checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId, checkInTime);
@@ -235,13 +253,17 @@ async function startServer() {
         const db = readDb();
         const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
         if (vehicleIndex > -1) {
+          if (db.vehicles[vehicleIndex].status === 'completed') {
+            return res.status(409).json({ error: 'Este veículo já foi finalizado em outro dispositivo.' });
+          }
           db.vehicles[vehicleIndex] = {
             ...db.vehicles[vehicleIndex],
             status: 'completed',
             checkOutTime,
             price,
             paymentMethod,
-            customerCardId // save it inside the vehicle history too
+            customerCardId,
+            ...(checkOutOperatorName ? { checkOutOperatorName } : {})
           };
           
           if (checkInTime) {
@@ -255,12 +277,10 @@ async function startServer() {
       
       if (!updatedVehicle) return res.status(404).json({ error: 'Vehicle not found' });
 
-      // Process Customer Card deduction if applicable
-      if (paymentMethod === 'card' || paymentMethod === 'postpaid_card') {
+      // Process Customer Card deduction for non-Firebase DBs (Firebase handles it inside runTransaction)
+      if (dbType !== 'firebase' && (paymentMethod === 'card' || paymentMethod === 'postpaid_card')) {
         let cards = [];
-        if (dbType === 'firebase') {
-          cards = await firebaseDb.getCustomerCards();
-        } else if (dbType === 'mysql') {
+        if (dbType === 'mysql') {
           const mysqlDb = await import('./src/db/mysqlDb.js');
           cards = await mysqlDb.getCustomerCards();
         } else {
@@ -279,11 +299,9 @@ async function startServer() {
           const numPrice = Number(price) || 0;
           const newBalance = paymentMethod === 'card' 
             ? prevBalance - numPrice
-            : prevBalance + numPrice; // prepay deducts from credits, postpay adds to debt
+            : prevBalance + numPrice;
           
-          if (dbType === 'firebase') {
-            await firebaseDb.updateCustomerCard(card.id, { balance: newBalance });
-          } else if (dbType === 'mysql') {
+          if (dbType === 'mysql') {
             const mysqlDb = await import('./src/db/mysqlDb.js');
             await mysqlDb.updateCustomerCard(card.id, { ...card, balance: newBalance });
           } else {
@@ -300,7 +318,8 @@ async function startServer() {
       res.json(updatedVehicle);
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: error.message || 'Failed to check-out vehicle' });
+      const statusCode = error.statusCode || 500;
+      res.status(statusCode).json({ error: error.message || 'Failed to check-out vehicle' });
     }
   });
 
@@ -1204,11 +1223,31 @@ async function startServer() {
     try {
       let backupData = {};
       if (dbType === 'firebase') {
-        const vehicles = await firebaseDb.getVehicles();
-        const transactions = await firebaseDb.getTransactions();
-        const lostCards = await firebaseDb.getLostCards();
-        const pricing = await firebaseDb.getPricing();
-        backupData = { version: 2, exportDate: new Date().toISOString(), pricing, vehicles, transactions, lostCards, dbType };
+        const [vehicles, transactions, lostCards, pricing, customerCards, products, sales, shifts, operators] = await Promise.all([
+          firebaseDb.getVehicles(),
+          firebaseDb.getTransactions(),
+          firebaseDb.getLostCards(),
+          firebaseDb.getPricing(),
+          firebaseDb.getCustomerCards(),
+          firebaseDb.getProducts(),
+          firebaseDb.getSales(),
+          firebaseDb.getShifts(),
+          firebaseDb.getOperators()
+        ]);
+        backupData = {
+          version: 3,
+          exportDate: new Date().toISOString(),
+          pricing,
+          vehicles,
+          transactions,
+          lostCards,
+          customerCards,
+          products,
+          sales,
+          shifts,
+          operators,
+          dbType
+        };
       } else if (dbType === 'mysql') {
         const { getVehicles, getTransactions, getLostCards, getPricing } = await import('./src/db/mysqlDb.js');
         const vehicles = await getVehicles();
@@ -1218,12 +1257,64 @@ async function startServer() {
         backupData = { version: 2, exportDate: new Date().toISOString(), pricing, vehicles, transactions, lostCards, dbType };
       } else {
         const db = readDb();
-        backupData = { version: 2, exportDate: new Date().toISOString(), dbType, ...db };
+        backupData = { version: 3, exportDate: new Date().toISOString(), dbType, ...db };
       }
       res.json(backupData);
     } catch (error) {
       console.error("Backup export error:", error);
       res.status(500).json({ error: "Failed to export backup data." });
+    }
+  });
+
+  app.post('/api/backup/restore', async (req, res) => {
+    try {
+      const data = req.body;
+      if (!data || typeof data !== 'object') {
+        return res.status(400).json({ error: 'Arquivo de backup inválido.' });
+      }
+
+      if (dbType === 'firebase') {
+        const result = await firebaseDb.restoreBackup(data);
+        return res.json({ success: true, message: `Backup restaurado com sucesso (${result.restoredCount} registros gravados na nuvem).`, ...result });
+      } else if (dbType === 'mysql') {
+        if (data.pricing) {
+          await mySqlUpdatePricing(data.pricing);
+        }
+        return res.json({ success: true, message: 'Tarifas restauradas no MySQL. Demais coleções requerem importação SQL direta.' });
+      } else {
+        const db = readDb();
+        const mergeById = (existing = [], incoming = []) => {
+          const map = new Map();
+          existing.forEach((item) => item && item.id && map.set(String(item.id), item));
+          incoming.forEach((item) => item && item.id && map.set(String(item.id), item));
+          return Array.from(map.values());
+        };
+        if (data.pricing && typeof data.pricing === 'object') db.pricing = { ...db.pricing, ...data.pricing };
+        if (Array.isArray(data.vehicles)) db.vehicles = mergeById(db.vehicles, data.vehicles);
+        if (Array.isArray(data.transactions)) db.transactions = mergeById(db.transactions, data.transactions);
+        if (Array.isArray(data.customerCards)) db.customerCards = mergeById(db.customerCards, data.customerCards);
+        if (Array.isArray(data.products)) db.products = mergeById(db.products, data.products);
+        if (Array.isArray(data.sales)) db.sales = mergeById(db.sales, data.sales);
+        if (Array.isArray(data.shifts)) db.shifts = mergeById(db.shifts, data.shifts);
+        if (Array.isArray(data.operators)) db.operators = mergeById(db.operators, data.operators);
+        if (Array.isArray(data.lostCards)) {
+          const cardMap = new Map();
+          (db.lostCards || []).forEach(c => {
+            const key = typeof c === 'string' ? c : c?.cardNumber;
+            if (key) cardMap.set(key, c);
+          });
+          data.lostCards.forEach(c => {
+            const key = typeof c === 'string' ? c : c?.cardNumber;
+            if (key) cardMap.set(key, c);
+          });
+          db.lostCards = Array.from(cardMap.values());
+        }
+        writeDb(db);
+        return res.json({ success: true, message: 'Backup completo restaurado no banco de dados local.' });
+      }
+    } catch (error) {
+      console.error('Backup restore error:', error);
+      res.status(500).json({ error: error.message || 'Falha ao restaurar backup completo.' });
     }
   });
 

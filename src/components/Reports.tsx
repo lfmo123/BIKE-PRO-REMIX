@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { ParkedVehicle, Sale, Transaction } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users, ShoppingCart, Smartphone, Printer, Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users, ShoppingCart, Smartphone, Printer, Wallet, ArrowUpRight, ArrowDownRight, Download } from 'lucide-react';
 import { getLocalDateString } from '../lib/dateUtils';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
+import { DeviceFeaturesConfig } from '../lib/deviceModules';
+import { exportToCsv } from '../lib/csvExport';
 
 interface ReportsProps {
   vehicles: ParkedVehicle[];
   sales?: Sale[];
   transactions?: Transaction[];
+  deviceConfig?: DeviceFeaturesConfig;
 }
 
-export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProps) {
+export function Reports({ vehicles, sales = [], transactions = [], deviceConfig }: ReportsProps) {
   const [reportType, setReportType] = useState<'daily' | 'monthly' | 'custom' | 'cards' | 'store' | 'parked'>('daily');
   const [selectedDate, setSelectedDate] = useState<string>(
     getLocalDateString()
@@ -393,13 +396,98 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
   const topProductsChartData = Object.values(storeSalesByProduct)
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5); // top 5
+
+  // Peak Hours 00h - 23h computation (when enablePeakHoursChart is enabled)
+  const buildPeakHours = (entriesList: ParkedVehicle[], exitsList: ParkedVehicle[]) => {
+    const hours = Array.from({ length: 24 }, (_, h) => ({
+      hour: `${String(h).padStart(2, '0')}h`,
+      entradas: 0,
+      saidas: 0,
+    }));
+    entriesList.forEach(v => {
+      if (v.checkInTime) {
+        const h = new Date(v.checkInTime).getHours();
+        if (hours[h]) hours[h].entradas += 1;
+      }
+    });
+    exitsList.forEach(v => {
+      if (v.checkOutTime) {
+        const h = new Date(v.checkOutTime).getHours();
+        if (hours[h]) hours[h].saidas += 1;
+      }
+    });
+    return hours;
+  };
+
+  const peakHoursDaily = buildPeakHours(entriesDaily, exitsDaily);
+  const peakHoursMonthly = buildPeakHours(entriesMonthly, exitsMonthly);
+  const peakHoursCustom = buildPeakHours(entriesCustom, exitsCustom);
+
+  const handleExportReportCsv = () => {
+    if (reportType === 'store') {
+      exportToCsv(
+        `relatorio_loja_${selectedDate}`,
+        ['Data', 'Produto', 'Quantidade', 'Pagamento', 'Valor Total'],
+        salesStoreDaily.map(s => [
+          new Date(s.date).toLocaleString('pt-BR'),
+          s.productName,
+          s.quantity,
+          s.paymentMethod,
+          s.totalPrice.toFixed(2)
+        ])
+      );
+      return;
+    }
+
+    if (reportType === 'parked') {
+      const parkedList = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
+      exportToCsv(
+        `relatorio_estacionados_${getLocalDateString()}`,
+        ['Cartão', 'Identificação', 'Cliente', 'Tipo', 'Status', 'Entrada'],
+        parkedList.map(v => [
+          v.cardNumber,
+          v.identifier,
+          v.ownerName || '',
+          v.type,
+          v.status,
+          new Date(v.checkInTime).toLocaleString('pt-BR')
+        ])
+      );
+      return;
+    }
+
+    const sourceList =
+      reportType === 'daily'
+        ? completedVehiclesDaily
+        : reportType === 'monthly'
+        ? completedVehiclesMonthly
+        : reportType === 'custom'
+        ? completedVehiclesCustom
+        : vehicles;
+
+    exportToCsv(
+      `relatorio_${reportType}_${getLocalDateString()}`,
+      ['Cartão', 'Identificação', 'Cliente', 'Tipo', 'Status', 'Entrada', 'Saída', 'Pagamento', 'Valor'],
+      sourceList.map(v => [
+        v.cardNumber,
+        v.identifier,
+        v.ownerName || '',
+        v.type,
+        v.status,
+        new Date(v.checkInTime).toLocaleString('pt-BR'),
+        v.checkOutTime ? new Date(v.checkOutTime).toLocaleString('pt-BR') : '',
+        v.paymentMethod || '',
+        v.price !== undefined ? Number(v.price).toFixed(2) : ''
+      ])
+    );
+  };
     
   return (
     <div className="space-y-6 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Relatórios</h1>
-          <p className="text-sm text-slate-500">Resumo financeiro e fluxo de veículos</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Relatórios</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Resumo financeiro e fluxo de veículos</p>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4 items-center">
@@ -521,16 +609,27 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
           )}
 
           {reportType === 'cards' && (
-            <div className="flex items-center space-x-2 bg-white rounded-xl shadow-sm border border-slate-200 p-1 pl-3 transition-shadow hover:shadow-md">
+            <div className="flex items-center space-x-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-1 pl-3 transition-shadow hover:shadow-md">
               <Search className="w-5 h-5 text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Buscar por placa ou cartão..."
                 value={searchCard}
                 onChange={(e) => setSearchCard(e.target.value)}
-                className="bg-transparent border-0 focus:ring-0 text-slate-700 font-medium p-2 outline-none placeholder:text-slate-400"
+                className="bg-transparent border-0 focus:ring-0 text-slate-700 dark:text-slate-200 font-medium p-2 outline-none placeholder:text-slate-400"
               />
             </div>
+          )}
+
+          {deviceConfig?.enableCsvExport && (
+            <button
+              onClick={handleExportReportCsv}
+              className="flex items-center space-x-2 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all text-sm cursor-pointer"
+              title="Exportar relatório atual para CSV/Excel"
+            >
+              <Download className="w-4 h-4" />
+              <span>Exportar CSV</span>
+            </button>
           )}
         </div>
       </div>
@@ -903,6 +1002,28 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
               </div>
             </div>
 
+            {deviceConfig?.enablePeakHoursChart && (
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 lg:col-span-2">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center">
+                  <Clock className="w-5 h-5 mr-2 text-indigo-500" />
+                  Horários de Pico (Entradas x Saídas - Diário)
+                </h3>
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={peakHoursDaily}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Legend />
+                      <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="saidas" name="Saídas" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
             {/* Detailed Checkout List Section */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2 mt-6">
               <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center">
@@ -1228,6 +1349,28 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
               </div>
             </div>
 
+            {deviceConfig?.enablePeakHoursChart && (
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 lg:col-span-2">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center">
+                  <Clock className="w-5 h-5 mr-2 text-indigo-500" />
+                  Horários de Pico (Entradas x Saídas - Mensal)
+                </h3>
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={peakHoursMonthly}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Legend />
+                      <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="saidas" name="Saídas" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
           </div>
         </>
       )}
@@ -1353,6 +1496,28 @@ export function Reports({ vehicles, sales = [], transactions = [] }: ReportsProp
                 )}
               </div>
             </div>
+
+            {deviceConfig?.enablePeakHoursChart && (
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 lg:col-span-2">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center">
+                  <Clock className="w-5 h-5 mr-2 text-indigo-500" />
+                  Horários de Pico (Entradas x Saídas - Período)
+                </h3>
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={peakHoursCustom}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Legend />
+                      <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="saidas" name="Saídas" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

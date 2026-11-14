@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
@@ -14,13 +16,15 @@
 }
 
 @media print {
-  html {
+  html, html.dark {
     font-size: 14px !important;
+    color-scheme: light !important;
   }
   body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     background-color: white !important;
+    color: #000 !important;
   }
   
   /* Esconder Sidebar (geralmente div.fixed ou nav, aqui baseado nas classes) */

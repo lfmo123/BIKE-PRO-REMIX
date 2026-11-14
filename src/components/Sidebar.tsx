@@ -47,7 +47,7 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
       />
       
       {/* Sidebar */}
-      <div className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col h-full transform transition-transform duration-300 ease-in-out ${
+      <div className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-slate-900 dark:bg-slate-950 dark:border-r dark:border-slate-800 text-white flex flex-col h-full transform transition-transform duration-300 ease-in-out ${
         isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
         <div className="p-6 flex items-center space-x-3">

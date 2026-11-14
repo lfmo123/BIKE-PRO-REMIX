@@ -2,15 +2,18 @@ import React, { useState, useMemo } from 'react';
 import { ParkedVehicle, Pricing, LostCard } from '../types';
 import { Search, Bike, Zap, Motorbike, Plus, AlertTriangle, PackageOpen } from 'lucide-react';
 
+import { DeviceFeaturesConfig } from '../lib/deviceModules';
+
 interface SpotsGridProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
   lostCards?: LostCard[];
+  deviceConfig?: DeviceFeaturesConfig;
   onSpotClick?: (spotNumber: string, occupiedVehicle?: ParkedVehicle) => void;
   hideTitle?: boolean;
 }
 
-export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hideTitle }: SpotsGridProps) {
+export function SpotsGrid({ vehicles, pricing, lostCards = [], deviceConfig, onSpotClick, hideTitle }: SpotsGridProps) {
   const activeVehicles = vehicles.filter(v => v.status === 'active' || v.status === 'stored');
   const [searchQuery, setSearchQuery] = useState('');
   const normalSpots = Array.from({ length: 300 }, (_, i) => (i + 1).toString());
@@ -52,7 +55,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
     return (
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-          <h2 className="text-xl font-bold text-slate-800">{title}</h2>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h2>
           {hasSearch && (
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
@@ -63,7 +66,7 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
                 placeholder="Buscar número..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-96"
+                className="pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-full sm:w-96"
               />
             </div>
           )}
@@ -76,16 +79,19 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
           const lostCardObj = lostCards?.find(c => c.cardNumber === spotNum);
           const isLostCard = !!lostCardObj || (isOccupied && vehicle?.cardLost);
           const isStored = isOccupied && vehicle && vehicle.status === 'stored';
+          const canInteract = isOccupied
+            ? deviceConfig?.canCheckOut !== false
+            : !isLostCard && deviceConfig?.canCheckIn !== false;
           
           return (
             <button
               key={spotNum}
               onClick={() => {
-                if (!(isLostCard && !isOccupied) && onSpotClick) {
+                if (canInteract && onSpotClick) {
                   onSpotClick(spotNum, vehicle);
                 }
               }}
-              disabled={isLostCard && !isOccupied}
+              disabled={(isLostCard && !isOccupied) || !canInteract}
               className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all aspect-square relative ${
                 isOccupied 
                   ? vehicle?.cardLost 
@@ -95,10 +101,10 @@ export function SpotsGrid({ vehicles, pricing, lostCards = [], onSpotClick, hide
                       : `${getBgColor(vehicle.type)} hover:shadow-md cursor-pointer text-slate-800 border-transparent`
                   : isLostCard
                     ? 'bg-red-100 border-red-400 opacity-80 cursor-not-allowed text-red-900' 
-                    : 'bg-white border-slate-200 border-dashed hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm cursor-pointer group'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 border-dashed hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:shadow-sm cursor-pointer group'
               }`}
             >
-              <span className={`absolute top-1 left-2 font-bold text-2xl ${spotNum.includes('MT/BE') || spotNum.includes('SN') ? 'text-lg' : ''} ${isLostCard ? 'text-red-900/30' : 'text-black'}`}>
+              <span className={`absolute top-1 left-2 font-bold text-2xl ${spotNum.includes('MT/BE') || spotNum.includes('SN') ? 'text-lg' : ''} ${isLostCard ? 'text-red-900/30' : isOccupied ? 'text-black' : 'text-black dark:text-slate-100'}`}>
                 {spotNum.replace('MT/BE ', '').replace('SN ', '')}
               </span>
               {spotNum.includes('MT/BE') && (

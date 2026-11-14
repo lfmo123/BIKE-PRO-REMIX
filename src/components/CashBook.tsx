@@ -1,20 +1,25 @@
 import React, { useState } from 'react';
 import { Transaction, ParkedVehicle, Shift } from '../types';
-import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle, FileText, Search, Clock, Filter, RotateCcw, Printer } from 'lucide-react';
+import { Wallet, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, AlertTriangle, CheckCircle, FileText, Search, Clock, Filter, RotateCcw, Printer, Download, MessageCircle } from 'lucide-react';
 import { getLocalDateString } from '../lib/dateUtils';
 import { DailyReportModal } from './DailyReportModal';
 import { FiadoSearchModal } from './FiadoSearchModal';
+import { DeviceFeaturesConfig } from '../lib/deviceModules';
+import { exportToCsv } from '../lib/csvExport';
+import { buildFiadoWhatsappText, openWhatsappMessage } from '../lib/whatsappUtils';
 
 interface CashBookProps {
   transactions: Transaction[];
   vehicles: ParkedVehicle[];
   shifts?: Shift[];
+  deviceConfig?: DeviceFeaturesConfig;
   onAddTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   onDeleteTransaction: (id: string) => Promise<void>;
   onPayFiado: (id: string, paymentMethod: string, amount: number, observation?: string) => Promise<void>;
 }
 
-export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction, onDeleteTransaction, onPayFiado }: CashBookProps) {
+export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, onAddTransaction, onDeleteTransaction, onPayFiado }: CashBookProps) {
+  const canManageCashbook = deviceConfig?.canManageCashbook !== false;
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Outros');
   const [amount, setAmount] = useState('');
@@ -209,18 +214,42 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
     setGlobalFiadoObservation('');
   };
 
+  const handleExportCashbookCsv = () => {
+    exportToCsv(
+      `livro_caixa_${startDate}_a_${endDate}`,
+      ['Data/Hora', 'Descrição', 'Categoria', 'Operador', 'Tipo', 'Valor (R$)'],
+      combinedEntries.map(entry => [
+        new Date(entry.date).toLocaleString('pt-BR'),
+        entry.description,
+        ('category' in entry && entry.category) ? entry.category : (entry.isManual ? 'Outros' : 'Estacionamento'),
+        ('operator' in entry && entry.operator) ? entry.operator : '',
+        entry.type === 'income' ? 'Entrada' : 'Saída',
+        (Number(entry.amount) || 0).toFixed(2).replace('.', ',')
+      ])
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Livro Caixa</h1>
-          <p className="text-slate-500">Controle financeiro e consulta por período do estacionamento</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Livro Caixa</h1>
+          <p className="text-slate-500 dark:text-slate-400">Controle financeiro e consulta por período do estacionamento</p>
         </div>
         
         <div className="flex flex-wrap gap-2 sm:gap-3 print:hidden">
+          {deviceConfig?.enableCsvExport && (
+            <button
+              onClick={handleExportCashbookCsv}
+              className="flex items-center justify-center space-x-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors font-medium shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              <span>CSV</span>
+            </button>
+          )}
           <button
             onClick={() => window.print()}
-            className="flex items-center justify-center space-x-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 border border-slate-200 rounded-xl transition-colors font-medium shadow-sm"
+            className="flex items-center justify-center space-x-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors font-medium shadow-sm"
           >
             <Printer className="w-5 h-5" />
             <span>Imprimir Filtro</span>
@@ -448,7 +477,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                <p className="text-sm text-orange-700 mt-1 mb-4">
                  Total em haver: <span className="font-bold">R$ {unpaidFiados.reduce((acc, v) => acc + ((Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0)), 0).toFixed(2)}</span> ({unpaidFiados.length})
                </p>
-               {unpaidFiados.length > 0 && (
+               {canManageCashbook && unpaidFiados.length > 0 && (
                  <div className="bg-white p-3 rounded-xl border border-orange-200">
                    <p className="text-xs font-bold text-orange-800 mb-2">ABATER DO TOTAL</p>
                    <div className="space-y-2">
@@ -551,16 +580,31 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                            </div>
                         </div>
                      ) : (
-                       <button 
-                         onClick={() => {
-                           setPayingFiadoId(v.id);
-                           setFiadoPaymentMethod('cash');
-                           setFiadoPaymentAmount(''); // empty defaults to remaining amount
-                         }}
-                         className="w-full mt-2 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
-                       >
-                         {v.fiadoPaidAmount ? 'Dar Baixa Restante' : 'Dar Baixa'}
-                       </button>
+                      <div className="flex gap-2 mt-2">
+                        {canManageCashbook && (
+                          <button 
+                            onClick={() => {
+                              setPayingFiadoId(v.id);
+                              setFiadoPaymentMethod('cash');
+                              setFiadoPaymentAmount('');
+                            }}
+                            className="flex-1 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
+                          >
+                            {v.fiadoPaidAmount ? 'Dar Baixa Restante' : 'Dar Baixa'}
+                          </button>
+                        )}
+                        {deviceConfig?.enableWhatsappReceipts && (
+                          <button
+                            type="button"
+                            onClick={() => openWhatsappMessage(buildFiadoWhatsappText(v), v.lostCardPhone)}
+                            className="px-2.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors flex items-center gap-1"
+                            title="Cobrar via WhatsApp"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            Zap
+                          </button>
+                        )}
+                      </div>
                      )}
                    </div>
                  ))
@@ -568,8 +612,9 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
              </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">Nova Despesa</h2>
+          {canManageCashbook && (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-6">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Nova Despesa</h2>
             <form onSubmit={handleAddTransaction} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Categoria da Despesa</label>
@@ -620,7 +665,8 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                 Adicionar Despesa
               </button>
             </form>
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-2">
@@ -658,7 +704,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                         <span className={`font-bold print:text-sm ${entry.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
                           {entry.type === 'income' ? '+' : '-'} R$ {entry.amount.toFixed(2)}
                         </span>
-                        {entry.isManual && (
+                        {canManageCashbook && entry.isManual && (
                           <button 
                             onClick={() => onDeleteTransaction(entry.id)}
                             className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors print:hidden"
@@ -673,11 +719,11 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
                 </div>
               ) : (
                 <div className="py-12 text-center">
-                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Wallet className="w-8 h-8 text-slate-400" />
                   </div>
-                  <h3 className="text-lg font-medium text-slate-900 mb-1">Nenhum registro</h3>
-                  <p className="text-slate-500">Não há movimentações para o período e horário selecionados.</p>
+                  <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">Nenhum registro</h3>
+                  <p className="text-slate-500 dark:text-slate-400">Não há movimentações para o período e horário selecionados.</p>
                 </div>
               )}
             </div>
@@ -689,6 +735,7 @@ export function CashBook({ transactions, vehicles, shifts = [], onAddTransaction
         isOpen={isFiadoSearchOpen}
         onClose={() => setIsFiadoSearchOpen(false)}
         vehicles={vehicles}
+        deviceConfig={deviceConfig}
         onPayFiado={onPayFiado}
       />
     </div>

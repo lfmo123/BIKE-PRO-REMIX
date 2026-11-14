@@ -1,15 +1,18 @@
 import React, { useState, useMemo } from 'react';
-import { Search, X, Calendar, Clock, DollarSign, CheckCircle, AlertTriangle, User, Tag, Bike, Zap, Motorbike, Printer, ArrowRight, Layers, FileText } from 'lucide-react';
+import { Search, X, Calendar, Clock, DollarSign, CheckCircle, AlertTriangle, User, Tag, Bike, Zap, Motorbike, Printer, ArrowRight, Layers, FileText, MessageCircle } from 'lucide-react';
 import { ParkedVehicle, VehicleType } from '../types';
+import { DeviceFeaturesConfig } from '../lib/deviceModules';
+import { buildFiadoWhatsappText, openWhatsappMessage } from '../lib/whatsappUtils';
 
 interface FiadoSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   vehicles: ParkedVehicle[];
+  deviceConfig?: DeviceFeaturesConfig;
   onPayFiado: (id: string, paymentMethod: string, amount: number, observation?: string) => Promise<void>;
 }
 
-export function FiadoSearchModal({ isOpen, onClose, vehicles, onPayFiado }: FiadoSearchModalProps) {
+export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPayFiado }: FiadoSearchModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>('all');
   const [dateFilter, setDateFilter] = useState<'all' | 'custom'>('all');
@@ -109,7 +112,6 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, onPayFiado }: Fiad
       setPayObs('');
     } catch (err) {
       console.error(err);
-      alert('Erro ao processar baixa.');
     } finally {
       setIsSubmitting(false);
     }
@@ -322,7 +324,7 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, onPayFiado }: Fiad
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {!isPaid && (
+                        {!isPaid && deviceConfig?.canManageCashbook !== false && (
                           <button
                             onClick={() => {
                               setPayingId(isPayingThis ? null : v.id);
@@ -334,6 +336,15 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, onPayFiado }: Fiad
                           >
                             <CheckCircle className="w-3.5 h-3.5" />
                             Dar Baixa
+                          </button>
+                        )}
+                        {!isPaid && deviceConfig?.enableWhatsappReceipts && (
+                          <button
+                            onClick={() => openWhatsappMessage(buildFiadoWhatsappText(v), v.lostCardPhone)}
+                            className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors flex items-center gap-1"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            WhatsApp
                           </button>
                         )}
 
