@@ -23,7 +23,7 @@ import { QrScannerModal } from './components/QrScannerModal';
 import { OperatorLoginModal } from './components/OperatorLoginModal';
 import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard, Shift, Operator } from './types';
 import { getLocalDateString } from './lib/dateUtils';
-import { parseResponseJson } from './lib/apiUtils';
+import { parseResponseJson, safeFetchJson } from './lib/apiUtils';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { getDeviceModules, DeviceModulesConfig } from './lib/deviceModules';
@@ -132,13 +132,16 @@ export default function App() {
     showToast('info', `Operador ativo: ${opName}`);
   };
 
+  const warmupRetryRef = useRef<number>(0);
+
   const fetchOperators = async () => {
-    try {
-      const res = await fetch('/api/operators');
-      if (res.ok) setOperators(await res.json());
-    } catch (e) {
-      console.error('Failed to fetch operators', e);
+    const res = await safeFetchJson<Operator[]>('/api/operators');
+    if (res.ok && Array.isArray(res.data)) {
+      setOperators(res.data);
+    } else if (!res.isHtml) {
+      console.warn('Operators fetch:', res.error);
     }
+    return res;
   };
 
   const handleAddOperator = async (name: string, pin?: string) => {
@@ -160,96 +163,87 @@ export default function App() {
   };
 
   const fetchTransactions = async () => {
-    try {
-      const res = await fetch('/api/transactions');
-      if (res.ok) {
-        const data = await res.json();
-        setTransactions(data);
-      }
-    } catch (e) {
-      console.error('Failed to fetch transactions', e);
+    const res = await safeFetchJson<Transaction[]>('/api/transactions');
+    if (res.ok && Array.isArray(res.data)) {
+      setTransactions(res.data);
+    } else if (!res.isHtml) {
+      console.warn('Transactions fetch:', res.error);
     }
+    return res;
   };
 
   const fetchCustomerCards = async () => {
-    try {
-      const res = await fetch('/api/customer-cards');
-      if (res.ok) setCustomerCards(await res.json());
-    } catch (e) { console.error('Failed to fetch customer cards', e); }
+    const res = await safeFetchJson<CustomerCard[]>('/api/customer-cards');
+    if (res.ok && Array.isArray(res.data)) {
+      setCustomerCards(res.data);
+    } else if (!res.isHtml) {
+      console.warn('Customer cards fetch:', res.error);
+    }
+    return res;
   };
 
   const fetchShifts = async () => {
-    try {
-      const res = await fetch('/api/shifts');
-      if (res.ok) setShifts(await res.json());
-    } catch (e) { console.error('Failed to fetch shifts', e); }
+    const res = await safeFetchJson<Shift[]>('/api/shifts');
+    if (res.ok && Array.isArray(res.data)) {
+      setShifts(res.data);
+    } else if (!res.isHtml) {
+      console.warn('Shifts fetch:', res.error);
+    }
+    return res;
   };
 
   const fetchLostCards = async () => {
-    try {
-      const res = await fetch('/api/lost-cards');
-      if (res.ok) {
-        const data = await res.json();
-        setLostCards(data);
-      }
-    } catch (e) {
-      console.error('Failed to fetch lost cards', e);
+    const res = await safeFetchJson<LostCard[]>('/api/lost-cards');
+    if (res.ok && Array.isArray(res.data)) {
+      setLostCards(res.data);
+    } else if (!res.isHtml) {
+      console.warn('Lost cards fetch:', res.error);
     }
+    return res;
   };
 
   const fetchVehicles = async () => {
-    try {
-      const res = await fetch('/api/vehicles');
-      if (res.ok) {
-        const data = await res.json();
-        setVehicles(data);
-        setErrorMsg(null);
-      } else {
-        const err = await res.json();
-        setErrorMsg(err.error || 'Erro ao carregar veículos.');
-      }
-    } catch (e) {
-      console.error('Failed to fetch vehicles', e);
-      if (navigator.onLine) {
-        setErrorMsg('Falha na comunicação com o servidor.');
-      }
+    const res = await safeFetchJson<ParkedVehicle[]>('/api/vehicles');
+    if (res.ok && Array.isArray(res.data)) {
+      setVehicles(res.data);
+      setErrorMsg(null);
+    } else if (!res.isHtml && navigator.onLine) {
+      setErrorMsg(res.error || 'Erro ao carregar veículos.');
     }
+    return res;
   };
 
   const fetchPricing = async () => {
-    try {
-      const res = await fetch('/api/pricing');
-      if (res.ok) {
-        const data = await res.json();
-        setPricing(data);
-      } else {
-        const err = await res.json();
-        setErrorMsg(err.error || 'Erro ao carregar preços.');
-      }
-    } catch (e) {
-      console.error('Failed to fetch pricing', e);
+    const res = await safeFetchJson<Pricing>('/api/pricing');
+    if (res.ok && res.data) {
+      setPricing(res.data);
+    } else if (!res.isHtml) {
+      console.warn('Pricing fetch:', res.error);
     }
+    return res;
   };
 
   const fetchProducts = async () => {
-    try {
-      const res = await fetch('/api/products');
-      if (res.ok) setProducts(await res.json());
-    } catch (e) { console.error(e); }
+    const res = await safeFetchJson<Product[]>('/api/products');
+    if (res.ok && Array.isArray(res.data)) {
+      setProducts(res.data);
+    }
+    return res;
   };
 
   const fetchSales = async () => {
-    try {
-      const res = await fetch('/api/sales');
-      if (res.ok) setSales(await res.json());
-    } catch (e) { console.error(e); }
+    const res = await safeFetchJson<Sale[]>('/api/sales');
+    if (res.ok && Array.isArray(res.data)) {
+      setSales(res.data);
+    }
+    return res;
   };
 
   const handleRefreshAll = useCallback(async () => {
     if (isSyncingRef.current) return;
     isSyncingRef.current = true;
     try {
-      await Promise.allSettled([
+      const results = await Promise.allSettled([
         fetchVehicles(),
         fetchPricing(),
         fetchLostCards(),
@@ -260,8 +254,25 @@ export default function App() {
         fetchProducts(),
         fetchSales()
       ]);
+
+      const anyHtml = results.some(
+        (r) => r.status === 'fulfilled' && (r.value as any)?.isHtml === true
+      );
+
+      if (anyHtml) {
+        if (warmupRetryRef.current < 4) {
+          warmupRetryRef.current += 1;
+          setTimeout(() => {
+            handleRefreshAll();
+          }, 2500);
+        } else {
+          setErrorMsg('Servidor inicializando ou indisponível no momento. Recarregue em instantes.');
+        }
+      } else {
+        warmupRetryRef.current = 0;
+      }
     } catch (e) {
-      console.error('Failed to refresh data', e);
+      console.warn('Failed to refresh data', e);
     } finally {
       isSyncingRef.current = false;
     }
@@ -513,9 +524,9 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (res.ok) {
-        const data = await res.json();
-        setTransactions(prev => [data, ...prev].sort((a, b) => b.date - a.date));
+      const parsed = await parseResponseJson<Transaction>(res, 'Erro ao salvar lançamento');
+      if (parsed.ok && parsed.data?.id) {
+        setTransactions(prev => [parsed.data!, ...prev].sort((a, b) => b.date - a.date));
       }
     } catch (e) {
       console.error('Failed to add transaction', e);

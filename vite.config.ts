@@ -15,7 +15,7 @@ export default defineConfig(({mode}) => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
         manifest: false,
         workbox: {
-          navigateFallbackDenylist: [/\/api/],
+          navigateFallbackDenylist: [/^\/api/, /\/api/],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         }
       })

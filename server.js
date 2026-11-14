@@ -28,7 +28,7 @@ async function startServer() {
     // Testa conectividade real com o Firebase (detecta PERMISSION_DENIED / Billing desabilitado / offline)
     try {
       const probePromise = firebaseDb.getPricing();
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout conectando ao Firebase")), 10000));
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout conectando ao Firebase")), 4000));
       await Promise.race([probePromise, timeoutPromise]);
       console.log("Firebase conectado e operacional.");
     } catch (firebaseErr) {
@@ -1316,6 +1316,11 @@ async function startServer() {
       console.error('Backup restore error:', error);
       res.status(500).json({ error: error.message || 'Falha ao restaurar backup completo.' });
     }
+  });
+
+  // Garante que nenhuma rota /api/* caia no fallback HTML do SPA
+  app.use('/api', (req, res) => {
+    res.status(404).json({ error: `Rota da API não encontrada: ${req.method} ${req.originalUrl}` });
   });
 
   // --- Vite Middleware ---
