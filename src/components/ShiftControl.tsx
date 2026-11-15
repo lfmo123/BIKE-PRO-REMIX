@@ -3,6 +3,7 @@ import { Shift, Transaction, ParkedVehicle, Sale, Operator } from '../types';
 import { CheckSquare, LockIcon, Loader2, ArrowUpRight, ArrowDownRight, Clock, User, Banknote } from 'lucide-react';
 import { ShiftDetailsModal } from './ShiftDetailsModal';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
+import { isFiadoTransaction, getTransactionPaymentMethod } from '../lib/transactionUtils';
 
 interface ShiftControlProps {
   operators: Operator[];
@@ -60,19 +61,6 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
     let totalPix = 0;
     let totalMachine = 0;
 
-    // manual transactions
-    shiftTransactions.forEach(t => {
-      if (t.type === 'income') {
-         totalIncome += t.amount;
-         // Assume manual transactions are diverse, but default to cash. For simplicity, just add to totals.
-      } else {
-         totalExpense += t.amount;
-      }
-    });
-
-    // Sales during shift
-    const shiftSales = sales.filter(s => s.date >= activeShift.startTime && (!activeShift.endTime || s.date <= activeShift.endTime));
-    
     const addPayment = (amount: number, method?: string) => {
         if (method === 'cash') totalCash += amount;
         else if (method === 'card') totalCard += amount;
@@ -80,6 +68,21 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
         else if (method === 'machine') totalMachine += amount;
         else totalCash += amount; // fallback to cash for old records without method
     };
+
+    // manual transactions
+    shiftTransactions.forEach(t => {
+      if (t.type === 'income') {
+         if (!isFiadoTransaction(t)) {
+           totalIncome += t.amount;
+           addPayment(t.amount, getTransactionPaymentMethod(t));
+         }
+      } else {
+         totalExpense += t.amount;
+      }
+    });
+
+    // Sales during shift
+    const shiftSales = sales.filter(s => s.date >= activeShift.startTime && (!activeShift.endTime || s.date <= activeShift.endTime));
 
     checkedOutVehicles.forEach(v => {
         if (v.price && !['fiado', 'postpaid_card', 'card'].includes(v.paymentMethod || '')) {

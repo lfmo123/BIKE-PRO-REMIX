@@ -446,19 +446,71 @@ export async function getTransactions() {
   const [rows] = await getPool().query('SELECT * FROM transactions ORDER BY date DESC');
   return rows.map(r => ({
     ...r,
-    amount: r.amount ? parseFloat(r.amount) : 0
+    amount: r.amount ? parseFloat(r.amount) : 0,
+    fiadoPaidAmount: r.fiadoPaidAmount ? parseFloat(r.fiadoPaidAmount) : 0,
+    isFiadoPaid: r.isFiadoPaid !== undefined ? !!r.isFiadoPaid : undefined
   }));
 }
 
 export async function addTransaction(transaction) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  try {
+    await getPool().query('ALTER TABLE transactions ADD COLUMN paymentMethod VARCHAR(50)');
+    await getPool().query('ALTER TABLE transactions ADD COLUMN isFiadoPaid BOOLEAN DEFAULT FALSE');
+    await getPool().query('ALTER TABLE transactions ADD COLUMN fiadoPaymentDate BIGINT');
+    await getPool().query('ALTER TABLE transactions ADD COLUMN fiadoPaymentMethod VARCHAR(50)');
+    await getPool().query('ALTER TABLE transactions ADD COLUMN fiadoPaidAmount DECIMAL(10, 2) DEFAULT 0.00');
+  } catch (e) {
+    // ignore if columns already exist
+  }
   const query = `
-    INSERT INTO transactions (id, description, amount, date, type)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO transactions (id, description, amount, date, type, paymentMethod, isFiadoPaid, fiadoPaidAmount)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
   await getPool().query(query, [
-    transaction.id, transaction.description, transaction.amount, transaction.date, transaction.type
+    transaction.id,
+    transaction.description,
+    transaction.amount,
+    transaction.date,
+    transaction.type,
+    transaction.paymentMethod || null,
+    transaction.isFiadoPaid ? 1 : 0,
+    transaction.fiadoPaidAmount || 0
   ]);
+}
+
+export async function payFiadoTransaction(id, paymentMethod, paymentDate, amountToPay) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  try {
+    await getPool().query('ALTER TABLE transactions ADD COLUMN paymentMethod VARCHAR(50)');
+    await getPool().query('ALTER TABLE transactions ADD COLUMN isFiadoPaid BOOLEAN DEFAULT FALSE');
+    await getPool().query('ALTER TABLE transactions ADD COLUMN fiadoPaymentDate BIGINT');
+    await getPool().query('ALTER TABLE transactions ADD COLUMN fiadoPaymentMethod VARCHAR(50)');
+    await getPool().query('ALTER TABLE transactions ADD COLUMN fiadoPaidAmount DECIMAL(10, 2) DEFAULT 0.00');
+  } catch (e) {
+    // ignore
+  }
+  const [currentRows] = await getPool().query('SELECT * FROM transactions WHERE id = ?', [id]);
+  if (!currentRows || currentRows.length === 0) return null;
+  const currentData = currentRows[0];
+  const currentPaid = currentData.fiadoPaidAmount ? parseFloat(currentData.fiadoPaidAmount) : 0;
+  const totalAmount = currentData.amount ? parseFloat(currentData.amount) : 0;
+  const newPaid = Math.min(totalAmount, currentPaid + Number(amountToPay || 0));
+  const isFullyPaid = newPaid >= totalAmount - 0.001;
+
+  await getPool().query(
+    'UPDATE transactions SET isFiadoPaid = ?, fiadoPaymentDate = ?, fiadoPaymentMethod = ?, fiadoPaidAmount = ? WHERE id = ?',
+    [isFullyPaid ? 1 : 0, paymentDate, paymentMethod, newPaid, id]
+  );
+
+  const [rows] = await getPool().query('SELECT * FROM transactions WHERE id = ?', [id]);
+  if (!rows || rows.length === 0) return null;
+  return {
+    ...rows[0],
+    amount: rows[0].amount ? parseFloat(rows[0].amount) : 0,
+    fiadoPaidAmount: rows[0].fiadoPaidAmount ? parseFloat(rows[0].fiadoPaidAmount) : 0,
+    isFiadoPaid: !!rows[0].isFiadoPaid
+  };
 }
 
 export async function removeTransaction(id) {

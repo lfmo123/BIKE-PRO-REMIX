@@ -7,6 +7,7 @@ import { FiadoSearchModal } from './FiadoSearchModal';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { exportToCsv } from '../lib/csvExport';
 import { buildFiadoWhatsappText, openWhatsappMessage } from '../lib/whatsappUtils';
+import { isFiadoTransaction, getTransactionPaymentMethod, getTransactionRemainingFiado } from '../lib/transactionUtils';
 
 interface CashBookProps {
   transactions: Transaction[];
@@ -16,9 +17,10 @@ interface CashBookProps {
   onAddTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   onDeleteTransaction: (id: string) => Promise<void>;
   onPayFiado: (id: string, paymentMethod: string, amount: number, observation?: string) => Promise<void>;
+  onPayFiadoTransaction?: (id: string, paymentMethod: string, amount: number, observation?: string) => Promise<void>;
 }
 
-export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, onAddTransaction, onDeleteTransaction, onPayFiado }: CashBookProps) {
+export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, onAddTransaction, onDeleteTransaction, onPayFiado, onPayFiadoTransaction }: CashBookProps) {
   const canManageCashbook = deviceConfig?.canManageCashbook !== false;
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Outros');
@@ -108,12 +110,14 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
     ...periodTransactions.map(t => ({
       id: t.id,
       description: t.description,
-      amount: t.amount,
+      amount: Number(t.amount) || 0,
       date: t.date,
       type: t.type,
       operator: t.operator,
       category: t.category,
-      isManual: true
+      isManual: true,
+      isFiadoEntry: isFiadoTransaction(t),
+      isFiadoPaid: !!t.isFiadoPaid
     })),
     ...periodCheckouts.map(v => ({
       id: v.id,
@@ -127,7 +131,9 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
       amount: Number(v.price) || 0,
       date: v.checkOutTime || 0,
       type: 'income' as const,
-      isManual: false
+      isManual: false,
+      isFiadoEntry: false,
+      isFiadoPaid: false
     }))
   ].sort((a, b) => b.date - a.date);
 
@@ -135,7 +141,7 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
   let incomeCash = 0;
   let incomeMachine = 0;
   let incomePix = 0;
-  let incomeFiado = 0; // Fiado generated in period
+  let incomeFiado = 0; // Fiado generated in period (vehicles + prepaid/postpaid cards)
 
   periodCheckouts.forEach(v => {
       const p = Number(v.price) || 0;
@@ -147,12 +153,15 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
 
   const manualIncomes = periodTransactions.filter(t => t.type === 'income');
   manualIncomes.forEach(t => {
-      const amount = t.amount;
-      const desc = (t.description || '').toUpperCase();
-      if (desc.includes('MÁQUINA')) incomeMachine += amount;
-      else if (desc.includes('PIX')) incomePix += amount;
-      else if (desc.includes('CARTÃO')) incomeMachine += amount;
-      else incomeCash += amount;
+      const amt = Number(t.amount) || 0;
+      if (isFiadoTransaction(t)) {
+        incomeFiado += amt;
+        return;
+      }
+      const method = getTransactionPaymentMethod(t);
+      if (method === 'machine') incomeMachine += amt;
+      else if (method === 'pix') incomePix += amt;
+      else incomeCash += amt;
   });
 
   vehicles.forEach(v => {
@@ -161,11 +170,60 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
       }
   });
 
-  const totalIncome = combinedEntries.filter(e => e.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
+  const totalIncome = combinedEntries.filter(e => e.type === 'income' && !e.isFiadoEntry).reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpense = combinedEntries.filter(e => e.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
   const balance = totalIncome - totalExpense;
 
-  const unpaidFiados = vehicles.filter(v => v.status === 'completed' && v.paymentMethod === 'fiado' && !v.isFiadoPaid);
+  const unpaidVehicleFiados = vehicles.filter(v => v.status === 'completed' && v.paymentMethod === 'fiado' && !v.isFiadoPaid);
+  const unpaidCardFiados = transactions.filter(t => isFiadoTransaction(t) && !t.isFiadoPaid && getTransactionRemainingFiado(t) > 0.001);
+
+  type UnifiedFiadoItem = {
+    kind: 'vehicle' | 'transaction';
+    key: string;
+    id: string;
+    title: string;
+    subtitle: string;
+    date: number;
+    totalAmount: number;
+    paidAmount: number;
+    remainingAmount: number;
+    vehicle?: ParkedVehicle;
+  };
+
+  const unpaidFiados: UnifiedFiadoItem[] = [
+    ...unpaidVehicleFiados.map(v => {
+      const total = Number(v.price) || 0;
+      const paid = Number(v.fiadoPaidAmount) || 0;
+      return {
+        kind: 'vehicle' as const,
+        key: `v_${v.id}`,
+        id: v.id,
+        title: v.identifier || 'Veículo',
+        subtitle: `${new Date(v.checkOutTime || 0).toLocaleDateString('pt-BR')} • ${v.ownerName || 'Sem nome'}`,
+        date: v.checkOutTime || v.checkInTime || 0,
+        totalAmount: total,
+        paidAmount: paid,
+        remainingAmount: Math.max(0, total - paid),
+        vehicle: v
+      };
+    }),
+    ...unpaidCardFiados.map(t => {
+      const total = Number(t.amount) || 0;
+      const paid = Number(t.fiadoPaidAmount) || 0;
+      const isPostpaid = (t.description || '').toLowerCase().includes('pós-pago');
+      return {
+        kind: 'transaction' as const,
+        key: `t_${t.id}`,
+        id: t.id,
+        title: t.description.replace(/\s*\(FIADO\)\s*/gi, '').trim(),
+        subtitle: `${new Date(t.date).toLocaleDateString('pt-BR')} • ${isPostpaid ? 'Cartão Pós-Pago' : 'Cartão Pré-Pago'}`,
+        date: t.date,
+        totalAmount: total,
+        paidAmount: paid,
+        remainingAmount: Math.max(0, total - paid)
+      };
+    })
+  ].sort((a, b) => b.date - a.date);
   
   const activeShift = shifts.find(s => s.status === 'open');
 
@@ -198,15 +256,19 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
 
     if (!window.confirm(`Confirma a baixa global de R$ ${amountToDistribute.toFixed(2)}?`)) return;
 
-    const sortedFiados = [...unpaidFiados].sort((a, b) => (a.checkOutTime || 0) - (b.checkOutTime || 0));
+    const sortedFiados = [...unpaidFiados].sort((a, b) => a.date - b.date);
 
-    for (const v of sortedFiados) {
+    for (const item of sortedFiados) {
       if (amountToDistribute <= 0) break;
-      const remainingOnVehicle = (Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0);
-      if (remainingOnVehicle <= 0) continue;
+      const remainingOnItem = item.remainingAmount;
+      if (remainingOnItem <= 0) continue;
 
-      const amountToPayHere = Math.min(amountToDistribute, remainingOnVehicle);
-      await onPayFiado(v.id, globalFiadoMethod, amountToPayHere, globalFiadoObservation);
+      const amountToPayHere = Math.min(amountToDistribute, remainingOnItem);
+      if (item.kind === 'vehicle') {
+        await onPayFiado(item.id, globalFiadoMethod, amountToPayHere, globalFiadoObservation);
+      } else if (onPayFiadoTransaction) {
+        await onPayFiadoTransaction(item.id, globalFiadoMethod, amountToPayHere, globalFiadoObservation);
+      }
       amountToDistribute -= amountToPayHere;
     }
 
@@ -475,7 +537,7 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
                  </button>
                </div>
                <p className="text-sm text-orange-700 mt-1 mb-4">
-                 Total em haver: <span className="font-bold">R$ {unpaidFiados.reduce((acc, v) => acc + ((Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0)), 0).toFixed(2)}</span> ({unpaidFiados.length})
+                 Total em haver: <span className="font-bold">R$ {unpaidFiados.reduce((acc, item) => acc + item.remainingAmount, 0).toFixed(2)}</span> ({unpaidFiados.length})
                </p>
                {canManageCashbook && unpaidFiados.length > 0 && (
                  <div className="bg-white p-3 rounded-xl border border-orange-200">
@@ -485,7 +547,7 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
                        type="number" 
                        step="0.01" 
                        min="0.01"
-                       max={unpaidFiados.reduce((acc, v) => acc + ((Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0)), 0).toFixed(2)}
+                       max={unpaidFiados.reduce((acc, item) => acc + item.remainingAmount, 0).toFixed(2)}
                        value={globalFiadoAmount}
                        onChange={(e) => setGlobalFiadoAmount(e.target.value)}
                        className="w-full text-sm p-2 rounded-lg border border-slate-200"
@@ -506,6 +568,7 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
                        >
                          <option value="cash">Dinheiro</option>
                          <option value="machine">Máquina</option>
+                         <option value="pix">PIX</option>
                        </select>
                        <button
                          onClick={handlePayGlobalFiado}
@@ -523,26 +586,33 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
                {unpaidFiados.length === 0 ? (
                  <p className="text-sm text-slate-500 text-center py-4">Nenhum fiado pendente.</p>
                ) : (
-                 unpaidFiados.map(v => (
-                   <div key={v.id} className="p-3 border border-slate-100 rounded-xl bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                     <div className="flex justify-between items-start mb-2">
-                       <div>
-                         <p className="font-semibold text-slate-900 text-sm">{v.identifier}</p>
-                         <p className="text-xs text-slate-500">{new Date(v.checkOutTime || 0).toLocaleDateString('pt-BR')} • {v.ownerName}</p>
+                 unpaidFiados.map(item => (
+                   <div key={item.key} className="p-3 border border-slate-100 rounded-xl bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                     <div className="flex justify-between items-start mb-2 gap-2">
+                       <div className="min-w-0">
+                         <div className="flex items-center gap-1.5 flex-wrap">
+                           <p className="font-semibold text-slate-900 text-sm truncate">{item.title}</p>
+                           {item.kind === 'transaction' && (
+                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+                               Cartão
+                             </span>
+                           )}
+                         </div>
+                         <p className="text-xs text-slate-500">{item.subtitle}</p>
                        </div>
-                       <div className="text-right">
-                         <span className="font-bold text-orange-600 block">R$ {((Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0)).toFixed(2)}</span>
-                         {v.fiadoPaidAmount ? <span className="text-xs text-slate-400 font-medium line-through">R$ {Number(v.price)?.toFixed(2)}</span> : null}
+                       <div className="text-right shrink-0">
+                         <span className="font-bold text-orange-600 block">R$ {item.remainingAmount.toFixed(2)}</span>
+                         {item.paidAmount > 0 ? <span className="text-xs text-slate-400 font-medium line-through">R$ {item.totalAmount.toFixed(2)}</span> : null}
                        </div>
                      </div>
                      
-                     {payingFiadoId === v.id ? (
+                     {payingFiadoId === item.key ? (
                         <div className="mt-3 space-y-2">
                            <input 
                              type="number" 
                              step="0.01" 
                              min="0"
-                             max={((Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0)).toFixed(2)}
+                             max={item.remainingAmount.toFixed(2)}
                              value={fiadoPaymentAmount}
                              onChange={(e) => setFiadoPaymentAmount(e.target.value)}
                              className="w-full text-sm p-2 rounded-lg border border-slate-200 bg-white"
@@ -555,6 +625,7 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
                            >
                               <option value="cash">Dinheiro</option>
                               <option value="machine">Cartão D/C (Máquina)</option>
+                              <option value="pix">PIX</option>
                            </select>
                            <div className="flex gap-2">
                              <button
@@ -567,10 +638,14 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
                                onClick={async () => {
                                  let amt = parseFloat(fiadoPaymentAmount);
                                  if (isNaN(amt) || amt <= 0) {
-                                    // Default to full remaining if empty
-                                    amt = (Number(v.price) || 0) - (Number(v.fiadoPaidAmount) || 0);
+                                    amt = item.remainingAmount;
                                  }
-                                 await onPayFiado(v.id, fiadoPaymentMethod, amt);
+                                 amt = Math.min(amt, item.remainingAmount);
+                                 if (item.kind === 'vehicle') {
+                                   await onPayFiado(item.id, fiadoPaymentMethod, amt);
+                                 } else if (onPayFiadoTransaction) {
+                                   await onPayFiadoTransaction(item.id, fiadoPaymentMethod, amt);
+                                 }
                                  setPayingFiadoId(null);
                                }}
                                className="flex-1 py-1.5 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors flex justify-center items-center gap-1"
@@ -584,19 +659,19 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
                         {canManageCashbook && (
                           <button 
                             onClick={() => {
-                              setPayingFiadoId(v.id);
+                              setPayingFiadoId(item.key);
                               setFiadoPaymentMethod('cash');
                               setFiadoPaymentAmount('');
                             }}
                             className="flex-1 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
                           >
-                            {v.fiadoPaidAmount ? 'Dar Baixa Restante' : 'Dar Baixa'}
+                            {item.paidAmount > 0 ? 'Dar Baixa Restante' : 'Dar Baixa'}
                           </button>
                         )}
-                        {deviceConfig?.enableWhatsappReceipts && (
+                        {item.kind === 'vehicle' && item.vehicle && deviceConfig?.enableWhatsappReceipts && (
                           <button
                             type="button"
-                            onClick={() => openWhatsappMessage(buildFiadoWhatsappText(v), v.lostCardPhone)}
+                            onClick={() => openWhatsappMessage(buildFiadoWhatsappText(item.vehicle!), item.vehicle!.lostCardPhone)}
                             className="px-2.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors flex items-center gap-1"
                             title="Cobrar via WhatsApp"
                           >
@@ -683,15 +758,28 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
                   {combinedEntries.map((entry) => (
                     <div key={entry.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 print:bg-transparent print:border-b print:border-slate-200 print:rounded-none print:px-0">
                       <div className="flex items-center space-x-4">
-                        <div className={`p-2 rounded-lg print:hidden ${entry.type === 'income' ? 'bg-emerald-100' : 'bg-red-100'}`}>
-                          {entry.type === 'income' ? (
+                        <div className={`p-2 rounded-lg print:hidden ${
+                          entry.isFiadoEntry ? 'bg-orange-100' : entry.type === 'income' ? 'bg-emerald-100' : 'bg-red-100'
+                        }`}>
+                          {entry.isFiadoEntry ? (
+                            <AlertTriangle className="w-5 h-5 text-orange-600" />
+                          ) : entry.type === 'income' ? (
                             <ArrowUpRight className="w-5 h-5 text-emerald-600" />
                           ) : (
                             <ArrowDownRight className="w-5 h-5 text-red-600" />
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900 print:text-sm">{entry.description}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-bold text-slate-900 print:text-sm">{entry.description}</p>
+                            {entry.isFiadoEntry && (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                entry.isFiadoPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'
+                              }`}>
+                                {entry.isFiadoPaid ? 'Fiado Quitado' : 'Fiado (Pendente)'}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center sm:gap-2">
                             <span>{new Date(entry.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                             {!entry.isManual && <span>• Automático</span>}
@@ -701,8 +789,10 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
-                        <span className={`font-bold print:text-sm ${entry.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {entry.type === 'income' ? '+' : '-'} R$ {entry.amount.toFixed(2)}
+                        <span className={`font-bold print:text-sm ${
+                          entry.isFiadoEntry ? 'text-orange-600' : entry.type === 'income' ? 'text-emerald-600' : 'text-red-600'
+                        }`}>
+                          {entry.isFiadoEntry ? '' : entry.type === 'income' ? '+ ' : '- '}R$ {entry.amount.toFixed(2)}
                         </span>
                         {canManageCashbook && entry.isManual && (
                           <button 
@@ -735,8 +825,10 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
         isOpen={isFiadoSearchOpen}
         onClose={() => setIsFiadoSearchOpen(false)}
         vehicles={vehicles}
+        transactions={transactions}
         deviceConfig={deviceConfig}
         onPayFiado={onPayFiado}
+        onPayFiadoTransaction={onPayFiadoTransaction}
       />
     </div>
   );

@@ -60,6 +60,14 @@ export interface Transaction {
   type: 'expense' | 'income';
   operator?: string;
   category?: string;
+  paymentMethod?: string;
+  cardId?: string;
+  cardNumber?: string;
+  ownerName?: string;
+  isFiadoPaid?: boolean;
+  fiadoPaidAmount?: number;
+  fiadoPaymentDate?: number;
+  fiadoPaymentMethod?: string;
 }
 
 export interface Product {

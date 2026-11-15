@@ -2,6 +2,7 @@ import React from 'react';
 import { Transaction, ParkedVehicle, Shift } from '../types';
 import { X, Printer, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
+import { isFiadoTransaction, getTransactionPaymentMethod } from '../lib/transactionUtils';
 
 interface DailyReportModalProps {
   date: string; // YYYY-MM-DD
@@ -46,17 +47,20 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
 
   // Financial Data (Today)
   const manualTransactions = transactions.filter(t => t.date >= startOfDay && t.date <= endOfDay);
-  const totalIncomeTransactions = manualTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const manualPaidIncomes = manualTransactions.filter(t => t.type === 'income' && !isFiadoTransaction(t));
   const totalExpenseTransactions = manualTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   
   const dailyCheckouts = exitsToday.filter(v => !['fiado', 'card', 'postpaid_card'].includes(v.paymentMethod || ''));
   
   const totalCash = dailyCheckouts.filter(v => v.paymentMethod === 'cash').reduce((sum, v) => sum + (v.price || 0), 0) + 
-                    manualTransactions.filter(t => t.type === 'income' && t.description.toLowerCase().includes('dinheiro')).reduce((sum, t) => sum + t.amount, 0);
+                    manualPaidIncomes.filter(t => getTransactionPaymentMethod(t) === 'cash').reduce((sum, t) => sum + t.amount, 0);
   const totalPix = dailyCheckouts.filter(v => v.paymentMethod === 'pix').reduce((sum, v) => sum + (v.price || 0), 0) +
-                   manualTransactions.filter(t => t.type === 'income' && t.description.toLowerCase().includes('pix')).reduce((sum, t) => sum + t.amount, 0);
+                   manualPaidIncomes.filter(t => getTransactionPaymentMethod(t) === 'pix').reduce((sum, t) => sum + t.amount, 0);
   const totalMachine = dailyCheckouts.filter(v => v.paymentMethod === 'machine').reduce((sum, v) => sum + (v.price || 0), 0) +
-                       manualTransactions.filter(t => t.type === 'income' && t.description.toLowerCase().includes('máquina')).reduce((sum, t) => sum + t.amount, 0);
+                       manualPaidIncomes.filter(t => getTransactionPaymentMethod(t) === 'machine').reduce((sum, t) => sum + t.amount, 0);
+
+  const totalFiadoGenerated = exitsToday.filter(v => v.paymentMethod === 'fiado').reduce((sum, v) => sum + (v.price || 0), 0) +
+                              manualTransactions.filter(t => isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
 
   const totalIncome = totalCash + totalPix + totalMachine;
   const totalExpense = totalExpenseTransactions;
@@ -66,7 +70,7 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
   const yestManualTransactions = transactions.filter(t => t.date >= prevStartOfDay && t.date <= prevEndOfDay);
   const yestExits = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= prevStartOfDay && v.checkOutTime <= prevEndOfDay);
   const yestCheckouts = yestExits.filter(v => !['fiado', 'card', 'postpaid_card'].includes(v.paymentMethod || ''));
-  const yestTotalIncome = yestManualTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) + 
+  const yestTotalIncome = yestManualTransactions.filter(t => t.type === 'income' && !isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0) + 
                           yestCheckouts.reduce((sum, v) => sum + (v.price || 0), 0);
   const yestTotalExpense = yestManualTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const yestNetTotal = yestTotalIncome - yestTotalExpense;
@@ -120,6 +124,7 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
         <div class="row"><span class="label">PIX</span> <span class="value">R$ ${totalPix.toFixed(2)}</span></div>
         <div class="row"><span class="label">Máquina</span> <span class="value">R$ ${totalMachine.toFixed(2)}</span></div>
         <div class="row" style="font-weight: bold;"><span class="label">Total Entradas</span> <span class="value">R$ ${totalIncome.toFixed(2)}</span></div>
+        <div class="row" style="color: #666;"><span class="label">Fiado Gerado (Pendente)</span> <span class="value">R$ ${totalFiadoGenerated.toFixed(2)}</span></div>
         <div class="row" style="color: #666;"><span class="label">Total Saídas</span> <span class="value">- R$ ${totalExpense.toFixed(2)}</span></div>
         <div class="row" style="font-weight: bold; margin-top: 5px; border-top: 1px solid #000; padding-top: 5px;">
           <span class="label">Saldo Líquido</span> <span class="value">R$ ${netTotal.toFixed(2)}</span>
@@ -199,6 +204,11 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
                   <p>Dinheiro: R$ {totalCash.toFixed(2)}</p>
                   <p>PIX: R$ {totalPix.toFixed(2)}</p>
                   <p>Máquina: R$ {totalMachine.toFixed(2)}</p>
+                  {totalFiadoGenerated > 0 && (
+                    <p className="text-orange-700 font-semibold pt-1 border-t border-emerald-200/60">
+                      Fiado Gerado (Pendente): R$ {totalFiadoGenerated.toFixed(2)}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="bg-red-50 p-4 rounded-xl border border-red-100">

@@ -381,6 +381,30 @@ export async function removeTransaction(id) {
   await deleteDoc(doc(db, 'transactions', id));
 }
 
+export async function payFiadoTransaction(id, paymentMethod, paymentDate, amountToPay) {
+  const transRef = doc(db, 'transactions', id);
+  return runTransaction(db, async (tx) => {
+    const transSnap = await tx.get(transRef);
+    if (!transSnap.exists()) return null;
+
+    const currentData = transSnap.data();
+    const currentPaid = Number(currentData.fiadoPaidAmount) || 0;
+    const totalAmount = Number(currentData.amount) || 0;
+    const newPaid = Math.min(totalAmount, currentPaid + Number(amountToPay || 0));
+    const isFullyPaid = newPaid >= totalAmount - 0.001;
+
+    const updatedData = {
+      fiadoPaidAmount: newPaid,
+      fiadoPaymentDate: paymentDate,
+      fiadoPaymentMethod: paymentMethod,
+      ...(isFullyPaid ? { isFiadoPaid: true } : {})
+    };
+
+    tx.update(transRef, updatedData);
+    return { ...currentData, ...updatedData };
+  });
+}
+
 // ------------------------------------
 // Customer Cards
 // ------------------------------------

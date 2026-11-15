@@ -7,6 +7,7 @@ import {
 import { ParkedVehicle, Sale, Transaction, Product } from '../types';
 import { getLocalDateString } from '../lib/dateUtils';
 import { parseResponseJson } from '../lib/apiUtils';
+import { getTransactionPaymentMethod, getTransactionRemainingFiado, isFiadoTransaction } from '../lib/transactionUtils';
 
 interface AuditProps {
   vehicles: ParkedVehicle[];
@@ -108,9 +109,7 @@ export function Audit({ vehicles, sales, transactions, products, onRefreshAll }:
         date: t.date,
         description: `${t.type === 'expense' ? 'Saída/Despesa' : 'Entrada'}: ${t.description}${t.operator ? ` (Op: ${t.operator})` : ''}${t.category ? ` [Cat: ${t.category}]` : ''}`,
         amount: t.type === 'expense' ? -t.amount : t.amount,
-        paymentMethod: t.description?.toLowerCase().includes('cartão') ? 'card' :
-                       t.description?.toLowerCase().includes('máquina') ? 'machine' :
-                       t.description?.toLowerCase().includes('pix') ? 'pix' : 'cash',
+        paymentMethod: t.type === 'expense' ? 'cash' : getTransactionPaymentMethod(t),
         originalData: t
       });
     });
@@ -197,6 +196,8 @@ export function Audit({ vehicles, sales, transactions, products, onRefreshAll }:
             fiado += (v.price || 0) - (v.fiadoPaidAmount || 0);
           }
         }
+      } else if (e.type === 'transaction' && isFiadoTransaction(e.originalData)) {
+        fiado += getTransactionRemainingFiado(e.originalData);
       } else {
         total += e.amount;
         if (e.paymentMethod === 'cash') cash += e.amount;

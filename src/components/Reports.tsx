@@ -6,6 +6,7 @@ import { getLocalDateString } from '../lib/dateUtils';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { exportToCsv } from '../lib/csvExport';
+import { isFiadoTransaction } from '../lib/transactionUtils';
 
 interface ReportsProps {
   vehicles: ParkedVehicle[];
@@ -68,9 +69,9 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
   const salesStoreDaily = sales.filter(s => s.date >= startOfDay && s.date <= endOfDay);
   const totalStoreRevenueDaily = salesStoreDaily.reduce((sum, s) => sum + s.totalPrice, 0);
 
-  // Manual transactions on selected date
+  // Manual transactions on selected date (excluding unpaid/origin fiado card entries so they are not double-counted before Baixa)
   const dailyTransactions = transactions.filter(t => t.date >= startOfDay && t.date <= endOfDay);
-  const totalManualIncomeDaily = dailyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const totalManualIncomeDaily = dailyTransactions.filter(t => t.type === 'income' && !isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
   const totalManualExpenseDaily = dailyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
 
   const totalConsolidatedRevenueDaily = totalRevenueDaily + totalStoreRevenueDaily + totalManualIncomeDaily;

@@ -1,18 +1,38 @@
 import React, { useState, useMemo } from 'react';
-import { Search, X, Calendar, Clock, DollarSign, CheckCircle, AlertTriangle, User, Tag, Bike, Zap, Motorbike, Printer, ArrowRight, Layers, FileText, MessageCircle } from 'lucide-react';
-import { ParkedVehicle, VehicleType } from '../types';
+import { Search, X, Calendar, Clock, DollarSign, CheckCircle, AlertTriangle, User, Tag, Bike, Zap, Motorbike, Printer, ArrowRight, Layers, FileText, MessageCircle, CreditCard } from 'lucide-react';
+import { ParkedVehicle, Transaction, VehicleType } from '../types';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { buildFiadoWhatsappText, openWhatsappMessage } from '../lib/whatsappUtils';
+import { isFiadoTransaction, extractCardNumberFromTransaction } from '../lib/transactionUtils';
 
 interface FiadoSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   vehicles: ParkedVehicle[];
+  transactions?: Transaction[];
   deviceConfig?: DeviceFeaturesConfig;
   onPayFiado: (id: string, paymentMethod: string, amount: number, observation?: string) => Promise<void>;
+  onPayFiadoTransaction?: (id: string, paymentMethod: string, amount: number, observation?: string) => Promise<void>;
 }
 
-export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPayFiado }: FiadoSearchModalProps) {
+interface UnifiedFiadoSearchItem {
+  kind: 'vehicle' | 'transaction';
+  key: string;
+  id: string;
+  ownerName: string;
+  identifier: string;
+  cardNumber: string;
+  price: number;
+  paidAmount: number;
+  isPaid: boolean;
+  date: number;
+  fiadoPaymentDate?: number;
+  fiadoPaymentMethod?: string;
+  vehicle?: ParkedVehicle;
+  transaction?: Transaction;
+}
+
+export function FiadoSearchModal({ isOpen, onClose, vehicles, transactions = [], deviceConfig, onPayFiado, onPayFiadoTransaction }: FiadoSearchModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>('all');
   const [dateFilter, setDateFilter] = useState<'all' | 'custom'>('all');
@@ -27,43 +47,79 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
   const [payObs, setPayObs] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filter all vehicles that were checked out as 'fiado'
-  const allFiadoVehicles = useMemo(() => {
-    return vehicles
+  // Combine all vehicle fiados and prepaid/postpaid card fiado transactions
+  const allFiadoItems = useMemo<UnifiedFiadoSearchItem[]>(() => {
+    const vehicleItems: UnifiedFiadoSearchItem[] = vehicles
       .filter(v => v.status === 'completed' && v.paymentMethod === 'fiado')
-      .sort((a, b) => (b.checkOutTime || 0) - (a.checkOutTime || 0));
-  }, [vehicles]);
+      .map(v => ({
+        kind: 'vehicle',
+        key: `v_${v.id}`,
+        id: v.id,
+        ownerName: v.ownerName || 'Cliente sem nome',
+        identifier: v.identifier || 'Não informada',
+        cardNumber: v.cardNumber || '-',
+        price: Number(v.price) || 0,
+        paidAmount: Number(v.fiadoPaidAmount) || 0,
+        isPaid: !!v.isFiadoPaid,
+        date: v.checkOutTime || v.checkInTime || 0,
+        fiadoPaymentDate: v.fiadoPaymentDate,
+        fiadoPaymentMethod: v.fiadoPaymentMethod,
+        vehicle: v
+      }));
+
+    const txItems: UnifiedFiadoSearchItem[] = transactions
+      .filter(isFiadoTransaction)
+      .map(t => {
+        const cardNum = extractCardNumberFromTransaction(t) || '-';
+        const ownerMatch = (t.description || '').match(/Cartão\s+[^\s(]+\s*\(([^)]+)\)/i);
+        const owner = t.ownerName || (ownerMatch ? ownerMatch[1] : 'Cliente do Cartão');
+        const cleanDesc = (t.description || '').replace(/\s*\(FIADO\)\s*/gi, '').trim();
+        return {
+          kind: 'transaction',
+          key: `t_${t.id}`,
+          id: t.id,
+          ownerName: owner,
+          identifier: cleanDesc,
+          cardNumber: cardNum,
+          price: Number(t.amount) || 0,
+          paidAmount: Number(t.fiadoPaidAmount) || 0,
+          isPaid: !!t.isFiadoPaid,
+          date: t.date || 0,
+          fiadoPaymentDate: t.fiadoPaymentDate,
+          fiadoPaymentMethod: t.fiadoPaymentMethod,
+          transaction: t
+        };
+      });
+
+    return [...vehicleItems, ...txItems].sort((a, b) => b.date - a.date);
+  }, [vehicles, transactions]);
 
   // Apply search and status filters
   const filteredFiados = useMemo(() => {
-    return allFiadoVehicles.filter(v => {
-      // Text search in owner, identifier, card number
+    return allFiadoItems.filter(item => {
       const term = searchTerm.toLowerCase().trim();
       const matchesSearch = !term || 
-        v.ownerName.toLowerCase().includes(term) ||
-        v.identifier.toLowerCase().includes(term) ||
-        v.cardNumber.toLowerCase().includes(term);
+        item.ownerName.toLowerCase().includes(term) ||
+        item.identifier.toLowerCase().includes(term) ||
+        item.cardNumber.toLowerCase().includes(term);
 
-      // Status filter
-      const isPaid = !!v.isFiadoPaid;
+      const isPaid = item.isPaid;
       const matchesStatus = 
         statusFilter === 'all' ||
         (statusFilter === 'pending' && !isPaid) ||
         (statusFilter === 'paid' && isPaid);
 
-      // Date filter
       let matchesDate = true;
       if (dateFilter === 'custom' && customDate) {
         const [y, m, d] = customDate.split('-').map(Number);
         const start = new Date(y, m - 1, d, 0, 0, 0).getTime();
         const end = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
-        const targetTime = v.checkOutTime || v.checkInTime;
-        matchesDate = targetTime >= start && targetTime <= end;
+        matchesDate = item.date >= start && item.date <= end;
       }
 
       return matchesSearch && matchesStatus && matchesDate;
     });
-  }, [allFiadoVehicles, searchTerm, statusFilter, dateFilter, customDate]);
+  }, [allFiadoItems, searchTerm, statusFilter, dateFilter, customDate]);
 
   // Financial statistics
   const stats = useMemo(() => {
@@ -73,10 +129,10 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
     let countPending = 0;
     let countPaid = 0;
 
-    filteredFiados.forEach(v => {
-      const isPaid = !!v.isFiadoPaid;
-      const price = Number(v.price) || 0;
-      const paid = isPaid ? price : (Number(v.fiadoPaidAmount) || 0);
+    filteredFiados.forEach(item => {
+      const isPaid = item.isPaid;
+      const price = item.price;
+      const paid = isPaid ? price : item.paidAmount;
       const remaining = isPaid ? 0 : Math.max(0, price - paid);
 
       totalOriginal += price;
@@ -95,18 +151,21 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
 
   if (!isOpen) return null;
 
-  const handlePay = async (v: ParkedVehicle) => {
+  const handlePay = async (item: UnifiedFiadoSearchItem) => {
     setIsSubmitting(true);
     try {
-      const isPaid = !!v.isFiadoPaid;
-      const remaining = isPaid ? 0 : Math.max(0, (v.price || 0) - (v.fiadoPaidAmount || 0));
+      const remaining = item.isPaid ? 0 : Math.max(0, item.price - item.paidAmount);
       let amt = parseFloat(payAmount);
       if (isNaN(amt) || amt <= 0) {
         amt = remaining;
       }
       amt = Math.min(amt, remaining);
 
-      await onPayFiado(v.id, payMethod, amt, payObs);
+      if (item.kind === 'vehicle') {
+        await onPayFiado(item.id, payMethod, amt, payObs);
+      } else if (onPayFiadoTransaction) {
+        await onPayFiadoTransaction(item.id, payMethod, amt, payObs);
+      }
       setPayingId(null);
       setPayAmount('');
       setPayObs('');
@@ -206,7 +265,7 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
                 onChange={(e) => setStatusFilter(e.target.value as any)}
                 className="w-full py-2 px-3 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 text-slate-700 font-medium"
               >
-                <option value="all">Todos os Status ({allFiadoVehicles.length})</option>
+                <option value="all">Todos os Status ({allFiadoItems.length})</option>
                 <option value="pending">Apenas Pendentes</option>
                 <option value="paid">Apenas Quitados</option>
               </select>
@@ -269,17 +328,18 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
               <p className="text-xs text-slate-500 mt-1">Tente ajustar o termo de pesquisa ou os filtros de status/data.</p>
             </div>
           ) : (
-            filteredFiados.map(v => {
-              const isPaid = !!v.isFiadoPaid;
-              const price = Number(v.price) || 0;
-              const paid = isPaid ? price : (Number(v.fiadoPaidAmount) || 0);
+            filteredFiados.map(item => {
+              const isPaid = item.isPaid;
+              const price = item.price;
+              const paid = isPaid ? price : item.paidAmount;
               const remaining = isPaid ? 0 : Math.max(0, price - paid);
-              const isExpanded = expandedId === v.id;
-              const isPayingThis = payingId === v.id;
+              const isExpanded = expandedId === item.key;
+              const isPayingThis = payingId === item.key;
+              const v = item.vehicle;
 
               return (
                 <div
-                  key={v.id}
+                  key={item.key}
                   className={`bg-white rounded-2xl border transition-all overflow-hidden ${
                     isPaid ? 'border-emerald-200 hover:border-emerald-300' : 'border-orange-200 hover:border-orange-300 shadow-sm'
                   }`}
@@ -288,14 +348,19 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
                   <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-start space-x-3">
                       <div className={`p-2.5 rounded-xl shrink-0 ${isPaid ? 'bg-emerald-100' : 'bg-orange-100'}`}>
-                        {getVehicleIcon(v.type)}
+                        {v ? getVehicleIcon(v.type) : <CreditCard className="w-5 h-5 text-purple-600" />}
                       </div>
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-slate-900 text-base">{v.ownerName || 'Cliente sem nome'}</span>
+                          <span className="font-bold text-slate-900 text-base">{item.ownerName}</span>
                           <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                            Vaga/Cartão {v.cardNumber}
+                            {v ? `Vaga/Cartão ${item.cardNumber}` : `Cartão ${item.cardNumber}`}
                           </span>
+                          {!v && (
+                            <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-purple-100 text-purple-700">
+                              Cartão Pré/Pós
+                            </span>
+                          )}
                           <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${
                             isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-orange-100 text-orange-800'
                           }`}>
@@ -303,9 +368,9 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
-                          <span>Veículo: <strong className="text-slate-700">{v.identifier || 'Não informada'}</strong></span>
+                          <span>{v ? 'Veículo' : 'Origem'}: <strong className="text-slate-700">{item.identifier}</strong></span>
                           <span>•</span>
-                          <span>Saída/Fiado: <strong className="text-slate-700">{new Date(v.checkOutTime || v.checkInTime).toLocaleString('pt-BR')}</strong></span>
+                          <span>Data/Fiado: <strong className="text-slate-700">{new Date(item.date).toLocaleString('pt-BR')}</strong></span>
                         </p>
                       </div>
                     </div>
@@ -327,7 +392,7 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
                         {!isPaid && deviceConfig?.canManageCashbook !== false && (
                           <button
                             onClick={() => {
-                              setPayingId(isPayingThis ? null : v.id);
+                              setPayingId(isPayingThis ? null : item.key);
                               setPayAmount(remaining.toFixed(2));
                               setPayMethod('cash');
                               setPayObs('');
@@ -338,7 +403,7 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
                             Dar Baixa
                           </button>
                         )}
-                        {!isPaid && deviceConfig?.enableWhatsappReceipts && (
+                        {!isPaid && v && deviceConfig?.enableWhatsappReceipts && (
                           <button
                             onClick={() => openWhatsappMessage(buildFiadoWhatsappText(v), v.lostCardPhone)}
                             className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors flex items-center gap-1"
@@ -349,7 +414,7 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
                         )}
 
                         <button
-                          onClick={() => setExpandedId(isExpanded ? null : v.id)}
+                          onClick={() => setExpandedId(isExpanded ? null : item.key)}
                           className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                         >
                           {isExpanded ? 'Ocultar Origem' : 'Ver Origem Detalhada'}
@@ -363,7 +428,7 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
                     <div className="p-4 bg-emerald-50 border-t border-emerald-200 space-y-3">
                       <p className="text-xs font-bold text-emerald-900 flex items-center gap-1">
                         <CheckCircle className="w-4 h-4 text-emerald-600" />
-                        Registrar Pagamento do Fiado para {v.ownerName} (Cartão {v.cardNumber})
+                        Registrar Pagamento do Fiado para {item.ownerName} (Cartão {item.cardNumber})
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
@@ -409,7 +474,7 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
                           Cancelar
                         </button>
                         <button
-                          onClick={() => handlePay(v)}
+                          onClick={() => handlePay(item)}
                           disabled={isSubmitting}
                           className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm"
                         >
@@ -427,74 +492,112 @@ export function FiadoSearchModal({ isOpen, onClose, vehicles, deviceConfig, onPa
                           <FileText className="w-4 h-4 text-slate-600" />
                           Ficha de Origem e Linha do Tempo
                         </span>
-                        <button
-                          onClick={() => setPrintableVehicle(v)}
-                          className="flex items-center gap-1 px-3 py-1 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-200 border border-slate-300 rounded-lg shadow-xs"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          Imprimir Comprovante
-                        </button>
+                        {v && (
+                          <button
+                            onClick={() => setPrintableVehicle(v)}
+                            className="flex items-center gap-1 px-3 py-1 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-200 border border-slate-300 rounded-lg shadow-xs"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            Imprimir Comprovante
+                          </button>
+                        )}
                       </div>
 
-                      {/* Origin Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase block">1. Entrada no Estacionamento</span>
-                          <div className="text-sm font-semibold text-slate-800 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-blue-500" />
-                            {new Date(v.checkInTime).toLocaleString('pt-BR')}
-                          </div>
-                          <div className="text-xs text-slate-600">
-                            Vaga: <strong>{v.cardNumber}</strong> ({getVehicleTypeLabel(v.type)})
-                          </div>
-                        </div>
-
-                        <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase block">2. Saída & Registro do Fiado</span>
-                          <div className="text-sm font-semibold text-slate-800 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-orange-500" />
-                            {v.checkOutTime ? new Date(v.checkOutTime).toLocaleString('pt-BR') : 'Não gravado'}
-                          </div>
-                          <div className="text-xs text-slate-600">
-                            Permanência: <strong>{formatDuration(v.checkInTime, v.checkOutTime)}</strong>
-                          </div>
-                          <div className="text-xs text-slate-600">
-                            Valor Original: <strong className="text-slate-900">R$ {price.toFixed(2)}</strong>
-                          </div>
-                        </div>
-
-                        <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase block">3. Situação do Pagamento</span>
-                          <div className={`text-sm font-bold ${isPaid ? 'text-emerald-600' : 'text-orange-600'}`}>
-                            {isPaid ? 'Totalmente Quitado' : `Pendente: R$ ${remaining.toFixed(2)}`}
-                          </div>
-                          {v.fiadoPaymentDate && (
-                            <div className="text-xs text-slate-600">
-                              Última Baixa: <strong>{new Date(v.fiadoPaymentDate).toLocaleString('pt-BR')}</strong>
+                      {v ? (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+                              <span className="text-[11px] font-bold text-slate-400 uppercase block">1. Entrada no Estacionamento</span>
+                              <div className="text-sm font-semibold text-slate-800 flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-blue-500" />
+                                {new Date(v.checkInTime).toLocaleString('pt-BR')}
+                              </div>
+                              <div className="text-xs text-slate-600">
+                                Vaga: <strong>{v.cardNumber}</strong> ({getVehicleTypeLabel(v.type)})
+                              </div>
                             </div>
-                          )}
-                          {v.fiadoPaymentMethod && (
-                            <div className="text-xs text-slate-600">
-                              Forma da Baixa: <strong>{formatMethodLabel(v.fiadoPaymentMethod)}</strong>
-                            </div>
-                          )}
-                          {paid > 0 && (
-                            <div className="text-xs text-slate-600">
-                              Já Pago: <strong className="text-emerald-700">R$ {paid.toFixed(2)}</strong>
-                            </div>
-                          )}
-                        </div>
-                      </div>
 
-                      {/* Vehicle & Customer Details */}
-                      <div className="bg-white p-3 rounded-xl border border-slate-200">
-                        <span className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Dados Cadastrais do Veículo</span>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-700">
-                          <div>Proprietário: <strong className="text-slate-900">{v.ownerName || 'Não informado'}</strong></div>
-                          <div>Identificação/Placa: <strong className="text-slate-900">{v.identifier || 'Não informada'}</strong></div>
-                          <div>Número da Vaga: <strong className="text-slate-900">{v.cardNumber}</strong></div>
+                            <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+                              <span className="text-[11px] font-bold text-slate-400 uppercase block">2. Saída & Registro do Fiado</span>
+                              <div className="text-sm font-semibold text-slate-800 flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-orange-500" />
+                                {v.checkOutTime ? new Date(v.checkOutTime).toLocaleString('pt-BR') : 'Não gravado'}
+                              </div>
+                              <div className="text-xs text-slate-600">
+                                Permanência: <strong>{formatDuration(v.checkInTime, v.checkOutTime)}</strong>
+                              </div>
+                              <div className="text-xs text-slate-600">
+                                Valor Original: <strong className="text-slate-900">R$ {price.toFixed(2)}</strong>
+                              </div>
+                            </div>
+
+                            <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+                              <span className="text-[11px] font-bold text-slate-400 uppercase block">3. Situação do Pagamento</span>
+                              <div className={`text-sm font-bold ${isPaid ? 'text-emerald-600' : 'text-orange-600'}`}>
+                                {isPaid ? 'Totalmente Quitado' : `Pendente: R$ ${remaining.toFixed(2)}`}
+                              </div>
+                              {v.fiadoPaymentDate && (
+                                <div className="text-xs text-slate-600">
+                                  Última Baixa: <strong>{new Date(v.fiadoPaymentDate).toLocaleString('pt-BR')}</strong>
+                                </div>
+                              )}
+                              {v.fiadoPaymentMethod && (
+                                <div className="text-xs text-slate-600">
+                                  Forma da Baixa: <strong>{formatMethodLabel(v.fiadoPaymentMethod)}</strong>
+                                </div>
+                              )}
+                              {paid > 0 && (
+                                <div className="text-xs text-slate-600">
+                                  Já Pago: <strong className="text-emerald-700">R$ {paid.toFixed(2)}</strong>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="bg-white p-3 rounded-xl border border-slate-200">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Dados Cadastrais do Veículo</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-700">
+                              <div>Proprietário: <strong className="text-slate-900">{v.ownerName || 'Não informado'}</strong></div>
+                              <div>Identificação/Placa: <strong className="text-slate-900">{v.identifier || 'Não informada'}</strong></div>
+                              <div>Número da Vaga: <strong className="text-slate-900">{v.cardNumber}</strong></div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase block">1. Lançamento no Cartão</span>
+                            <div className="text-sm font-semibold text-slate-800">{item.identifier}</div>
+                            <div className="text-xs text-slate-600">
+                              Data: <strong>{new Date(item.date).toLocaleString('pt-BR')}</strong>
+                            </div>
+                            <div className="text-xs text-slate-600">
+                              Valor Original: <strong className="text-slate-900">R$ {price.toFixed(2)}</strong>
+                            </div>
+                          </div>
+                          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase block">2. Situação do Pagamento</span>
+                            <div className={`text-sm font-bold ${isPaid ? 'text-emerald-600' : 'text-orange-600'}`}>
+                              {isPaid ? 'Totalmente Quitado' : `Pendente: R$ ${remaining.toFixed(2)}`}
+                            </div>
+                            {item.fiadoPaymentDate && (
+                              <div className="text-xs text-slate-600">
+                                Última Baixa: <strong>{new Date(item.fiadoPaymentDate).toLocaleString('pt-BR')}</strong>
+                              </div>
+                            )}
+                            {item.fiadoPaymentMethod && (
+                              <div className="text-xs text-slate-600">
+                                Forma da Baixa: <strong>{formatMethodLabel(item.fiadoPaymentMethod)}</strong>
+                              </div>
+                            )}
+                            {paid > 0 && (
+                              <div className="text-xs text-slate-600">
+                                Já Pago: <strong className="text-emerald-700">R$ {paid.toFixed(2)}</strong>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
                 </div>

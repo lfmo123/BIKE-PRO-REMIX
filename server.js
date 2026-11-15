@@ -198,9 +198,36 @@ async function startServer() {
   // Add a transaction
   app.post('/api/transactions', async (req, res) => {
     try {
-      const { description, amount, date, type, operator, category } = req.body;
+      const {
+        description,
+        amount,
+        date,
+        type,
+        operator,
+        category,
+        paymentMethod,
+        cardId,
+        cardNumber,
+        ownerName,
+        isFiadoPaid,
+        fiadoPaidAmount
+      } = req.body;
       const id = Math.random().toString(36).substring(2, 9);
-      const newTransaction = { id, description, amount, date: date || Date.now(), type, operator, category };
+      const newTransaction = {
+        id,
+        description,
+        amount,
+        date: date || Date.now(),
+        type,
+        operator,
+        category,
+        paymentMethod,
+        cardId,
+        cardNumber,
+        ownerName,
+        isFiadoPaid,
+        fiadoPaidAmount
+      };
       
       if (dbType === 'firebase') {
         await firebaseDb.addTransaction(newTransaction);
@@ -411,6 +438,144 @@ async function startServer() {
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: error.message || 'Failed to pay fiado' });
+    }
+  });
+
+  // Pay fiado for a card/manual transaction
+  app.put('/api/transactions/:id/pay-fiado', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentMethod, amount, observation, operator } = req.body;
+      const paymentDate = Date.now();
+      const payAmount = Number(amount) || 0;
+
+      let updatedTx;
+
+      if (dbType === 'firebase') {
+        updatedTx = await firebaseDb.payFiadoTransaction(id, paymentMethod, paymentDate, payAmount);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        updatedTx = await mysqlDb.payFiadoTransaction(id, paymentMethod, paymentDate, payAmount);
+      } else {
+        const db = readDb();
+        if (!db.transactions) db.transactions = [];
+        const txIndex = db.transactions.findIndex(t => t.id === id);
+        if (txIndex === -1) return res.status(404).json({ error: 'Transaction not found' });
+
+        const currentPaid = Number(db.transactions[txIndex].fiadoPaidAmount) || 0;
+        const totalAmt = Number(db.transactions[txIndex].amount) || 0;
+        const newPaid = Math.min(totalAmt, currentPaid + payAmount);
+        const isFullyPaid = newPaid >= totalAmt - 0.001;
+
+        db.transactions[txIndex].fiadoPaidAmount = newPaid;
+        db.transactions[txIndex].fiadoPaymentDate = paymentDate;
+        db.transactions[txIndex].fiadoPaymentMethod = paymentMethod;
+        if (isFullyPaid) {
+          db.transactions[txIndex].isFiadoPaid = true;
+        }
+        writeDb(db);
+        updatedTx = db.transactions[txIndex];
+      }
+
+      if (!updatedTx) return res.status(404).json({ error: 'Transaction not found' });
+
+      const transId = Math.random().toString(36).substring(2, 9);
+      const paymentText = paymentMethod === 'machine' ? 'MÁQUINA' :
+                          paymentMethod === 'card' ? 'CARTÃO' :
+                          paymentMethod === 'cash' ? 'DINHEIRO' :
+                          paymentMethod === 'pix' ? 'PIX' :
+                          paymentMethod ? paymentMethod.toUpperCase() : 'N/A';
+
+      const cleanOrigin = (updatedTx.description || 'Fiado de Cartão').replace(/\s*\(FIADO\)\s*/gi, ' ').trim();
+      let descriptionStr = `Baixa de Fiado: ${cleanOrigin} (${paymentText})`;
+      if (observation) {
+        descriptionStr += ` - Obs: ${observation}`;
+      }
+
+      const settlementTransaction = {
+        id: transId,
+        description: descriptionStr,
+        amount: payAmount,
+        date: paymentDate,
+        type: 'income',
+        paymentMethod,
+        ...(operator ? { operator } : {}),
+        ...(updatedTx.cardId ? { cardId: updatedTx.cardId } : {}),
+        ...(updatedTx.cardNumber ? { cardNumber: updatedTx.cardNumber } : {}),
+        ...(updatedTx.ownerName ? { ownerName: updatedTx.ownerName } : {})
+      };
+
+      if (dbType === 'firebase') {
+        await firebaseDb.addTransaction(settlementTransaction);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        await mysqlDb.addTransaction(settlementTransaction);
+      } else {
+        const db = readDb();
+        if (!db.transactions) db.transactions = [];
+        db.transactions.push(settlementTransaction);
+        writeDb(db);
+      }
+
+      // If this fiado was for a CustomerCard and it's now fully paid, update card's lastPaymentMethod if no other unpaid fiados remain for that card
+      if (updatedTx.isFiadoPaid) {
+        try {
+          const descMatch = (updatedTx.description || '').match(/Cartão\s+([^\s(]+)/i);
+          const targetCardNum = updatedTx.cardNumber || (descMatch ? descMatch[1] : null);
+          let cards = [];
+          let allTxs = [];
+          if (dbType === 'firebase') {
+            [cards, allTxs] = await Promise.all([firebaseDb.getCustomerCards(), firebaseDb.getTransactions()]);
+          } else if (dbType === 'mysql') {
+            const mysqlDb = await import('./src/db/mysqlDb.js');
+            [cards, allTxs] = await Promise.all([mysqlDb.getCustomerCards(), mysqlDb.getTransactions()]);
+          } else {
+            const db = readDb();
+            cards = db.customerCards || [];
+            allTxs = db.transactions || [];
+          }
+
+          const card = updatedTx.cardId
+            ? cards.find(c => c.id === updatedTx.cardId)
+            : targetCardNum
+              ? cards.find(c => (c.cardNumber || '').toLowerCase() === targetCardNum.toLowerCase())
+              : null;
+
+          if (card && card.lastPaymentMethod === 'fiado') {
+            const hasMoreUnpaid = allTxs.some(t => {
+              if (t.id === updatedTx.id || t.type !== 'income' || t.isFiadoPaid) return false;
+              const isFiado = t.paymentMethod === 'fiado' || (t.description || '').toUpperCase().includes('(FIADO)');
+              if (!isFiado) return false;
+              if (t.cardId && t.cardId === card.id) return true;
+              const m = (t.description || '').match(/Cartão\s+([^\s(]+)/i);
+              return m && m[1].toLowerCase() === (card.cardNumber || '').toLowerCase();
+            });
+
+            if (!hasMoreUnpaid) {
+              if (dbType === 'firebase') {
+                await firebaseDb.updateCustomerCard(card.id, { lastPaymentMethod: paymentMethod });
+              } else if (dbType === 'mysql') {
+                const mysqlDb = await import('./src/db/mysqlDb.js');
+                await mysqlDb.updateCustomerCard(card.id, { lastPaymentMethod: paymentMethod });
+              } else {
+                const db = readDb();
+                const cIdx = (db.customerCards || []).findIndex(c => c.id === card.id);
+                if (cIdx > -1) {
+                  db.customerCards[cIdx].lastPaymentMethod = paymentMethod;
+                  writeDb(db);
+                }
+              }
+            }
+          }
+        } catch (cardSyncErr) {
+          console.warn('Could not sync card lastPaymentMethod after fiado payoff:', cardSyncErr);
+        }
+      }
+
+      res.json(updatedTx);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to pay fiado transaction' });
     }
   });
 

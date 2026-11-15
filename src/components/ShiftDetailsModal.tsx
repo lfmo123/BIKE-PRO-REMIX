@@ -2,6 +2,7 @@ import React from 'react';
 import { Shift, Transaction, ParkedVehicle, Sale } from '../types';
 import { X, Printer } from 'lucide-react';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
+import { isFiadoTransaction, getTransactionPaymentMethod } from '../lib/transactionUtils';
 
 interface ShiftDetailsModalProps {
   shift: Shift;
@@ -50,8 +51,12 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
   shiftTransactions.forEach(t => {
       if (t.type === 'expense') {
           expenses += t.amount;
+      } else if (isFiadoTransaction(t)) {
+          fiado += t.amount;
       } else {
-          cash += t.amount; // Assume manual income is cash unless specified, normally we don't have method for manual in this basic app
+          const m = getTransactionPaymentMethod(t);
+          if (m === 'machine') card += t.amount;
+          else cash += t.amount;
       }
   });
 

@@ -614,6 +614,27 @@ export default function App() {
     }
   };
 
+  const handlePayFiadoTransaction = async (transactionId: string, paymentMethod: string, amount: number, observation?: string) => {
+    try {
+      const operator = deviceModules.enableOperatorLogin ? activeOperator : activeShift?.operatorName;
+      const res = await fetch(`/api/transactions/${transactionId}/pay-fiado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentMethod, amount, observation, operator })
+      });
+      if (res.ok) {
+        fetchTransactions();
+        fetchCustomerCards();
+        showToast('success', 'Baixa de fiado do cartão registrada com sucesso!');
+      } else {
+        showToast('error', 'Erro ao realizar baixa do fiado do cartão.');
+      }
+    } catch (error) {
+      console.error('Error paying card fiado', error);
+      showToast('error', 'Falha de comunicação ao registrar baixa de fiado.');
+    }
+  };
+
   const handleAddCard = async (card: Omit<CustomerCard, 'id'>) => {
     try {
       const id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
@@ -1159,6 +1180,7 @@ export default function App() {
                     onAddTransaction={handleAddTransaction}
                     onDeleteTransaction={handleDeleteTransaction}
                     onPayFiado={handlePayFiado}
+                    onPayFiadoTransaction={handlePayFiadoTransaction}
                   />
                 )}
                 {activeTab === 'shifts' && (

@@ -5,6 +5,7 @@ import { getLocalDateString } from '../lib/dateUtils';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { buildCardWhatsappText, openWhatsappMessage } from '../lib/whatsappUtils';
 import { exportToCsv } from '../lib/csvExport';
+import { isFiadoTransaction } from '../lib/transactionUtils';
 
 interface CustomerCardsProps {
   cards: CustomerCard[];
@@ -354,6 +355,7 @@ export function CustomerCards({
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Últimas Movimentações</span>
                     {cardTx.map(t => {
                       const isEstorno = t.description.includes('Estorno');
+                      const isFiado = isFiadoTransaction(t);
                       return (
                         <div
                           key={t.id}
@@ -367,9 +369,9 @@ export function CustomerCards({
                               hour: '2-digit',
                               minute: '2-digit'
                             })}{' '}
-                            - {isEstorno ? 'Estorno' : card.type === 'prepaid' ? 'Crédito' : 'Pgto'}
+                            - {isEstorno ? 'Estorno' : isFiado ? (t.isFiadoPaid ? 'Fiado (Quitado)' : 'Fiado (Pendente)') : card.type === 'prepaid' ? 'Crédito' : 'Pgto'}
                           </span>
-                          <span className={`font-bold tabular-nums ${isEstorno ? 'text-red-600' : 'text-emerald-600'}`}>
+                          <span className={`font-bold tabular-nums ${isEstorno ? 'text-red-600' : isFiado && !t.isFiadoPaid ? 'text-orange-600' : 'text-emerald-600'}`}>
                             {isEstorno ? '-' : '+'}R$ {t.amount.toFixed(2)}
                           </span>
                         </div>
@@ -617,7 +619,14 @@ export function CustomerCards({
                         : `Estorno ${transactionCard.type === 'prepaid' ? 'Pré-pago' : 'Pós-pago'}: Cartão ${transactionCard.cardNumber} (${transactionCard.ownerName})`,
                     amount: amt,
                     date: Date.now(),
-                    type: transactionType === 'add' ? 'income' : 'expense'
+                    type: transactionType === 'add' ? 'income' : 'expense',
+                    paymentMethod: transactionType === 'add' ? transactionPaymentMethod : undefined,
+                    cardId: transactionCard.id,
+                    cardNumber: transactionCard.cardNumber,
+                    ownerName: transactionCard.ownerName,
+                    ...(transactionType === 'add' && transactionPaymentMethod === 'fiado'
+                      ? { isFiadoPaid: false, fiadoPaidAmount: 0 }
+                      : {})
                   });
 
                   setTransactionCard(null);
