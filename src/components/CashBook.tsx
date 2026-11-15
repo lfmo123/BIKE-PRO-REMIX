@@ -212,12 +212,13 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
       const total = Number(t.amount) || 0;
       const paid = Number(t.fiadoPaidAmount) || 0;
       const isPostpaid = (t.description || '').toLowerCase().includes('pós-pago');
+      const isRentalTx = Boolean(t.rentalId) || (t.description || '').toLowerCase().includes('aluguel');
       return {
         kind: 'transaction' as const,
         key: `t_${t.id}`,
         id: t.id,
         title: t.description.replace(/\s*\(FIADO\)\s*/gi, '').trim(),
-        subtitle: `${new Date(t.date).toLocaleDateString('pt-BR')} • ${isPostpaid ? 'Cartão Pós-Pago' : 'Cartão Pré-Pago'}`,
+        subtitle: `${new Date(t.date).toLocaleDateString('pt-BR')} • ${isRentalTx ? 'Vaga Alugada' : isPostpaid ? 'Cartão Pós-Pago' : 'Cartão Pré-Pago'}`,
         date: t.date,
         totalAmount: total,
         paidAmount: paid,

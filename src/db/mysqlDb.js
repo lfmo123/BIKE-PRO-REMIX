@@ -158,6 +158,11 @@ export async function initMySQL() {
     } catch (e) {
       // Ignorar se as colunas já existirem
     }
+    try {
+      await currentPool.query('ALTER TABLE vehicles ADD COLUMN rentalId VARCHAR(50)');
+    } catch (e) {
+      // Ignorar se a coluna já existir
+    }
 
     try {
       await currentPool.query('ALTER TABLE lost_cards ADD COLUMN name VARCHAR(255)');
@@ -195,11 +200,11 @@ export async function getVehicles() {
 export async function checkInVehicle(vehicle) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
   const query = `
-    INSERT INTO vehicles (id, type, identifier, ownerName, cardNumber, checkInTime, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO vehicles (id, type, identifier, ownerName, cardNumber, checkInTime, status, rentalId)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
   await getPool().query(query, [
-    vehicle.id, vehicle.type, vehicle.identifier, vehicle.ownerName, vehicle.cardNumber, vehicle.checkInTime, vehicle.status
+    vehicle.id, vehicle.type, vehicle.identifier, vehicle.ownerName, vehicle.cardNumber, vehicle.checkInTime, vehicle.status, vehicle.rentalId || null
   ]);
 }
 

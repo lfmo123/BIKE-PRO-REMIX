@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search,
   Bike,
@@ -76,8 +76,11 @@ export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], d
     }
   }, [vehicles, selectedVehicle]);
 
+  const autoAppliedRentalRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (selectedVehicle) {
+      autoAppliedRentalRef.current = null;
       const formatLocal = (t: number) => {
         const d = new Date(t);
         return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -89,11 +92,22 @@ export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], d
       const isValid = matched ? getRentalValidity(matched).isValidToday : false;
       if ((rentalsEnabled || selectedVehicle.rentalId) && matched && isValid) {
         setPaymentMethod('rental');
+        autoAppliedRentalRef.current = selectedVehicle.id;
       } else if (paymentMethod === 'rental') {
         setPaymentMethod('cash');
       }
     }
   }, [selectedVehicle?.id]);
+
+  useEffect(() => {
+    if (!selectedVehicle || autoAppliedRentalRef.current === selectedVehicle.id) return;
+    const matched = findMatchingRentalForVehicle(spotRentals, selectedVehicle);
+    const isValid = matched ? getRentalValidity(matched).isValidToday : false;
+    if ((rentalsEnabled || selectedVehicle.rentalId) && matched && isValid) {
+      setPaymentMethod('rental');
+      autoAppliedRentalRef.current = selectedVehicle.id;
+    }
+  }, [spotRentals, selectedVehicle?.id, rentalsEnabled]);
 
   useEffect(() => {
     if (selectedVehicle && (paymentMethod === 'card' || paymentMethod === 'postpaid_card')) {

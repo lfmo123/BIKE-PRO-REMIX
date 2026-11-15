@@ -60,6 +60,12 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
     setModules(getDeviceModules());
   }, [pricing]);
 
+  useEffect(() => {
+    const syncModules = () => setModules(getDeviceModules());
+    window.addEventListener('bikepark_modules_changed', syncModules);
+    return () => window.removeEventListener('bikepark_modules_changed', syncModules);
+  }, []);
+
   const handleUnlockModules = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (verifyAdminPin(pinInput)) {
@@ -382,6 +388,7 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
                   { key: 'spots', label: 'Grade de Vagas', desc: 'Visualização gráfica de vagas numeradas' },
                   { key: 'stored', label: 'Em Depósito', desc: 'Veículos abandonados ou retidos' },
                   { key: 'cards', label: 'Cartões Mensalistas', desc: 'Pré-pago e pós-pago de clientes' },
+                  { key: 'enableSpotRentals', label: 'Vagas Alugadas (Opcional)', desc: 'Aluguel mensal/período de vaga fixa ou rotativa (inicia desativado)', optionalDefaultOff: true },
                   { key: 'shifts', label: 'Fechamento de Caixa', desc: 'Abertura, turnos e conferência de caixa' },
                   { key: 'cashbook', label: 'Livro Caixa', desc: 'Registro de entradas e saídas extras' },
                   { key: 'store', label: 'Loja & Estoque', desc: 'Venda de peças, acessórios e bebidas' },
@@ -389,7 +396,9 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
                   { key: 'reports', label: 'Relatórios Financeiros', desc: 'Gráficos e estatísticas de faturamento' },
                   { key: 'audit', label: 'Auditoria do Sistema', desc: 'Rastreio de ações dos operadores' },
                 ].map((item) => {
-                  const isEnabled = (modules as any)[item.key] !== false;
+                  const isEnabled = (item as any).optionalDefaultOff
+                    ? Boolean((modules as any)[item.key])
+                    : (modules as any)[item.key] !== false;
                   return (
                     <div
                       key={item.key}
@@ -397,20 +406,27 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
                       className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
                         isEnabled
                           ? 'bg-slate-50 border-slate-300'
-                          : 'bg-white border-slate-200 opacity-60'
+                          : 'bg-white border-slate-200 opacity-75'
                       }`}
                     >
                       <div className="pr-2">
-                        <p className={`text-sm font-semibold ${isEnabled ? 'text-slate-900' : 'text-slate-500'}`}>
-                          {item.label}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className={`text-sm font-semibold ${isEnabled ? 'text-slate-900' : 'text-slate-500'}`}>
+                            {item.label}
+                          </p>
+                          {(item as any).optionalDefaultOff && !isEnabled && (
+                            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                              Desativado
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-slate-500">{item.desc}</p>
                       </div>
                       <input
                         type="checkbox"
                         checked={isEnabled}
                         onChange={() => {}}
-                        className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                        className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer shrink-0"
                       />
                     </div>
                   );

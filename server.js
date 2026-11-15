@@ -210,6 +210,7 @@ async function startServer() {
         cardId,
         cardNumber,
         ownerName,
+        rentalId,
         isFiadoPaid,
         fiadoPaidAmount
       } = req.body;
@@ -226,6 +227,7 @@ async function startServer() {
         cardId,
         cardNumber,
         ownerName,
+        rentalId,
         isFiadoPaid,
         fiadoPaidAmount
       };

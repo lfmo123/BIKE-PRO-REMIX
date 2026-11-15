@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Clock,
@@ -77,6 +77,8 @@ export function CheckOutModal({
   const hourlyEnabled = Boolean(deviceConfig?.enableHourlyPricing);
   const rentalsEnabled = Boolean(deviceConfig?.enableSpotRentals);
 
+  const autoAppliedRentalRef = useRef<string | null>(null);
+
   // Initialize modal state ONLY when the selected vehicle ID changes (prevents background sync from resetting edits)
   useEffect(() => {
     if (vehicle) {
@@ -89,6 +91,7 @@ export function CheckOutModal({
       setPassword('');
       setPasswordError('');
       setPixCopied(false);
+      autoAppliedRentalRef.current = null;
 
       const formatLocal = (t: number) => {
         const d = new Date(t);
@@ -105,6 +108,7 @@ export function CheckOutModal({
       if ((rentalsEnabled || vehicle.rentalId) && matchedRentalOnOpen && rentalValidOnOpen) {
         setPaymentMethod('rental');
         setCustomPrice('0.00');
+        autoAppliedRentalRef.current = vehicle.id;
       } else {
         setPaymentMethod('machine');
         setCustomPrice(calcPrice.toFixed(2));
@@ -124,6 +128,22 @@ export function CheckOutModal({
       }
     }
   }, [vehicle?.id]);
+
+  // Apply rental automatically if spotRentals finishes loading right after modal opens
+  useEffect(() => {
+    if (!vehicle || autoAppliedRentalRef.current === vehicle.id) return;
+    const matchedRentalAsync = findMatchingRentalForVehicle(spotRentals, vehicle);
+    if (!matchedRentalAsync) return;
+    const isValidAsync = getRentalValidity(matchedRentalAsync).isValidToday;
+    if ((rentalsEnabled || vehicle.rentalId) && isValidAsync) {
+      setPaymentMethod('rental');
+      setCustomPrice('0.00');
+      if (!whatsappPhone && matchedRentalAsync.phone) {
+        setWhatsappPhone(matchedRentalAsync.phone);
+      }
+      autoAppliedRentalRef.current = vehicle.id;
+    }
+  }, [spotRentals, vehicle?.id, rentalsEnabled]);
 
   // Separate lightweight matcher if customerCards arrives asynchronously before user picks one
   useEffect(() => {
