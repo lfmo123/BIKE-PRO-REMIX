@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import 'dotenv/config';
@@ -18,6 +19,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(compression());
   app.use(express.json({ limit: '15mb' }));
 
   // Define qual banco de dados usar ('mysql', 'firebase' ou 'json')
@@ -46,7 +48,7 @@ async function startServer() {
         console.log('Running cleanup for stuck cardLost vehicles...');
         const lostCards = await firebaseDb.getLostCards();
         const lostCardNumbers = new Set(lostCards.map(c => c.cardNumber));
-        const vehicles = await firebaseDb.getVehicles();
+        const vehicles = await firebaseDb.getSyncVehicles(48);
         
         const stuckCards = new Set();
         vehicles.forEach(v => {
@@ -78,15 +80,24 @@ async function startServer() {
 
   // --- API Routes ---
 
-  // Get all vehicles
+  // Get vehicles (supports ?scope=sync for lightweight polling)
   app.get('/api/vehicles', async (req, res) => {
     try {
+      const isSyncScope = req.query.scope === 'sync';
+      const recentCutoff = Date.now() - 48 * 60 * 60 * 1000;
+
       if (dbType === 'firebase') {
-        const vehicles = await firebaseDb.getVehicles();
+        const vehicles = isSyncScope
+          ? await firebaseDb.getSyncVehicles(48)
+          : await firebaseDb.getVehicles();
         res.json(vehicles);
       } else if (dbType === 'mysql') {
         const vehicles = await mySqlGetVehicles();
-        res.json(vehicles);
+        res.json(
+          isSyncScope
+            ? vehicles.filter(v => v.status === 'active' || v.status === 'stored' || (v.checkOutTime && v.checkOutTime >= recentCutoff))
+            : vehicles
+        );
       } else {
         const db = readDb();
         let changed = false;
@@ -102,7 +113,12 @@ async function startServer() {
         if (changed) {
           writeDb(db);
         }
-        res.json(db.vehicles.sort((a, b) => b.checkInTime - a.checkInTime));
+        const sorted = db.vehicles.sort((a, b) => b.checkInTime - a.checkInTime);
+        res.json(
+          isSyncScope
+            ? sorted.filter(v => v.status === 'active' || v.status === 'stored' || (v.checkOutTime && v.checkOutTime >= recentCutoff))
+            : sorted
+        );
       }
     } catch (error) {
       console.error(error);

@@ -50,8 +50,28 @@ export function initBackupService(dbType) {
     }
   };
 
-  // Run on startup
-  performBackup();
+  const hasRecentBackup = () => {
+    try {
+      const sixHoursMs = 6 * 60 * 60 * 1000;
+      const now = Date.now();
+      const files = fs.readdirSync(backupsDir).filter(f => f.startsWith(`backup_${dbType}_`) && f.endsWith('.json'));
+      return files.some(file => {
+        const stat = fs.statSync(path.join(backupsDir, file));
+        return (now - stat.mtimeMs) < sixHoursMs;
+      });
+    } catch {
+      return false;
+    }
+  };
+
+  // Run after startup settle only if no recent backup exists (< 6h)
+  if (!hasRecentBackup()) {
+    setTimeout(() => {
+      performBackup();
+    }, 30000);
+  } else {
+    console.log('[Backup Local] Backup recente já encontrado (< 6h). Pulando leitura completa na inicialização.');
+  }
 
   // Run every 12 hours (e.g., at 00:00 and 12:00)
   cron.schedule('0 */12 * * *', performBackup);

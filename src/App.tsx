@@ -202,13 +202,35 @@ export default function App() {
     return res;
   };
 
+  const hasLoadedFullVehiclesRef = useRef(false);
+
   const fetchVehicles = async () => {
     const res = await safeFetchJson<ParkedVehicle[]>('/api/vehicles');
     if (res.ok && Array.isArray(res.data)) {
+      hasLoadedFullVehiclesRef.current = true;
       setVehicles(res.data);
       setErrorMsg(null);
     } else if (!res.isHtml && navigator.onLine) {
       setErrorMsg(res.error || 'Erro ao carregar veículos.');
+    }
+    return res;
+  };
+
+  const fetchVehiclesSync = async () => {
+    if (!hasLoadedFullVehiclesRef.current) {
+      return fetchVehicles();
+    }
+    const res = await safeFetchJson<ParkedVehicle[]>('/api/vehicles?scope=sync');
+    if (res.ok && Array.isArray(res.data)) {
+      const syncList = res.data;
+      const syncMap = new Map(syncList.map(v => [v.id, v]));
+      setVehicles(prev => {
+        const merged = prev.filter(
+          v => !syncMap.has(v.id) && (v.status === 'completed' || v.id.startsWith('offline_'))
+        );
+        return [...syncList, ...merged].sort((a, b) => b.checkInTime - a.checkInTime);
+      });
+      setErrorMsg(null);
     }
     return res;
   };
@@ -278,12 +300,29 @@ export default function App() {
     }
   }, []);
 
-  // Silent background multi-device sync (never closes/resets open modals)
+  // Lightweight background multi-device sync (fetches only active/stored + last 48h vehicles)
   const silentSync = useCallback(async () => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-    await handleRefreshAll();
-  }, [handleRefreshAll]);
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    try {
+      await Promise.allSettled([
+        fetchVehiclesSync(),
+        fetchPricing(),
+        fetchLostCards(),
+        fetchCustomerCards(),
+        fetchShifts(),
+        fetchProducts(),
+        fetchSales(),
+        fetchTransactions()
+      ]);
+    } catch (e) {
+      console.warn('Background sync error:', e);
+    } finally {
+      isSyncingRef.current = false;
+    }
+  }, []);
 
   const runOfflineFlush = useCallback(async () => {
     if (!deviceModules.enableOfflineQueue) return;
@@ -308,7 +347,7 @@ export default function App() {
 
     const syncInterval = setInterval(() => {
       silentSync();
-    }, 12000);
+    }, 15000);
 
     const handleVisibilityOrFocus = () => {
       if (document.visibilityState === 'visible') {
@@ -563,7 +602,7 @@ export default function App() {
         body: JSON.stringify({ paymentMethod, amount, observation })
       });
       if (res.ok) {
-        fetchVehicles();
+        fetchVehiclesSync();
         fetchTransactions();
         showToast('success', 'Baixa de fiado registrada com sucesso!');
       } else {
@@ -683,7 +722,7 @@ export default function App() {
       });
       const parsed = await parseResponseJson(res, 'Erro ao registrar entrada');
       if (parsed.ok) {
-        fetchVehicles();
+        fetchVehiclesSync();
         fetchLostCards();
         setIsCheckInOpen(false);
         return { success: true, vehicle: parsed.data };
@@ -724,7 +763,7 @@ export default function App() {
         });
         if (res.ok) successCount++;
       }
-      fetchVehicles();
+      fetchVehiclesSync();
       fetchLostCards();
       setIsCheckInOpen(false);
       return { success: true, count: successCount };
@@ -778,14 +817,14 @@ export default function App() {
       });
       const parsed = await parseResponseJson(res, 'Erro ao registrar checkout');
       if (parsed.ok) {
-        fetchVehicles();
+        fetchVehiclesSync();
         fetchLostCards();
         fetchCustomerCards();
         setVehicleToCheckOut(null);
         showToast('success', 'Saída finalizada com sucesso!');
       } else {
         showToast('error', `Erro ao registrar saída: ${parsed.error}`);
-        fetchVehicles();
+        fetchVehiclesSync();
       }
     } catch (error) {
       console.error('Error during checkout', error);
@@ -815,7 +854,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}/revert-checkout`, { method: 'PUT' });
       if (res.ok) {
-        fetchVehicles();
+        fetchVehiclesSync();
         showToast('success', 'Saída revertida com sucesso.');
       } else {
         showToast('error', 'Erro ao estornar saída.');
@@ -829,7 +868,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}/revert-checkin`, { method: 'DELETE' });
       if (res.ok) {
-        fetchVehicles();
+        fetchVehiclesSync();
         showToast('success', 'Entrada cancelada com sucesso.');
       } else {
         showToast('error', 'Erro ao estornar entrada.');
@@ -848,7 +887,7 @@ export default function App() {
       });
       const parsed = await parseResponseJson(res, 'Erro ao registrar cartão perdido');
       if (parsed.ok) {
-        fetchVehicles();
+        fetchVehiclesSync();
         fetchLostCards();
         showToast('success', 'Cartão perdido registrado.');
       } else {

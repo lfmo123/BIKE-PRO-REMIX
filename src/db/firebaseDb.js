@@ -42,48 +42,126 @@ function removeUndefinedFields(obj) {
 }
 
 // ------------------------------------
-// Vehicles
+// Vehicles (with smart cache & sync window)
 // ------------------------------------
-export async function getVehicles() {
-  const q = query(collection(db, 'vehicles'));
-  const snapshot = await getDocs(q);
-  let vehicles = [];
+const VEHICLES_CACHE_TTL_MS = 45000;
+let vehiclesCache = {
+  data: null,
+  updatedAt: 0,
+  inFlight: null
+};
 
+export function invalidateVehiclesCache() {
+  vehiclesCache.data = null;
+  vehiclesCache.updatedAt = 0;
+}
+
+export async function getVehicles(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && vehiclesCache.data && now - vehiclesCache.updatedAt < VEHICLES_CACHE_TTL_MS) {
+    return vehiclesCache.data;
+  }
+
+  if (!forceRefresh && vehiclesCache.inFlight) {
+    return vehiclesCache.inFlight;
+  }
+
+  vehiclesCache.inFlight = (async () => {
+    try {
+      const q = query(collection(db, 'vehicles'));
+      const snapshot = await getDocs(q);
+      let vehicles = [];
+
+      const thirtyDaysAgo = Date.now() - 2592000000;
+      const activeSpotMap = new Map();
+
+      snapshot.forEach(docSnap => {
+        const v = docSnap.data();
+        if (v.status === 'active' && v.checkInTime <= thirtyDaysAgo) {
+          v.status = 'stored';
+          updateDoc(docSnap.ref, { status: 'stored' }).catch(console.error);
+        }
+
+        if ((v.status === 'active' || v.status === 'stored') && v.cardNumber) {
+          const existing = activeSpotMap.get(v.cardNumber);
+          if (existing) {
+            if (v.checkInTime > existing.checkInTime) {
+              deleteDoc(doc(db, 'vehicles', existing.id)).catch(console.error);
+              activeSpotMap.set(v.cardNumber, v);
+            } else {
+              deleteDoc(doc(db, 'vehicles', v.id)).catch(console.error);
+              return;
+            }
+          } else {
+            activeSpotMap.set(v.cardNumber, v);
+          }
+        }
+        vehicles.push(v);
+      });
+
+      vehicles = vehicles.filter(v => {
+        if ((v.status === 'active' || v.status === 'stored') && v.cardNumber) {
+          return activeSpotMap.get(v.cardNumber).id === v.id;
+        }
+        return true;
+      });
+
+      const sorted = vehicles.sort((a, b) => b.checkInTime - a.checkInTime);
+      vehiclesCache.data = sorted;
+      vehiclesCache.updatedAt = Date.now();
+      return sorted;
+    } finally {
+      vehiclesCache.inFlight = null;
+    }
+  })();
+
+  return vehiclesCache.inFlight;
+}
+
+export async function getSyncVehicles(windowHours = 48) {
+  const cutoff = Date.now() - windowHours * 60 * 60 * 1000;
   const thirtyDaysAgo = Date.now() - 2592000000;
+
+  const [activeSnap, recentCompletedSnap] = await Promise.all([
+    getDocs(query(collection(db, 'vehicles'), where('status', 'in', ['active', 'stored']))),
+    getDocs(query(collection(db, 'vehicles'), where('checkOutTime', '>=', cutoff)))
+  ]);
+
+  const byId = new Map();
   const activeSpotMap = new Map();
 
-  snapshot.forEach(docSnap => {
+  activeSnap.forEach(docSnap => {
     const v = docSnap.data();
     if (v.status === 'active' && v.checkInTime <= thirtyDaysAgo) {
       v.status = 'stored';
       updateDoc(docSnap.ref, { status: 'stored' }).catch(console.error);
     }
-
-    if ((v.status === 'active' || v.status === 'stored') && v.cardNumber) {
+    if (v.cardNumber) {
       const existing = activeSpotMap.get(v.cardNumber);
       if (existing) {
         if (v.checkInTime > existing.checkInTime) {
           deleteDoc(doc(db, 'vehicles', existing.id)).catch(console.error);
+          byId.delete(existing.id);
           activeSpotMap.set(v.cardNumber, v);
+          byId.set(v.id, v);
         } else {
           deleteDoc(doc(db, 'vehicles', v.id)).catch(console.error);
-          return;
         }
-      } else {
-        activeSpotMap.set(v.cardNumber, v);
+        return;
       }
+      activeSpotMap.set(v.cardNumber, v);
     }
-    vehicles.push(v);
+    byId.set(v.id, v);
   });
 
-  vehicles = vehicles.filter(v => {
-    if ((v.status === 'active' || v.status === 'stored') && v.cardNumber) {
-      return activeSpotMap.get(v.cardNumber).id === v.id;
+  recentCompletedSnap.forEach(docSnap => {
+    const v = docSnap.data();
+    if (!byId.has(v.id)) {
+      byId.set(v.id, v);
     }
-    return true;
   });
 
-  return vehicles.sort((a, b) => b.checkInTime - a.checkInTime);
+  return Array.from(byId.values()).sort((a, b) => b.checkInTime - a.checkInTime);
 }
 
 export async function checkSpotTaken(cardNumber) {
@@ -137,6 +215,7 @@ export async function checkInVehicle(vehicle) {
     });
   });
 
+  invalidateVehiclesCache();
   return cleanVehicle;
 }
 
@@ -163,6 +242,7 @@ export async function revertCheckOut(id) {
     }).catch(console.error);
   }
 
+  invalidateVehiclesCache();
   return { ...data, status: 'active', checkOutTime: null, price: null, paymentMethod: null };
 }
 
@@ -175,6 +255,7 @@ export async function revertCheckIn(id) {
     const lockRef = doc(db, 'spotLocks', getSafeCardLockId(cardNumber));
     await setDoc(lockRef, { active: false, updatedAt: Date.now() }, { merge: true }).catch(console.error);
   }
+  invalidateVehiclesCache();
   return true;
 }
 
@@ -251,12 +332,13 @@ export async function checkOutVehicle(
     return { ...currentData, ...updatedData };
   });
 
+  invalidateVehiclesCache();
   return result;
 }
 
 export async function payFiado(id, paymentMethod, paymentDate, amountToPay) {
   const vehicleRef = doc(db, 'vehicles', id);
-  return runTransaction(db, async (tx) => {
+  const res = await runTransaction(db, async (tx) => {
     const vehicleSnap = await tx.get(vehicleRef);
     if (!vehicleSnap.exists()) return null;
 
@@ -275,6 +357,8 @@ export async function payFiado(id, paymentMethod, paymentDate, amountToPay) {
     tx.update(vehicleRef, updatedData);
     return { ...currentData, ...updatedData };
   });
+  invalidateVehiclesCache();
+  return res;
 }
 
 // ------------------------------------
@@ -405,6 +489,7 @@ export async function recoverVehicleCardLost(cardNumber) {
     updateDoc(doc(db, 'vehicles', docSnap.id), { cardLost: false })
   );
   await Promise.all(updatePromises);
+  invalidateVehiclesCache();
 }
 
 export async function updateVehicleCard(id, newCardNumber) {
@@ -412,6 +497,7 @@ export async function updateVehicleCard(id, newCardNumber) {
   const vehicleSnap = await getDoc(vehicleRef);
   if (!vehicleSnap.exists()) return null;
   await updateDoc(vehicleRef, { cardNumber: newCardNumber });
+  invalidateVehiclesCache();
   return { ...vehicleSnap.data(), cardNumber: newCardNumber };
 }
 
@@ -422,6 +508,7 @@ export async function reportLostCard(vehicleId, lostCardName, lostCardPhone) {
 
   const updatedData = { cardLost: true, lostCardName, lostCardPhone };
   await updateDoc(vehicleRef, updatedData);
+  invalidateVehiclesCache();
 
   return { ...vehicleSnap.data(), ...updatedData };
 }
@@ -597,6 +684,7 @@ export async function updateVehicle(id, data) {
   if (!vehicleSnap.exists()) return null;
   const updatedData = removeUndefinedFields({ ...vehicleSnap.data(), ...data });
   await updateDoc(vehicleRef, updatedData);
+  invalidateVehiclesCache();
   return updatedData;
 }
 
@@ -609,6 +697,7 @@ export async function removeVehicle(id) {
     const lockRef = doc(db, 'spotLocks', getSafeCardLockId(cardNumber));
     await setDoc(lockRef, { active: false, updatedAt: Date.now() }, { merge: true }).catch(console.error);
   }
+  invalidateVehiclesCache();
 }
 
 export async function updateTransaction(id, data) {
@@ -645,6 +734,7 @@ export async function resetDatabase() {
   locksSnapshot.forEach((document) => ops.push((b) => b.delete(doc(db, 'spotLocks', document.id))));
 
   await commitInChunks(ops);
+  invalidateVehiclesCache();
 }
 
 export async function restoreBackup(data) {
@@ -732,5 +822,6 @@ export async function restoreBackup(data) {
   }
 
   await commitInChunks(ops);
+  invalidateVehiclesCache();
   return { restoredCount: ops.length };
 }
