@@ -623,8 +623,7 @@ export default function App() {
         body: JSON.stringify({ paymentMethod, amount, observation, operator })
       });
       if (res.ok) {
-        fetchTransactions();
-        fetchCustomerCards();
+        await Promise.all([fetchTransactions(), fetchCustomerCards()]);
         showToast('success', 'Baixa de fiado do cartão registrada com sucesso!');
       } else {
         showToast('error', 'Erro ao realizar baixa do fiado do cartão.');

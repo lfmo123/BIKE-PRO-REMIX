@@ -355,6 +355,7 @@ export function CustomerCards({
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Últimas Movimentações</span>
                     {cardTx.map(t => {
                       const isEstorno = t.description.includes('Estorno');
+                      const isBaixaFiado = t.description.includes('Baixa de Fiado');
                       const isFiado = isFiadoTransaction(t);
                       return (
                         <div
@@ -369,7 +370,7 @@ export function CustomerCards({
                               hour: '2-digit',
                               minute: '2-digit'
                             })}{' '}
-                            - {isEstorno ? 'Estorno' : isFiado ? (t.isFiadoPaid ? 'Fiado (Quitado)' : 'Fiado (Pendente)') : card.type === 'prepaid' ? 'Crédito' : 'Pgto'}
+                            - {isEstorno ? 'Estorno' : isBaixaFiado ? 'Baixa de Fiado' : isFiado ? (t.isFiadoPaid ? 'Fiado (Quitado)' : 'Fiado (Pendente)') : card.type === 'prepaid' ? 'Crédito' : 'Pgto'}
                           </span>
                           <span className={`font-bold tabular-nums ${isEstorno ? 'text-red-600' : isFiado && !t.isFiadoPaid ? 'text-orange-600' : 'text-emerald-600'}`}>
                             {isEstorno ? '-' : '+'}R$ {t.amount.toFixed(2)}
