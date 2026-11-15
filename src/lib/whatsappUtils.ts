@@ -1,4 +1,4 @@
-import { ParkedVehicle, CustomerCard } from '../types';
+import { ParkedVehicle, CustomerCard, SpotRental } from '../types';
 import { formatDuration } from './pricing';
 
 export function normalizeWhatsappPhone(phone?: string): string {
@@ -50,6 +50,7 @@ export function buildCheckOutWhatsappText(
     paymentMethod === 'machine' ? 'Cartão (Máquina)' :
     paymentMethod === 'card' ? 'Cartão Pré-Pago' :
     paymentMethod === 'postpaid_card' ? 'Cartão Pós-Pago' :
+    paymentMethod === 'rental' ? 'Vaga Alugada (Incluso no Período)' :
     paymentMethod === 'fiado' ? 'Fiado (Pendente)' : paymentMethod;
 
   return [
@@ -93,3 +94,21 @@ export function buildCardWhatsappText(card: CustomerCard): string {
     `Obrigado pela preferência!`
   ].filter(Boolean).join('\n');
 }
+
+export function buildSpotRentalWhatsappText(rental: SpotRental): string {
+  const startBr = rental.startDate.split('-').reverse().join('/');
+  const endBr = rental.endDate.split('-').reverse().join('/');
+  const modeText = rental.mode === 'fixed'
+    ? `Vaga Fixa Reservada (*#${rental.spotNumber || '-'}*)`
+    : 'Direito Rotativo (Qualquer Vaga Livre)';
+  return [
+    `*BikePark - Comprovante de Aluguel de Vaga*`,
+    `Cliente: *${rental.ownerName}*`,
+    `Modalidade: ${modeText}`,
+    rental.vehicleIdentifier ? `Veículo: ${rental.vehicleIdentifier}` : '',
+    `Vigência: *${startBr} até ${endBr}*`,
+    `Valor do Período: *R$ ${(Number(rental.price) || 0).toFixed(2)}*`,
+    `Obrigado pela preferência!`
+  ].filter(Boolean).join('\n');
+}
+

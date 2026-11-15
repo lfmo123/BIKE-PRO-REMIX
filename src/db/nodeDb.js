@@ -6,6 +6,7 @@ const dbPath = path.resolve(process.cwd(), 'database.json');
 const defaultDbState = {
   vehicles: [],
   transactions: [],
+  spotRentals: [],
   pricing: {
     bicycle: 5,
     ebike: 8,
@@ -30,6 +31,9 @@ export function readDb() {
     const db = JSON.parse(data);
     if (!db.transactions) {
       db.transactions = [];
+    }
+    if (!db.spotRentals) {
+      db.spotRentals = [];
     }
     if (db && db.pricing && typeof db.pricing.lostCardFee === 'undefined') {
        db.pricing.lostCardFee = 50;

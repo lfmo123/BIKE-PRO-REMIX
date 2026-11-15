@@ -437,6 +437,37 @@ export async function removeCustomerCard(id) {
 }
 
 // ------------------------------------
+// Spot Rentals (Vagas Alugadas por Período)
+// ------------------------------------
+export async function getSpotRentals() {
+  const snapshot = await getDocs(collection(db, 'spotRentals'));
+  const rentals = [];
+  snapshot.forEach(docSnap => rentals.push(docSnap.data()));
+  return rentals.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+export async function addSpotRental(rental) {
+  const clean = removeUndefinedFields(rental);
+  await setDoc(doc(db, 'spotRentals', clean.id), clean);
+  return clean;
+}
+
+export async function updateSpotRental(id, data) {
+  const rentalRef = doc(db, 'spotRentals', id);
+  return runTransaction(db, async (tx) => {
+    const rentalSnap = await tx.get(rentalRef);
+    if (!rentalSnap.exists()) return null;
+    const updatedData = removeUndefinedFields({ ...rentalSnap.data(), ...data });
+    tx.set(rentalRef, updatedData);
+    return updatedData;
+  });
+}
+
+export async function removeSpotRental(id) {
+  await deleteDoc(doc(db, 'spotRentals', id));
+}
+
+// ------------------------------------
 // Operators
 // ------------------------------------
 export async function getOperators() {
@@ -841,6 +872,14 @@ export async function restoreBackup(data) {
     data.operators.forEach((op) => {
       if (op && op.id) {
         ops.push((b) => b.set(doc(db, 'operators', String(op.id)), removeUndefinedFields(op)));
+      }
+    });
+  }
+
+  if (Array.isArray(data.spotRentals)) {
+    data.spotRentals.forEach((sr) => {
+      if (sr && sr.id) {
+        ops.push((b) => b.set(doc(db, 'spotRentals', String(sr.id)), removeUndefinedFields(sr)));
       }
     });
   }

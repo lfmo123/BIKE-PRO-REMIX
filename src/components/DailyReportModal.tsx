@@ -50,7 +50,7 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
   const manualPaidIncomes = manualTransactions.filter(t => t.type === 'income' && !isFiadoTransaction(t));
   const totalExpenseTransactions = manualTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   
-  const dailyCheckouts = exitsToday.filter(v => !['fiado', 'card', 'postpaid_card'].includes(v.paymentMethod || ''));
+  const dailyCheckouts = exitsToday.filter(v => !['fiado', 'card', 'postpaid_card', 'rental'].includes(v.paymentMethod || ''));
   
   const totalCash = dailyCheckouts.filter(v => v.paymentMethod === 'cash').reduce((sum, v) => sum + (v.price || 0), 0) + 
                     manualPaidIncomes.filter(t => getTransactionPaymentMethod(t) === 'cash').reduce((sum, t) => sum + t.amount, 0);
@@ -69,7 +69,7 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
   // Financial Data (Yesterday)
   const yestManualTransactions = transactions.filter(t => t.date >= prevStartOfDay && t.date <= prevEndOfDay);
   const yestExits = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= prevStartOfDay && v.checkOutTime <= prevEndOfDay);
-  const yestCheckouts = yestExits.filter(v => !['fiado', 'card', 'postpaid_card'].includes(v.paymentMethod || ''));
+  const yestCheckouts = yestExits.filter(v => !['fiado', 'card', 'postpaid_card', 'rental'].includes(v.paymentMethod || ''));
   const yestTotalIncome = yestManualTransactions.filter(t => t.type === 'income' && !isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0) + 
                           yestCheckouts.reduce((sum, v) => sum + (v.price || 0), 0);
   const yestTotalExpense = yestManualTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);

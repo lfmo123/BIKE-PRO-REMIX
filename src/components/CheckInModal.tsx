@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { X, Bike, Zap, Motorbike, Layers, Camera, Trash2, QrCode } from 'lucide-react';
-import { VehicleType, ParkedVehicle } from '../types';
+import React, { useState, useMemo } from 'react';
+import { X, Bike, Zap, Motorbike, Layers, Camera, Trash2, QrCode, CalendarRange, Lock, AlertTriangle } from 'lucide-react';
+import { VehicleType, ParkedVehicle, SpotRental } from '../types';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { generateQrSvg } from '../lib/pixUtils';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
+import { findFixedRentalForSpot, formatDateBr, getRentalValidity } from '../lib/rentalUtils';
 
 interface CheckInModalProps {
   isOpen: boolean;
@@ -11,8 +12,13 @@ interface CheckInModalProps {
   onCheckIn: (vehicle: Omit<ParkedVehicle, 'id' | 'status'>) => Promise<void | { success: boolean; error?: string; vehicle?: ParkedVehicle }>;
   onCheckInBulk?: (vehicles: Omit<ParkedVehicle, 'id' | 'status'>[]) => Promise<void | { success: boolean; count?: number; error?: string }>;
   initialCardNumber?: string;
+  initialOwnerName?: string;
+  initialVehicleType?: VehicleType;
+  initialRentalId?: string;
+  initialIdentifier?: string;
   vehicles?: ParkedVehicle[];
   lostCards?: { cardNumber: string }[];
+  spotRentals?: SpotRental[];
   deviceConfig?: DeviceFeaturesConfig;
   activeOperator?: string;
 }
@@ -51,14 +57,21 @@ export function CheckInModal({
   onCheckIn,
   onCheckInBulk,
   initialCardNumber,
+  initialOwnerName,
+  initialVehicleType,
+  initialRentalId,
+  initialIdentifier,
   vehicles = [],
   lostCards = [],
+  spotRentals = [],
   deviceConfig,
   activeOperator,
 }: CheckInModalProps) {
   const [type, setType] = useState<VehicleType>('bicycle');
   const [cardNumber, setCardNumber] = useState('');
   const [ownerName, setOwnerName] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [selectedRentalId, setSelectedRentalId] = useState('');
   const [customDate, setCustomDate] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -79,6 +92,24 @@ export function CheckInModal({
   const canCheckInBulk = deviceConfig?.canCheckInBulk !== false;
   const showPhotoChecklist = Boolean(deviceConfig?.enableCheckInPhoto);
   const showQrPrintOption = Boolean(deviceConfig?.enableQrTicketScanner && deviceConfig?.canPrintTicket !== false);
+  const rentalsEnabled = Boolean(deviceConfig?.enableSpotRentals);
+
+  const activeFloatingRentals = useMemo(() => {
+    if (!rentalsEnabled) return [];
+    return spotRentals.filter(r => r.status === 'active' && r.mode === 'floating' && getRentalValidity(r).isValidToday);
+  }, [rentalsEnabled, spotRentals]);
+
+  const fixedSpotRental = useMemo(() => {
+    if (!rentalsEnabled || isBulkMode || !cardNumber.trim()) return undefined;
+    return findFixedRentalForSpot(spotRentals, cardNumber);
+  }, [rentalsEnabled, isBulkMode, cardNumber, spotRentals]);
+
+  const activeRental = useMemo(() => {
+    if (!rentalsEnabled) return undefined;
+    if (fixedSpotRental) return fixedSpotRental;
+    if (selectedRentalId) return spotRentals.find(r => r.id === selectedRentalId);
+    return undefined;
+  }, [rentalsEnabled, fixedSpotRental, selectedRentalId, spotRentals]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -92,23 +123,40 @@ export function CheckInModal({
 
       if (initialCardNumber) {
         setCardNumber(initialCardNumber);
-        if (initialCardNumber.includes('MT/BE')) {
+        if (initialVehicleType) {
+          setType(initialVehicleType);
+        } else if (initialCardNumber.includes('MT/BE')) {
           setType('motorcycle');
         } else {
           setType('bicycle');
         }
       } else {
-        setType('bicycle');
+        setType(initialVehicleType || 'bicycle');
         setCardNumber('');
       }
-      setOwnerName('');
+      setOwnerName(initialOwnerName || '');
+      setIdentifier(initialIdentifier || '');
+      setSelectedRentalId(initialRentalId || '');
       setErrorMsg('');
 
       const now = new Date();
       const offset = now.getTimezoneOffset() * 60000;
       setCustomDate(new Date(now.getTime() - offset).toISOString().slice(0, 16));
     }
-  }, [isOpen, initialCardNumber]);
+  }, [isOpen, initialCardNumber, initialOwnerName, initialVehicleType, initialRentalId, initialIdentifier]);
+
+  // Auto-populate when user types a cardNumber that belongs to an active fixed spot rental
+  React.useEffect(() => {
+    if (!isOpen || !fixedSpotRental) return;
+    setSelectedRentalId(fixedSpotRental.id);
+    if (!ownerName.trim()) {
+      setOwnerName(fixedSpotRental.ownerName);
+    }
+    if (!identifier.trim() && fixedSpotRental.vehicleIdentifier) {
+      setIdentifier(fixedSpotRental.vehicleIdentifier);
+    }
+    setType(fixedSpotRental.vehicleType);
+  }, [fixedSpotRental?.id, isOpen]);
 
   if (!isOpen) return null;
 
@@ -230,12 +278,14 @@ export function CheckInModal({
     setIsProcessing(true);
     const checkInTimestamp = new Date(customDate).getTime();
     const cleanCard = cardNumber.trim().toUpperCase();
+    const rentalToSave = fixedSpotRental?.id || (rentalsEnabled && selectedRentalId ? selectedRentalId : undefined);
     const payload: Omit<ParkedVehicle, 'id' | 'status'> = {
       type,
-      identifier: 'Não informada',
+      identifier: identifier.trim() || 'Não informada',
       ownerName: ownerName.trim() || 'Não informado',
       cardNumber: cleanCard,
       checkInTime: checkInTimestamp,
+      ...(rentalToSave ? { rentalId: rentalToSave } : {}),
       ...(showPhotoChecklist && damageNotes.trim() ? { damageNotes: damageNotes.trim() } : {}),
       ...(showPhotoChecklist && photoData ? { photoData } : {}),
       ...(operatorToSave ? { operatorName: operatorToSave } : {}),
@@ -389,20 +439,100 @@ export function CheckInModal({
               </div>
             )}
 
-            {!isBulkMode && isVip && (
-              <div>
-                <label htmlFor="ownerName" className="block text-lg font-medium text-slate-700 dark:text-slate-200 mb-2">
-                  Nome do Cliente (Obrigatório)
+            {!isBulkMode && rentalsEnabled && fixedSpotRental && (() => {
+              const validity = getRentalValidity(fixedSpotRental);
+              const nameDiverges =
+                Boolean(ownerName.trim()) &&
+                ownerName.trim().toLowerCase() !== fixedSpotRental.ownerName.trim().toLowerCase();
+              return (
+                <div className="p-3.5 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-300">
+                      <Lock className="w-3.5 h-3.5" />
+                      Vaga Reservada (Aluguel Fixo)
+                    </span>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200">
+                      {validity.label}
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    Titular: {fixedSpotRental.ownerName}
+                  </p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    Período: {formatDateBr(fixedSpotRental.startDate)} até {formatDateBr(fixedSpotRental.endDate)}
+                  </p>
+                  {nameDiverges && (
+                    <div className="mt-1.5 flex items-start gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg p-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>O nome informado diverge do locatário reservado ({fixedSpotRental.ownerName}).</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {!isBulkMode && rentalsEnabled && !fixedSpotRental && activeFloatingRentals.length > 0 && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2">
+                <label htmlFor="floatingRental" className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-300">
+                  <CalendarRange className="w-4 h-4" />
+                  Vincular Direito Rotativo Vigente (Opcional)
                 </label>
-                <input
-                  id="ownerName"
-                  type="text"
-                  required
-                  value={ownerName}
-                  onChange={(e) => setOwnerName(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-xl text-slate-900 dark:text-slate-100"
-                  placeholder="Ex: João Silva"
-                />
+                <select
+                  id="floatingRental"
+                  value={selectedRentalId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setSelectedRentalId(id);
+                    const picked = activeFloatingRentals.find(r => r.id === id);
+                    if (picked) {
+                      setOwnerName(picked.ownerName);
+                      setType(picked.vehicleType);
+                      if (picked.vehicleIdentifier) setIdentifier(picked.vehicleIdentifier);
+                    }
+                  }}
+                  className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="">Entrada avulsa normal (sem contrato)</option>
+                  {activeFloatingRentals.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.ownerName} • até {formatDateBr(r.endDate)} ({r.vehicleType === 'bicycle' ? 'Bicicleta' : r.vehicleType === 'ebike' ? 'E-Bike' : 'Moto'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {!isBulkMode && (isVip || Boolean(activeRental)) && (
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="ownerName" className="block text-lg font-medium text-slate-700 dark:text-slate-200 mb-2">
+                    {isVip ? 'Nome do Cliente (Obrigatório)' : 'Nome do Locatário / Cliente'}
+                  </label>
+                  <input
+                    id="ownerName"
+                    type="text"
+                    required={isVip}
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-xl text-slate-900 dark:text-slate-100"
+                    placeholder="Ex: João Silva"
+                  />
+                </div>
+                {Boolean(activeRental) && (
+                  <div>
+                    <label htmlFor="vehicleIdentifier" className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">
+                      Identificação / Placa / Modelo (Opcional)
+                    </label>
+                    <input
+                      id="vehicleIdentifier"
+                      type="text"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 text-base text-slate-900 dark:text-slate-100"
+                      placeholder="Ex: Caloi Preta ou ABC-1234"
+                    />
+                  </div>
+                )}
               </div>
             )}
 

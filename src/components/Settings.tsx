@@ -573,6 +573,7 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
                     {[
                       { key: 'enableHourlyPricing', label: 'Cobrança por Tolerância, Hora & Fração', desc: 'Calcula tolerância inicial, 1ª hora, frações extras e teto diário (desativado = diária 24h tradicional)' },
                       { key: 'enableCardExpiryAlerts', label: 'Controle & Alertas de Vencimento de Mensalistas', desc: 'Exibe data de vencimento, mensalidade e alertas de cartão vencido/a vencer' },
+                      { key: 'enableSpotRentals', label: 'Vagas Alugadas / Direito de Estacionar por Período', desc: 'Modalidade mensal ou por período (vaga fixa reservada ou rotativa), desativada por padrão até você habilitar' },
                     ].map((item) => {
                       const isEnabled = Boolean((modules as any)[item.key]);
                       return (

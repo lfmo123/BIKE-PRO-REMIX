@@ -150,7 +150,7 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
         <div class="print-item-header"><strong>Cartão #${v.cardNumber}</strong> - ${v.plate || v.ownerName || 'S/ Placa'}</div>
         <div class="print-item-row">
           <span>${new Date(v.checkInTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})} às ${v.checkOutTime ? new Date(v.checkOutTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '-'}</span>
-          <span>${v.paymentMethod === 'card' ? 'Pré Pago' : v.paymentMethod === 'machine' ? 'Máquina' : v.paymentMethod === 'cash' ? 'Dinheiro' : v.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : v.paymentMethod === 'fiado' ? 'Fiado' : v.paymentMethod === 'pix' ? 'Pix' : v.paymentMethod || '-'}</span>
+          <span>${v.paymentMethod === 'card' ? 'Pré Pago' : v.paymentMethod === 'machine' ? 'Máquina' : v.paymentMethod === 'cash' ? 'Dinheiro' : v.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : v.paymentMethod === 'rental' ? 'Vaga Alugada' : v.paymentMethod === 'fiado' ? 'Fiado' : v.paymentMethod === 'pix' ? 'Pix' : v.paymentMethod || '-'}</span>
         </div>
         <div class="print-item-total">R$ ${(Number(v.price) || 0).toFixed(2)}</div>
       </div>
@@ -1068,6 +1068,7 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
                             vehicle.paymentMethod === 'machine' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
                             vehicle.paymentMethod === 'pix' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
                             vehicle.paymentMethod === 'card' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
+                            vehicle.paymentMethod === 'rental' ? 'bg-teal-50 text-teal-700 border border-teal-100' :
                             'bg-purple-50 text-purple-700 border border-purple-100'
                           }`}>
                             {vehicle.paymentMethod === 'cash' ? 'Dinheiro' :
@@ -1075,6 +1076,7 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
                              vehicle.paymentMethod === 'pix' ? 'Pix' :
                              vehicle.paymentMethod === 'card' ? 'Pré Pago' :
                              vehicle.paymentMethod === 'postpaid_card' ? 'Pós-Pago' :
+                             vehicle.paymentMethod === 'rental' ? 'Vaga Alugada' :
                              vehicle.paymentMethod === 'fiado' ? 'Fiado' : vehicle.paymentMethod || '-'}
                           </span>
                         </td>
@@ -1703,7 +1705,8 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
                       {vehicle.paymentMethod === 'card' ? 'Pré Pago' : 
                        vehicle.paymentMethod === 'machine' ? 'Máquina' :
                        vehicle.paymentMethod === 'cash' ? 'Dinheiro' : 
-                       vehicle.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : '-'}
+                       vehicle.paymentMethod === 'postpaid_card' ? 'Pós-Pago' :
+                       vehicle.paymentMethod === 'rental' ? 'Vaga Alugada' : '-'}
                     </td>
                     <td className="p-4 text-right font-black text-emerald-600">
                       {vehicle.price ? "R$ " + vehicle.price.toFixed(2) : '-'}
@@ -1841,7 +1844,8 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
                   {selectedVehicleDetails.paymentMethod === 'card' ? 'Pré Pago' : 
                    selectedVehicleDetails.paymentMethod === 'machine' ? 'Máquina' :
                    selectedVehicleDetails.paymentMethod === 'cash' ? 'Dinheiro' : 
-                   selectedVehicleDetails.paymentMethod === 'postpaid_card' ? 'Pós-Pago' : '-'}
+                   selectedVehicleDetails.paymentMethod === 'postpaid_card' ? 'Pós-Pago' :
+                   selectedVehicleDetails.paymentMethod === 'rental' ? 'Vaga Alugada' : '-'}
                 </span>
               </div>
               <div className="flex justify-between pt-2">

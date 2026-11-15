@@ -11,7 +11,7 @@ import {
   CreditCard,
   Clock
 } from 'lucide-react';
-import { ParkedVehicle, Pricing, LostCard, Product, Sale, CustomerCard } from '../types';
+import { ParkedVehicle, Pricing, LostCard, Product, Sale, CustomerCard, SpotRental } from '../types';
 import { SaleModal } from './SaleModal';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 import { SpotsGrid } from './SpotsGrid';
@@ -21,12 +21,14 @@ export interface DashboardProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
   lostCards?: LostCard[];
+  spotRentals?: SpotRental[];
   products?: Product[];
   customerCards?: CustomerCard[];
   deviceConfig?: DeviceFeaturesConfig;
   activeOperator?: string;
   onAddSale?: (sale: Omit<Sale, 'id'>) => void;
   onSpotClick?: (spotNumber: string, occupiedVehicle?: ParkedVehicle) => void;
+  onRentedSpotClick?: (spotNumber: string, rental: SpotRental, occupiedVehicle?: ParkedVehicle) => void;
   onNavigate?: (tab: string) => void;
 }
 
@@ -34,12 +36,14 @@ export function Dashboard({
   vehicles,
   pricing,
   lostCards,
+  spotRentals = [],
   products = [],
   customerCards = [],
   deviceConfig,
   activeOperator,
   onAddSale,
   onSpotClick,
+  onRentedSpotClick,
   onNavigate
 }: DashboardProps) {
   const [saleProduct, setSaleProduct] = useState<Product | null>(null);
@@ -225,8 +229,10 @@ export function Dashboard({
             vehicles={vehicles}
             pricing={pricing}
             lostCards={lostCards}
+            spotRentals={spotRentals}
             deviceConfig={deviceConfig}
             onSpotClick={onSpotClick}
+            onRentedSpotClick={onRentedSpotClick}
             hideTitle={true}
           />
         </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bike, Zap, Motorbike, Search, Calendar, Clock, CreditCard, Banknote, X, Undo2, Download } from 'lucide-react';
+import { Bike, Zap, Motorbike, Search, Calendar, CalendarRange, Clock, CreditCard, Banknote, X, Undo2, Download } from 'lucide-react';
 import { ParkedVehicle, VehicleType } from '../types';
 import { getLocalDateString } from '../lib/dateUtils';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
@@ -71,11 +71,12 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
     return `${diffHrs}h ${diffMins}m`;
   };
 
-  const getPaymentIcon = (method?: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | string) => {
+  const getPaymentIcon = (method?: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'rental' | string) => {
     switch (method) {
       case 'card': return <div className="flex items-center text-blue-600"><CreditCard className="w-4 h-4 mr-1" /> Pré Pago</div>;
       case 'cash': return <div className="flex items-center text-amber-600"><Banknote className="w-4 h-4 mr-1" /> Dinheiro</div>;
       case 'postpaid_card': return <div className="flex items-center text-purple-600"><CreditCard className="w-4 h-4 mr-1" /> Pós-Pago</div>;
+      case 'rental': return <div className="flex items-center text-teal-600"><CalendarRange className="w-4 h-4 mr-1" /> Vaga Alugada</div>;
       case 'fiado': return <div className="flex items-center text-red-600"><Clock className="w-4 h-4 mr-1" /> Aguardando Pagamento</div>;
       default: return <span className="text-slate-400">-</span>;
     }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Bike, History, Settings, BarChart3, LogOut, LogOutIcon, Grid, PackageOpen, Wallet, StoreIcon, CreditCard, LockIcon, ShieldCheck, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Bike, History, Settings, BarChart3, LogOut, LogOutIcon, Grid, PackageOpen, Wallet, StoreIcon, CreditCard, LockIcon, ShieldCheck, ClipboardCheck, CalendarRange } from 'lucide-react';
 
 import { DeviceModulesConfig } from '../lib/deviceModules';
 
@@ -21,6 +21,7 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
     { id: 'stored', label: 'Em Depósito', icon: PackageOpen },
     { id: 'spots', label: 'Grade de Vagas', icon: Grid },
     { id: 'cards', label: 'Cartões', icon: CreditCard },
+    { id: 'rentals', label: 'Vagas Alugadas', icon: CalendarRange },
     { id: 'shifts', label: 'Fechamento de Caixa', icon: LockIcon },
     { id: 'cashbook', label: 'Livro Caixa', icon: Wallet },
     { id: 'store', label: 'Loja', icon: StoreIcon },
@@ -31,6 +32,9 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
   ];
 
   const navItems = allNavItems.filter((item) => {
+    if (item.id === 'rentals') {
+      return modules?.enableSpotRentals === true;
+    }
     if (!modules) return true;
     if (item.id === 'settings') return true; // Configurações sempre visível para administração
     return (modules as any)[item.id] !== false;

@@ -33,6 +33,7 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
       else if (v.paymentMethod === 'card') prepaid += p;
       else if (v.paymentMethod === 'fiado') fiado += p;
       else if (v.paymentMethod === 'postpaid_card') postpaid += p;
+      else if (v.paymentMethod === 'rental') { /* coberto por vaga alugada */ }
       else cash += p; // default
   });
 

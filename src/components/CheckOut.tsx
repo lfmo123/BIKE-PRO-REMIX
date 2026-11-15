@@ -15,32 +15,35 @@ import {
   Terminal,
   QrCode,
   Copy,
-  Check
+  Check,
+  CalendarRange
 } from 'lucide-react';
-import { ParkedVehicle, Pricing, VehicleType, CustomerCard } from '../types';
+import { ParkedVehicle, Pricing, VehicleType, CustomerCard, SpotRental } from '../types';
 import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/pricing';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { generatePixPayload, generateQrDataUrl } from '../lib/pixUtils';
+import { findMatchingRentalForVehicle, formatDateBr, getRentalValidity } from '../lib/rentalUtils';
 
 interface CheckOutProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
   customerCards: CustomerCard[];
+  spotRentals?: SpotRental[];
   deviceConfig?: DeviceFeaturesConfig;
   onCheckOut: (
     vehicleId: string,
     price: number,
-    paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix',
+    paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix' | 'rental',
     customerCardId?: string,
     checkInTime?: number,
     checkOutTime?: number
   ) => void;
 }
 
-export function CheckOut({ vehicles, pricing, customerCards, deviceConfig, onCheckOut }: CheckOutProps) {
+export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], deviceConfig, onCheckOut }: CheckOutProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<ParkedVehicle | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix' | 'rental'>('cash');
   const [selectedCardId, setSelectedCardId] = useState<string>('');
   const [now, setNow] = useState(Date.now());
   const [editedCheckIn, setEditedCheckIn] = useState('');
@@ -50,6 +53,7 @@ export function CheckOut({ vehicles, pricing, customerCards, deviceConfig, onChe
   const [pixCopied, setPixCopied] = useState(false);
 
   const hourlyEnabled = Boolean(deviceConfig?.enableHourlyPricing);
+  const rentalsEnabled = Boolean(deviceConfig?.enableSpotRentals);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -80,6 +84,14 @@ export function CheckOut({ vehicles, pricing, customerCards, deviceConfig, onChe
       };
       setEditedCheckIn(formatLocal(selectedVehicle.checkInTime));
       setEditedCheckOut(formatLocal(Date.now()));
+
+      const matched = findMatchingRentalForVehicle(spotRentals, selectedVehicle);
+      const isValid = matched ? getRentalValidity(matched).isValidToday : false;
+      if ((rentalsEnabled || selectedVehicle.rentalId) && matched && isValid) {
+        setPaymentMethod('rental');
+      } else if (paymentMethod === 'rental') {
+        setPaymentMethod('cash');
+      }
     }
   }, [selectedVehicle?.id]);
 
@@ -99,9 +111,13 @@ export function CheckOut({ vehicles, pricing, customerCards, deviceConfig, onChe
 
   const checkInMs = editedCheckIn ? new Date(editedCheckIn).getTime() : selectedVehicle?.checkInTime || 0;
   const checkOutMs = editedCheckOut ? new Date(editedCheckOut).getTime() : now;
-  const currentPrice = selectedVehicle
+  const basePrice = selectedVehicle
     ? calculatePrice({ ...selectedVehicle, checkInTime: checkInMs }, pricing, checkOutMs, hourlyEnabled)
     : 0;
+  const matchedRental = selectedVehicle ? findMatchingRentalForVehicle(spotRentals, selectedVehicle) : undefined;
+  const rentalValidity = matchedRental ? getRentalValidity(matchedRental) : undefined;
+  const showRentalOption = Boolean(selectedVehicle && (rentalsEnabled || matchedRental || selectedVehicle.rentalId));
+  const currentPrice = paymentMethod === 'rental' ? 0 : basePrice;
 
   useEffect(() => {
     let active = true;
@@ -322,9 +338,35 @@ export function CheckOut({ vehicles, pricing, customerCards, deviceConfig, onChe
                 </div>
               </div>
 
+              {(rentalsEnabled || selectedVehicle.rentalId) && matchedRental && (
+                <div
+                  className={`mb-4 p-3 rounded-xl border text-xs ${
+                    rentalValidity?.isValidToday
+                      ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200'
+                      : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <CalendarRange className="w-4 h-4 shrink-0" />
+                      {rentalValidity?.isValidToday
+                        ? `Coberto por Vaga Alugada (${matchedRental.mode === 'fixed' ? 'Vaga Fixa' : 'Direito Rotativo'})`
+                        : `Aluguel de Vaga (${matchedRental.mode === 'fixed' ? 'Vaga Fixa' : 'Direito Rotativo'})`}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-white/80 dark:bg-slate-900/60 font-bold">
+                      {rentalValidity?.label}
+                    </span>
+                  </div>
+                  <p className="mt-1">
+                    Titular: <span className="font-semibold">{matchedRental.ownerName}</span> • Vigência até{' '}
+                    <span className="font-semibold">{formatDateBr(matchedRental.endDate)}</span>
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-4 mb-6">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Selecione o Método de Pagamento</label>
-                <div className={`grid gap-3 ${deviceConfig?.enablePixQrCode ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                <div className={`grid gap-3 ${showRentalOption ? (deviceConfig?.enablePixQrCode ? 'grid-cols-5' : 'grid-cols-4') : (deviceConfig?.enablePixQrCode ? 'grid-cols-4' : 'grid-cols-3')}`}>
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cash')}
@@ -381,6 +423,21 @@ export function CheckOut({ vehicles, pricing, customerCards, deviceConfig, onChe
                     <CreditCard className={`w-6 h-6 mb-2 ${paymentMethod === 'card' || paymentMethod === 'postpaid_card' ? 'text-indigo-600' : ''}`} />
                     <span className="text-sm font-medium text-center">Cartão</span>
                   </button>
+
+                  {showRentalOption && (
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('rental')}
+                      className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                        paymentMethod === 'rental'
+                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300'
+                          : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      <CalendarRange className={`w-6 h-6 mb-2 ${paymentMethod === 'rental' ? 'text-teal-600' : ''}`} />
+                      <span className="text-sm font-medium text-center">Alugada</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

@@ -100,7 +100,7 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
   const periodTransactions = transactions.filter(t => t.date >= startOfPeriod && t.date <= endOfPeriod);
   const periodCheckouts = vehicles.filter(v => 
     v.status === 'completed' && 
-    !['fiado', 'card', 'postpaid_card'].includes(v.paymentMethod || '') && 
+    !['fiado', 'card', 'postpaid_card', 'rental'].includes(v.paymentMethod || '') && 
     v.checkOutTime && 
     v.checkOutTime >= startOfPeriod && 
     v.checkOutTime <= endOfPeriod
@@ -126,6 +126,7 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
         v.paymentMethod === 'card' ? 'PRÉ PAGO' : 
         v.paymentMethod === 'cash' ? 'DINHEIRO' : 
         v.paymentMethod === 'postpaid_card' ? 'PÓS-PAGO' : 
+        v.paymentMethod === 'rental' ? 'VAGA ALUGADA' :
         v.paymentMethod?.toUpperCase() || 'N/A'
       })`,
       amount: Number(v.price) || 0,

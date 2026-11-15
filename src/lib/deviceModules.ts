@@ -48,6 +48,7 @@ export interface DeviceFeaturesConfig {
   // Motor de Tarifação & Mensalistas
   enableHourlyPricing: boolean;     // Cobrança por tolerância, hora e fração (em vez de diária fixa)
   enableCardExpiryAlerts: boolean;  // Controle e alertas de vencimento de mensalistas
+  enableSpotRentals: boolean;       // Modalidade de Vagas Alugadas / Direito de Estacionar por Período
 
   // Infraestrutura, Offline & Segurança
   enableOfflineQueue: boolean;      // Fila Offline-First com sincronização automática ao reconectar
@@ -71,6 +72,7 @@ export const NEW_FEATURES_DEFAULTS = {
   enableCheckInPhoto: false,
   enableHourlyPricing: false,
   enableCardExpiryAlerts: false,
+  enableSpotRentals: false,
   enableOfflineQueue: false,
   enableOperatorLogin: false,
   enableFullBackupRestore: false,

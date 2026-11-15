@@ -112,6 +112,27 @@ export async function initMySQL() {
       )
     `;
     await currentPool.query(createOperatorsQuery);
+
+    const createSpotRentalsQuery = `
+      CREATE TABLE IF NOT EXISTS spot_rentals (
+        id VARCHAR(50) PRIMARY KEY,
+        ownerName VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        vehicleType VARCHAR(50) NOT NULL,
+        vehicleIdentifier VARCHAR(255),
+        mode VARCHAR(20) NOT NULL,
+        spotNumber VARCHAR(50),
+        startDate VARCHAR(20) NOT NULL,
+        endDate VARCHAR(20) NOT NULL,
+        price DECIMAL(10, 2) NOT NULL DEFAULT 0,
+        paymentMethod VARCHAR(30) NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'active',
+        notes TEXT,
+        createdAt BIGINT NOT NULL,
+        operatorName VARCHAR(255)
+      )
+    `;
+    await currentPool.query(createSpotRentalsQuery);
     
     // Inserir preços padrão se a tabela estiver vazia
     const [rows] = await currentPool.query('SELECT COUNT(*) as count FROM pricing');
@@ -516,4 +537,73 @@ export async function payFiadoTransaction(id, paymentMethod, paymentDate, amount
 export async function removeTransaction(id) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
   await getPool().query('DELETE FROM transactions WHERE id = ?', [id]);
+}
+
+export async function getSpotRentals() {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const [rows] = await getPool().query('SELECT * FROM spot_rentals ORDER BY createdAt DESC');
+  return rows.map(r => ({
+    ...r,
+    price: r.price ? parseFloat(r.price) : 0
+  }));
+}
+
+export async function addSpotRental(rental) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const query = `
+    INSERT INTO spot_rentals (id, ownerName, phone, vehicleType, vehicleIdentifier, mode, spotNumber, startDate, endDate, price, paymentMethod, status, notes, createdAt, operatorName)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+  await getPool().query(query, [
+    rental.id,
+    rental.ownerName,
+    rental.phone || null,
+    rental.vehicleType,
+    rental.vehicleIdentifier || null,
+    rental.mode,
+    rental.spotNumber || null,
+    rental.startDate,
+    rental.endDate,
+    rental.price || 0,
+    rental.paymentMethod,
+    rental.status || 'active',
+    rental.notes || null,
+    rental.createdAt || Date.now(),
+    rental.operatorName || null
+  ]);
+  return rental;
+}
+
+export async function updateSpotRental(id, data) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  const [existing] = await getPool().query('SELECT * FROM spot_rentals WHERE id = ?', [id]);
+  if (!existing || existing.length === 0) return null;
+  const updated = { ...existing[0], ...data };
+  const query = `
+    UPDATE spot_rentals
+    SET ownerName = ?, phone = ?, vehicleType = ?, vehicleIdentifier = ?, mode = ?, spotNumber = ?, startDate = ?, endDate = ?, price = ?, paymentMethod = ?, status = ?, notes = ?, operatorName = ?
+    WHERE id = ?
+  `;
+  await getPool().query(query, [
+    updated.ownerName,
+    updated.phone || null,
+    updated.vehicleType,
+    updated.vehicleIdentifier || null,
+    updated.mode,
+    updated.spotNumber || null,
+    updated.startDate,
+    updated.endDate,
+    updated.price || 0,
+    updated.paymentMethod,
+    updated.status || 'active',
+    updated.notes || null,
+    updated.operatorName || null,
+    id
+  ]);
+  return { ...updated, price: updated.price ? parseFloat(updated.price) : 0 };
+}
+
+export async function removeSpotRental(id) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  await getPool().query('DELETE FROM spot_rentals WHERE id = ?', [id]);
 }

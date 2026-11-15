@@ -189,7 +189,7 @@ export function Audit({ vehicles, sales, transactions, products, onRefreshAll }:
 
     filteredEntries.forEach(e => {
       // Avoid double counting checkouts that are paid via distinct transactions (fiado/cards)
-      if (e.type === 'parking' && ['fiado', 'card', 'postpaid_card'].includes(e.paymentMethod)) {
+      if (e.type === 'parking' && ['fiado', 'card', 'postpaid_card', 'rental'].includes(e.paymentMethod)) {
         if (e.paymentMethod === 'fiado') {
           const v = e.originalData as any;
           if (!v.isFiadoPaid) {
@@ -347,6 +347,7 @@ export function Audit({ vehicles, sales, transactions, products, onRefreshAll }:
       case 'postpaid_card': return 'bg-blue-100 text-blue-800 border border-blue-200';
       case 'machine': return 'bg-indigo-100 text-indigo-800 border border-indigo-200';
       case 'fiado': return 'bg-amber-100 text-amber-800 border border-amber-200';
+      case 'rental': return 'bg-teal-100 text-teal-800 border border-teal-200';
       default: return 'bg-slate-100 text-slate-800 border border-slate-200';
     }
   };
@@ -359,6 +360,7 @@ export function Audit({ vehicles, sales, transactions, products, onRefreshAll }:
       case 'postpaid_card': return 'Mensalista Pós';
       case 'machine': return 'Cartão de Débito/Crédito';
       case 'fiado': return 'Fiado';
+      case 'rental': return 'Vaga Alugada';
       default: return method.toUpperCase();
     }
   };
@@ -481,6 +483,7 @@ export function Audit({ vehicles, sales, transactions, products, onRefreshAll }:
               <option value="machine">Cartão / Máquina</option>
               <option value="card">Mensalista Prepago</option>
               <option value="postpaid_card">Mensalista Pós</option>
+              <option value="rental">Vaga Alugada</option>
               <option value="fiado">Fiado</option>
             </select>
           </div>
@@ -756,6 +759,7 @@ export function Audit({ vehicles, sales, transactions, products, onRefreshAll }:
                   <option value="machine">Cartão / Máquina</option>
                   <option value="card">Mensalista Prepago</option>
                   <option value="postpaid_card">Mensalista Pós</option>
+                  <option value="rental">Vaga Alugada</option>
                   <option value="fiado">Fiado</option>
                 </select>
               </div>

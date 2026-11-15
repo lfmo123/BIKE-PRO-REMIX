@@ -16,18 +16,20 @@ import { Settings } from './components/Settings';
 import { SpotsGrid } from './components/SpotsGrid';
 import { Store } from './components/Store';
 import { Audit } from './components/Audit';
+import { SpotRentals } from './components/SpotRentals';
 import { CheckInModal } from './components/CheckInModal';
 import { CheckOutModal } from './components/CheckOutModal';
 import { ResetAppModal } from './components/ResetAppModal';
 import { QrScannerModal } from './components/QrScannerModal';
 import { OperatorLoginModal } from './components/OperatorLoginModal';
-import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard, Shift, Operator } from './types';
+import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard, Shift, Operator, SpotRental, VehicleType } from './types';
 import { getLocalDateString } from './lib/dateUtils';
 import { parseResponseJson, safeFetchJson } from './lib/apiUtils';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { getDeviceModules, DeviceModulesConfig } from './lib/deviceModules';
 import { getOfflineQueue, enqueueOfflineMutation, flushOfflineQueue } from './lib/offlineQueue';
+import { getRentalValidity } from './lib/rentalUtils';
 
 const defaultPricing: Pricing = {
   bicycle: 5,
@@ -47,6 +49,7 @@ export default function App() {
   const [customerCards, setCustomerCards] = useState<CustomerCard[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [operators, setOperators] = useState<Operator[]>([]);
+  const [spotRentals, setSpotRentals] = useState<SpotRental[]>([]);
   const activeShift = shifts.find(s => s.status === 'open');
   const [pricing, setPricing] = useState<Pricing>(defaultPricing);
   const [lostCards, setLostCards] = useState<LostCard[]>([]);
@@ -58,6 +61,12 @@ export default function App() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isOperatorModalOpen, setIsOperatorModalOpen] = useState(false);
   const [initialCheckInSpot, setInitialCheckInSpot] = useState<string>('');
+  const [initialCheckInMeta, setInitialCheckInMeta] = useState<{
+    ownerName?: string;
+    vehicleType?: VehicleType;
+    rentalId?: string;
+    identifier?: string;
+  }>({});
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [vehicleToCheckOut, setVehicleToCheckOut] = useState<ParkedVehicle | null>(null);
   const [deviceModules, setDeviceModules] = useState<DeviceModulesConfig>(getDeviceModules());
@@ -261,6 +270,16 @@ export default function App() {
     return res;
   };
 
+  const fetchSpotRentals = async () => {
+    const res = await safeFetchJson<SpotRental[]>('/api/spot-rentals');
+    if (res.ok && Array.isArray(res.data)) {
+      setSpotRentals(res.data);
+    } else if (!res.isHtml) {
+      console.warn('Spot rentals fetch:', res.error);
+    }
+    return res;
+  };
+
   const handleRefreshAll = useCallback(async () => {
     if (isSyncingRef.current) return;
     isSyncingRef.current = true;
@@ -274,7 +293,8 @@ export default function App() {
         fetchShifts(),
         fetchOperators(),
         fetchProducts(),
-        fetchSales()
+        fetchSales(),
+        fetchSpotRentals()
       ]);
 
       const anyHtml = results.some(
@@ -315,7 +335,8 @@ export default function App() {
         fetchShifts(),
         fetchProducts(),
         fetchSales(),
-        fetchTransactions()
+        fetchTransactions(),
+        fetchSpotRentals()
       ]);
     } catch (e) {
       console.warn('Background sync error:', e);
@@ -656,6 +677,91 @@ export default function App() {
     } catch (error) { console.error(error); }
   };
 
+  const handleAddSpotRental = async (rental: Omit<SpotRental, 'id' | 'createdAt' | 'status'>): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/spot-rentals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rental),
+      });
+      const parsed = await parseResponseJson(res, 'Erro ao criar aluguel de vaga.');
+      if (parsed.ok) {
+        await Promise.all([fetchSpotRentals(), fetchTransactions()]);
+        showToast('success', 'Aluguel de vaga registrado com sucesso!');
+        return { ok: true };
+      }
+      return { ok: false, error: parsed.error || 'Erro ao criar aluguel.' };
+    } catch (error) {
+      console.error('Failed to add spot rental', error);
+      return { ok: false, error: 'Falha de conexão com o servidor.' };
+    }
+  };
+
+  const handleUpdateSpotRental = async (id: string, updates: Partial<SpotRental>): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/spot-rentals/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      const parsed = await parseResponseJson(res, 'Erro ao atualizar aluguel.');
+      if (parsed.ok) {
+        await fetchSpotRentals();
+        showToast('success', 'Contrato atualizado com sucesso!');
+        return { ok: true };
+      }
+      return { ok: false, error: parsed.error || 'Erro ao atualizar contrato.' };
+    } catch (error) {
+      console.error('Failed to update spot rental', error);
+      return { ok: false, error: 'Falha de conexão com o servidor.' };
+    }
+  };
+
+  const handleRenewSpotRental = async (
+    id: string,
+    payload: {
+      startDate: string;
+      endDate: string;
+      price: number;
+      paymentMethod: 'cash' | 'machine' | 'pix' | 'fiado';
+      operatorName?: string;
+    }
+  ): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/spot-rentals/${id}/renew`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const parsed = await parseResponseJson(res, 'Erro ao renovar aluguel.');
+      if (parsed.ok) {
+        await Promise.all([fetchSpotRentals(), fetchTransactions()]);
+        showToast('success', 'Aluguel renovado e contabilizado no caixa!');
+        return { ok: true };
+      }
+      return { ok: false, error: parsed.error || 'Erro ao renovar aluguel.' };
+    } catch (error) {
+      console.error('Failed to renew spot rental', error);
+      return { ok: false, error: 'Falha de conexão com o servidor.' };
+    }
+  };
+
+  const handleDeleteSpotRental = async (id: string): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/spot-rentals/${id}`, { method: 'DELETE' });
+      const parsed = await parseResponseJson(res, 'Erro ao excluir contrato.');
+      if (parsed.ok) {
+        await fetchSpotRentals();
+        showToast('success', 'Contrato excluído.');
+        return { ok: true };
+      }
+      return { ok: false, error: parsed.error || 'Erro ao excluir contrato.' };
+    } catch (error) {
+      console.error('Failed to delete spot rental', error);
+      return { ok: false, error: 'Falha de conexão com o servidor.' };
+    }
+  };
+
   const handleOpenShift = async (operatorName: string, initialChange: number, startTime?: number) => {
     try {
       const newShift: Omit<Shift, 'id'> = { operatorName, initialChange, startTime: startTime || Date.now(), status: 'open' };
@@ -796,7 +902,7 @@ export default function App() {
   const handleCheckOut = async (
     vehicleId: string,
     price: number,
-    paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix',
+    paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix' | 'rental',
     customerCardId?: string,
     checkInTime?: number,
     checkOutTime?: number
@@ -1108,6 +1214,7 @@ export default function App() {
                     lostCards={lostCards}
                     products={products}
                     customerCards={customerCards}
+                    spotRentals={spotRentals}
                     deviceConfig={deviceModules}
                     activeOperator={deviceModules.enableOperatorLogin ? activeOperator : undefined}
                     onAddSale={handleAddSale}
@@ -1119,6 +1226,27 @@ export default function App() {
                         }
                       } else if (deviceModules.canCheckIn !== false) {
                         setInitialCheckInSpot(spotNum.toString());
+                        setInitialCheckInMeta({});
+                        setIsCheckInOpen(true);
+                      }
+                    }}
+                    onRentedSpotClick={(spotNum, rental, occupiedVehicle) => {
+                      if (occupiedVehicle) {
+                        if (deviceModules.canCheckOut !== false) {
+                          setVehicleToCheckOut(occupiedVehicle);
+                        }
+                      } else if (deviceModules.canCheckIn !== false) {
+                        const validity = getRentalValidity(rental);
+                        if (!validity.isValidToday) {
+                          showToast('warning', `Aluguel da vaga ${spotNum} (${rental.ownerName}) está vencido.`);
+                        }
+                        setInitialCheckInSpot(spotNum);
+                        setInitialCheckInMeta({
+                          ownerName: rental.ownerName,
+                          vehicleType: rental.vehicleType,
+                          rentalId: rental.id,
+                          identifier: rental.vehicleIdentifier,
+                        });
                         setIsCheckInOpen(true);
                       }
                     }}
@@ -1148,6 +1276,7 @@ export default function App() {
                     vehicles={vehicles}
                     pricing={pricing}
                     lostCards={lostCards}
+                    spotRentals={spotRentals}
                     deviceConfig={deviceModules}
                     onSpotClick={(spotNum, occupiedVehicle) => {
                       if (occupiedVehicle) {
@@ -1156,8 +1285,51 @@ export default function App() {
                         }
                       } else if (deviceModules.canCheckIn !== false) {
                         setInitialCheckInSpot(spotNum.toString());
+                        setInitialCheckInMeta({});
                         setIsCheckInOpen(true);
                       }
+                    }}
+                    onRentedSpotClick={(spotNum, rental, occupiedVehicle) => {
+                      if (occupiedVehicle) {
+                        if (deviceModules.canCheckOut !== false) {
+                          setVehicleToCheckOut(occupiedVehicle);
+                        }
+                      } else if (deviceModules.canCheckIn !== false) {
+                        const validity = getRentalValidity(rental);
+                        if (!validity.isValidToday) {
+                          showToast('warning', `Aluguel da vaga ${spotNum} (${rental.ownerName}) está vencido.`);
+                        }
+                        setInitialCheckInSpot(spotNum);
+                        setInitialCheckInMeta({
+                          ownerName: rental.ownerName,
+                          vehicleType: rental.vehicleType,
+                          rentalId: rental.id,
+                          identifier: rental.vehicleIdentifier,
+                        });
+                        setIsCheckInOpen(true);
+                      }
+                    }}
+                  />
+                )}
+                {activeTab === 'rentals' && deviceModules.enableSpotRentals && (
+                  <SpotRentals
+                    rentals={spotRentals}
+                    vehicles={vehicles}
+                    deviceConfig={deviceModules}
+                    activeOperator={deviceModules.enableOperatorLogin ? activeOperator : undefined}
+                    onAddRental={handleAddSpotRental}
+                    onUpdateRental={handleUpdateSpotRental}
+                    onRenewRental={handleRenewSpotRental}
+                    onDeleteRental={handleDeleteSpotRental}
+                    onQuickCheckIn={(rental) => {
+                      setInitialCheckInSpot(rental.mode === 'fixed' && rental.spotNumber ? rental.spotNumber : '');
+                      setInitialCheckInMeta({
+                        ownerName: rental.ownerName,
+                        vehicleType: rental.vehicleType,
+                        rentalId: rental.id,
+                        identifier: rental.vehicleIdentifier,
+                      });
+                      setIsCheckInOpen(true);
                     }}
                   />
                 )}
@@ -1166,6 +1338,7 @@ export default function App() {
                     vehicles={vehicles}
                     pricing={pricing}
                     customerCards={customerCards}
+                    spotRentals={spotRentals}
                     deviceConfig={deviceModules}
                     onCheckOut={handleCheckOut}
                   />
@@ -1271,12 +1444,18 @@ export default function App() {
         onClose={() => {
           setIsCheckInOpen(false);
           setInitialCheckInSpot('');
+          setInitialCheckInMeta({});
         }}
         onCheckIn={handleCheckIn}
         onCheckInBulk={handleCheckInBulk}
         initialCardNumber={initialCheckInSpot}
+        initialOwnerName={initialCheckInMeta.ownerName}
+        initialVehicleType={initialCheckInMeta.vehicleType}
+        initialRentalId={initialCheckInMeta.rentalId}
+        initialIdentifier={initialCheckInMeta.identifier}
         vehicles={vehicles}
         lostCards={lostCards}
+        spotRentals={spotRentals}
         deviceConfig={deviceModules}
         activeOperator={deviceModules.enableOperatorLogin ? activeOperator : undefined}
       />
@@ -1285,6 +1464,7 @@ export default function App() {
         vehicle={vehicleToCheckOut}
         pricing={pricing}
         customerCards={customerCards}
+        spotRentals={spotRentals}
         deviceConfig={deviceModules}
         onClose={() => setVehicleToCheckOut(null)}
         onConfirm={handleCheckOut}

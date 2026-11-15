@@ -7,6 +7,27 @@ export interface LostCard {
   date?: number;
 }
 
+export type RentalMode = 'fixed' | 'floating';
+export type RentalStatus = 'active' | 'cancelled';
+
+export interface SpotRental {
+  id: string;
+  ownerName: string;
+  phone?: string;
+  vehicleType: VehicleType;
+  vehicleIdentifier?: string;
+  mode: RentalMode;
+  spotNumber?: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  price: number;
+  paymentMethod: 'cash' | 'machine' | 'pix' | 'fiado';
+  status: RentalStatus;
+  notes?: string;
+  createdAt: number;
+  operatorName?: string;
+}
+
 export interface ParkedVehicle {
   id: string;
   type: VehicleType;
@@ -17,8 +38,9 @@ export interface ParkedVehicle {
   checkOutTime?: number;
   status: 'active' | 'completed' | 'stored';
   price?: number;
-  paymentMethod?: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix';
+  paymentMethod?: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix' | 'rental';
   customerCardId?: string;
+  rentalId?: string;
   cardLost?: boolean;
   lostCardName?: string;
   lostCardPhone?: string;
@@ -64,6 +86,7 @@ export interface Transaction {
   cardId?: string;
   cardNumber?: string;
   ownerName?: string;
+  rentalId?: string;
   isFiadoPaid?: boolean;
   fiadoPaidAmount?: number;
   fiadoPaymentDate?: number;

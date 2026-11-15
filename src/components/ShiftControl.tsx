@@ -85,7 +85,7 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
     const shiftSales = sales.filter(s => s.date >= activeShift.startTime && (!activeShift.endTime || s.date <= activeShift.endTime));
 
     checkedOutVehicles.forEach(v => {
-        if (v.price && !['fiado', 'postpaid_card', 'card'].includes(v.paymentMethod || '')) {
+        if (v.price && !['fiado', 'postpaid_card', 'card', 'rental'].includes(v.paymentMethod || '')) {
             totalIncome += v.price;
             addPayment(v.price, v.paymentMethod);
         }

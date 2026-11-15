@@ -129,7 +129,7 @@ async function startServer() {
   // Check-in a new vehicle
   app.post('/api/vehicles', async (req, res) => {
     try {
-      let { type, identifier, ownerName, cardNumber, checkInTime: reqCheckInTime, damageNotes, photoData, operatorName, qrCode } = req.body;
+      let { type, identifier, ownerName, cardNumber, checkInTime: reqCheckInTime, damageNotes, photoData, operatorName, qrCode, rentalId } = req.body;
       cardNumber = (cardNumber || '').trim().toUpperCase();
       identifier = (identifier || '').trim().toUpperCase();
       
@@ -147,7 +147,8 @@ async function startServer() {
         ...(damageNotes ? { damageNotes } : {}),
         ...(photoData ? { photoData } : {}),
         ...(operatorName ? { operatorName } : {}),
-        ...(qrCode ? { qrCode } : {})
+        ...(qrCode ? { qrCode } : {}),
+        ...(rentalId ? { rentalId } : {})
       };
 
       if (dbType === 'firebase') {
@@ -723,6 +724,238 @@ async function startServer() {
     } catch (error) {
        console.error(error);
        res.status(500).json({ error: error.message || 'Failed to remove customer card' });
+    }
+  });
+
+  // Spot Rentals endpoints (Vagas Alugadas por Período)
+  const formatBrDateServer = (dateStr) => {
+    if (!dateStr || !String(dateStr).includes('-')) return String(dateStr || '');
+    const [y, m, d] = String(dateStr).split('-');
+    return `${d}/${m}/${y}`;
+  };
+
+  const getPaymentLabelServer = (method) => {
+    if (method === 'machine') return 'MÁQUINA';
+    if (method === 'pix') return 'PIX';
+    if (method === 'fiado') return 'FIADO';
+    return 'DINHEIRO';
+  };
+
+  const recordRentalTransaction = async (rental, isRenewal = false) => {
+    const numPrice = Number(rental.price) || 0;
+    if (numPrice <= 0) return null;
+    const payLabel = getPaymentLabelServer(rental.paymentMethod);
+    const modeLabel = rental.mode === 'fixed' ? `Vaga ${rental.spotNumber}` : 'Direito Rotativo';
+    const periodLabel = `${formatBrDateServer(rental.startDate)} a ${formatBrDateServer(rental.endDate)}`;
+    const prefix = isRenewal ? 'Renovação Aluguel' : 'Aluguel de Vaga';
+    const tx = {
+      id: Math.random().toString(36).substring(2, 9),
+      description: `${prefix} (${modeLabel} • ${periodLabel}): ${rental.ownerName} (${payLabel})`,
+      amount: numPrice,
+      date: Date.now(),
+      type: 'income',
+      paymentMethod: rental.paymentMethod,
+      ownerName: rental.ownerName,
+      rentalId: rental.id,
+      ...(rental.spotNumber ? { cardNumber: rental.spotNumber } : {}),
+      ...(rental.operatorName ? { operator: rental.operatorName } : {}),
+      ...(rental.paymentMethod === 'fiado' ? { isFiadoPaid: false, fiadoPaidAmount: 0 } : {})
+    };
+    if (dbType === 'firebase') {
+      await firebaseDb.addTransaction(tx);
+    } else if (dbType === 'mysql') {
+      const mysqlDb = await import('./src/db/mysqlDb.js');
+      await mysqlDb.addTransaction(tx);
+    } else {
+      const db = readDb();
+      if (!db.transactions) db.transactions = [];
+      db.transactions.push(tx);
+      writeDb(db);
+    }
+    return tx;
+  };
+
+  app.get('/api/spot-rentals', async (req, res) => {
+    try {
+      if (dbType === 'firebase') {
+        res.json(await firebaseDb.getSpotRentals());
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        res.json(await mysqlDb.getSpotRentals());
+      } else {
+        const db = readDb();
+        res.json((db.spotRentals || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to fetch spot rentals' });
+    }
+  });
+
+  app.post('/api/spot-rentals', async (req, res) => {
+    try {
+      const body = req.body || {};
+      const mode = body.mode === 'floating' ? 'floating' : 'fixed';
+      const spotNumber = mode === 'fixed' ? String(body.spotNumber || '').trim().toUpperCase() : undefined;
+      if (!body.ownerName || !body.startDate || !body.endDate) {
+        return res.status(400).json({ error: 'Cliente e período (início e fim) são obrigatórios.' });
+      }
+      if (mode === 'fixed' && !spotNumber) {
+        return res.status(400).json({ error: 'Informe o número da vaga para aluguel fixo.' });
+      }
+
+      const newRental = {
+        id: body.id || `${Date.now()}${Math.random().toString(36).substring(2, 6)}`,
+        ownerName: String(body.ownerName).trim(),
+        phone: body.phone ? String(body.phone).trim() : '',
+        vehicleType: body.vehicleType || 'bicycle',
+        vehicleIdentifier: body.vehicleIdentifier ? String(body.vehicleIdentifier).trim() : '',
+        mode,
+        ...(spotNumber ? { spotNumber } : {}),
+        startDate: String(body.startDate),
+        endDate: String(body.endDate),
+        price: Number(body.price) || 0,
+        paymentMethod: ['cash', 'machine', 'pix', 'fiado'].includes(body.paymentMethod) ? body.paymentMethod : 'cash',
+        status: 'active',
+        ...(body.notes ? { notes: String(body.notes).trim() } : {}),
+        createdAt: Date.now(),
+        ...(body.operatorName ? { operatorName: body.operatorName } : {})
+      };
+
+      let existingRentals = [];
+      if (dbType === 'firebase') existingRentals = await firebaseDb.getSpotRentals();
+      else if (dbType === 'mysql') existingRentals = await (await import('./src/db/mysqlDb.js')).getSpotRentals();
+      else existingRentals = readDb().spotRentals || [];
+
+      if (mode === 'fixed') {
+        const conflict = existingRentals.find(
+          r => r.status === 'active' && r.mode === 'fixed' && String(r.spotNumber || '').trim().toUpperCase() === spotNumber
+        );
+        if (conflict) {
+          return res.status(409).json({
+            error: `A vaga ${spotNumber} já possui um aluguel ativo para ${conflict.ownerName}.`
+          });
+        }
+      }
+
+      let saved;
+      if (dbType === 'firebase') {
+        saved = await firebaseDb.addSpotRental(newRental);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        saved = await mysqlDb.addSpotRental(newRental);
+      } else {
+        const db = readDb();
+        if (!db.spotRentals) db.spotRentals = [];
+        db.spotRentals.push(newRental);
+        writeDb(db);
+        saved = newRental;
+      }
+
+      if (body.recordTransaction !== false) {
+        await recordRentalTransaction(saved, false);
+      }
+
+      res.status(201).json(saved);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to create spot rental' });
+    }
+  });
+
+  app.put('/api/spot-rentals/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = { ...(req.body || {}) };
+      if (data.spotNumber !== undefined) {
+        data.spotNumber = String(data.spotNumber).trim().toUpperCase();
+      }
+      let updated;
+      if (dbType === 'firebase') {
+        updated = await firebaseDb.updateSpotRental(id, data);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        updated = await mysqlDb.updateSpotRental(id, data);
+      } else {
+        const db = readDb();
+        const idx = (db.spotRentals || []).findIndex(r => r.id === id);
+        if (idx > -1) {
+          db.spotRentals[idx] = { ...db.spotRentals[idx], ...data };
+          writeDb(db);
+          updated = db.spotRentals[idx];
+        }
+      }
+      if (!updated) return res.status(404).json({ error: 'Aluguel não encontrado.' });
+      res.json(updated);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to update spot rental' });
+    }
+  });
+
+  app.post('/api/spot-rentals/:id/renew', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { startDate, endDate, price, paymentMethod, operatorName, recordTransaction } = req.body || {};
+      if (!startDate || !endDate) {
+        return res.status(400).json({ error: 'Informe a nova data inicial e final.' });
+      }
+      const patch = {
+        startDate: String(startDate),
+        endDate: String(endDate),
+        price: Number(price) || 0,
+        paymentMethod: ['cash', 'machine', 'pix', 'fiado'].includes(paymentMethod) ? paymentMethod : 'cash',
+        status: 'active',
+        ...(operatorName ? { operatorName } : {})
+      };
+
+      let updated;
+      if (dbType === 'firebase') {
+        updated = await firebaseDb.updateSpotRental(id, patch);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        updated = await mysqlDb.updateSpotRental(id, patch);
+      } else {
+        const db = readDb();
+        const idx = (db.spotRentals || []).findIndex(r => r.id === id);
+        if (idx > -1) {
+          db.spotRentals[idx] = { ...db.spotRentals[idx], ...patch };
+          writeDb(db);
+          updated = db.spotRentals[idx];
+        }
+      }
+
+      if (!updated) return res.status(404).json({ error: 'Aluguel não encontrado.' });
+
+      if (recordTransaction !== false) {
+        await recordRentalTransaction(updated, true);
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to renew spot rental' });
+    }
+  });
+
+  app.delete('/api/spot-rentals/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (dbType === 'firebase') {
+        await firebaseDb.removeSpotRental(id);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        await mysqlDb.removeSpotRental(id);
+      } else {
+        const db = readDb();
+        if (db.spotRentals) {
+          db.spotRentals = db.spotRentals.filter(r => r.id !== id);
+          writeDb(db);
+        }
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message || 'Failed to delete spot rental' });
     }
   });
 
@@ -1404,7 +1637,7 @@ async function startServer() {
     try {
       let backupData = {};
       if (dbType === 'firebase') {
-        const [vehicles, transactions, lostCards, pricing, customerCards, products, sales, shifts, operators] = await Promise.all([
+        const [vehicles, transactions, lostCards, pricing, customerCards, products, sales, shifts, operators, spotRentals] = await Promise.all([
           firebaseDb.getVehicles(),
           firebaseDb.getTransactions(),
           firebaseDb.getLostCards(),
@@ -1413,7 +1646,8 @@ async function startServer() {
           firebaseDb.getProducts(),
           firebaseDb.getSales(),
           firebaseDb.getShifts(),
-          firebaseDb.getOperators()
+          firebaseDb.getOperators(),
+          firebaseDb.getSpotRentals()
         ]);
         backupData = {
           version: 3,
@@ -1427,6 +1661,7 @@ async function startServer() {
           sales,
           shifts,
           operators,
+          spotRentals,
           dbType
         };
       } else if (dbType === 'mysql') {
@@ -1478,6 +1713,7 @@ async function startServer() {
         if (Array.isArray(data.sales)) db.sales = mergeById(db.sales, data.sales);
         if (Array.isArray(data.shifts)) db.shifts = mergeById(db.shifts, data.shifts);
         if (Array.isArray(data.operators)) db.operators = mergeById(db.operators, data.operators);
+        if (Array.isArray(data.spotRentals)) db.spotRentals = mergeById(db.spotRentals, data.spotRentals);
         if (Array.isArray(data.lostCards)) {
           const cardMap = new Map();
           (db.lostCards || []).forEach(c => {
