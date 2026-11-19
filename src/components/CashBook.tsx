@@ -8,6 +8,7 @@ import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { exportToCsv } from '../lib/csvExport';
 import { buildFiadoWhatsappText, openWhatsappMessage } from '../lib/whatsappUtils';
 import { isFiadoTransaction, getTransactionPaymentMethod, getTransactionRemainingFiado } from '../lib/transactionUtils';
+import { isRentalTransaction } from '../lib/rentalUtils';
 
 interface CashBookProps {
   transactions: Transaction[];
@@ -142,7 +143,9 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
   let incomeCash = 0;
   let incomeMachine = 0;
   let incomePix = 0;
-  let incomeFiado = 0; // Fiado generated in period (vehicles + prepaid/postpaid cards)
+  let incomeFiado = 0; // Fiado generated in period (vehicles + prepaid/postpaid cards + rentals)
+  let rentalPaidIncome = 0;
+  let rentalFiadoIncome = 0;
 
   periodCheckouts.forEach(v => {
       const p = Number(v.price) || 0;
@@ -152,13 +155,24 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
       else incomeCash += p; // fallback
   });
 
+  const rentalCheckoutsCount = vehicles.filter(v =>
+    v.status === 'completed' &&
+    v.paymentMethod === 'rental' &&
+    v.checkOutTime &&
+    v.checkOutTime >= startOfPeriod &&
+    v.checkOutTime <= endOfPeriod
+  ).length;
+
   const manualIncomes = periodTransactions.filter(t => t.type === 'income');
   manualIncomes.forEach(t => {
       const amt = Number(t.amount) || 0;
+      const isRentalTx = isRentalTransaction(t);
       if (isFiadoTransaction(t)) {
         incomeFiado += amt;
+        if (isRentalTx) rentalFiadoIncome += amt;
         return;
       }
+      if (isRentalTx) rentalPaidIncome += amt;
       const method = getTransactionPaymentMethod(t);
       if (method === 'machine') incomeMachine += amt;
       else if (method === 'pix') incomePix += amt;
@@ -174,6 +188,7 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
   const totalIncome = combinedEntries.filter(e => e.type === 'income' && !e.isFiadoEntry).reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpense = combinedEntries.filter(e => e.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
   const balance = totalIncome - totalExpense;
+  const showRentalBreakdown = Boolean(deviceConfig?.enableSpotRentals) || rentalPaidIncome > 0 || rentalFiadoIncome > 0 || rentalCheckoutsCount > 0;
 
   const unpaidVehicleFiados = vehicles.filter(v => v.status === 'completed' && v.paymentMethod === 'fiado' && !v.isFiadoPaid);
   const unpaidCardFiados = transactions.filter(t => isFiadoTransaction(t) && !t.isFiadoPaid && getTransactionRemainingFiado(t) > 0.001);
@@ -472,6 +487,7 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
           vehicles={vehicles}
           transactions={transactions}
           shifts={shifts}
+          deviceConfig={deviceConfig}
           onClose={() => setIsDailyReportOpen(false)}
         />
       )}
@@ -481,18 +497,32 @@ export function CashBook({ transactions, vehicles, shifts = [], deviceConfig, on
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-medium text-slate-500 mb-1">Entradas (Período)</p>
-              <p className="text-2xl print:text-lg font-bold text-emerald-600">R$ {totalIncome.toFixed(2)}</p>
+              <p className="text-2xl print:text-lg font-bold text-emerald-600 tabular-nums">R$ {totalIncome.toFixed(2)}</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
               <ArrowUpRight className="w-6 h-6 text-emerald-500" />
             </div>
           </div>
           <div className="mt-auto grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-600 border-t border-slate-100 pt-3">
-            <div className="flex justify-between"><span>Dinheiro:</span> <span className="font-semibold text-slate-800">R$ {incomeCash.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span>Máquina:</span> <span className="font-semibold text-slate-800">R$ {incomeMachine.toFixed(2)}</span></div>
-            {incomePix > 0 && <div className="flex justify-between"><span>PIX:</span> <span className="font-semibold text-slate-800">R$ {incomePix.toFixed(2)}</span></div>}
+            <div className="flex justify-between"><span>Dinheiro:</span> <span className="font-semibold text-slate-800 tabular-nums">R$ {incomeCash.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span>Máquina:</span> <span className="font-semibold text-slate-800 tabular-nums">R$ {incomeMachine.toFixed(2)}</span></div>
+            {incomePix > 0 && <div className="flex justify-between"><span>PIX:</span> <span className="font-semibold text-slate-800 tabular-nums">R$ {incomePix.toFixed(2)}</span></div>}
+            {showRentalBreakdown && (
+              <div className="col-span-2 border-t border-slate-100 pt-1.5 mt-0.5 space-y-0.5 text-[11px] text-teal-800">
+                <div className="flex justify-between">
+                  <span>Vagas Alugadas (Contratos, incluso acima):</span>
+                  <span className="font-bold tabular-nums">R$ {rentalPaidIncome.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-teal-700/80">
+                  <span>Saídas cobertas por Aluguel:</span>
+                  <span className="font-semibold tabular-nums">
+                    {rentalCheckoutsCount} saída(s){rentalFiadoIncome > 0 ? ` • Fiado R$ ${rentalFiadoIncome.toFixed(2)}` : ''}
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="flex justify-between col-span-2 border-t border-slate-50 pt-1 mt-1 text-orange-600 text-[11px]">
-              <span>Fiado Gerado no Período (Pendente):</span> <span className="font-bold">R$ {incomeFiado.toFixed(2)}</span>
+              <span>Fiado Gerado no Período (Pendente):</span> <span className="font-bold tabular-nums">R$ {incomeFiado.toFixed(2)}</span>
             </div>
           </div>
         </div>

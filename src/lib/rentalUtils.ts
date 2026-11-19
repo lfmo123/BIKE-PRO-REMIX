@@ -1,4 +1,4 @@
-import { ParkedVehicle, SpotRental } from '../types';
+import { ParkedVehicle, SpotRental, Transaction } from '../types';
 import { getLocalDateString } from './dateUtils';
 
 export type RentalValidityState = 'active' | 'expiring_soon' | 'expired' | 'upcoming' | 'cancelled';
@@ -109,4 +109,30 @@ export function findMatchingRentalForVehicle(
     if (byId) return byId;
   }
   return findFixedRentalForSpot(rentals, vehicle.cardNumber);
+}
+
+export function getActiveValidRentals(rentals: SpotRental[], refDateStr = getLocalDateString()): SpotRental[] {
+  return rentals
+    .filter(r => r.status === 'active' && getRentalValidity(r, refDateStr).isValidToday)
+    .sort((a, b) => {
+      if (a.mode !== b.mode) return a.mode === 'fixed' ? -1 : 1;
+      return a.ownerName.localeCompare(b.ownerName, 'pt-BR');
+    });
+}
+
+export function isVehicleCoveredByRental(vehicle: ParkedVehicle, rentals?: SpotRental[]): boolean {
+  if (vehicle.paymentMethod === 'rental' || Boolean(vehicle.rentalId)) return true;
+  if (rentals && rentals.length > 0) {
+    return Boolean(findFixedRentalForSpot(rentals, vehicle.cardNumber));
+  }
+  return false;
+}
+
+export function isRentalTransaction(transaction: Transaction): boolean {
+  if (transaction.type !== 'income') return false;
+  if (transaction.rentalId) return true;
+  const cat = (transaction.category || '').toLowerCase();
+  if (cat === 'spot_rental' || cat.includes('aluguel')) return true;
+  const desc = (transaction.description || '').toLowerCase();
+  return desc.includes('aluguel de vaga') || desc.includes('renovação aluguel') || desc.includes('renovacao aluguel');
 }

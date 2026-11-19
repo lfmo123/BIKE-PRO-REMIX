@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { ParkedVehicle, Sale, Transaction } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users, ShoppingCart, Smartphone, Printer, Wallet, ArrowUpRight, ArrowDownRight, Download } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, Moon, Search, Calendar, CalendarRange, ArrowRightLeft, Bike, LogOut, BarChart3, X, Clock, Users, ShoppingCart, Smartphone, Printer, Wallet, ArrowUpRight, ArrowDownRight, Download } from 'lucide-react';
 import { getLocalDateString } from '../lib/dateUtils';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { exportToCsv } from '../lib/csvExport';
 import { isFiadoTransaction } from '../lib/transactionUtils';
+import { isRentalTransaction } from '../lib/rentalUtils';
 
 interface ReportsProps {
   vehicles: ParkedVehicle[];
@@ -55,13 +56,16 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
 
   // Daily Calculations
   const completedVehiclesDaily = vehicles.filter(v => 
-    v.status === 'completed' && v.price && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay
+    v.status === 'completed' && (v.price !== undefined || v.paymentMethod === 'rental') && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay
   );
+  const payingVehiclesDaily = completedVehiclesDaily.filter(v => v.paymentMethod !== 'rental' && (Number(v.price) || 0) > 0);
 
   const avgTimeDaily = calculateAverageTime(completedVehiclesDaily);
 
   const entriesDaily = vehicles.filter(v => v.checkInTime >= startOfDay && v.checkInTime <= endOfDay);
   const exitsDaily = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= startOfDay && v.checkOutTime <= endOfDay);
+  const rentalEntriesDaily = entriesDaily.filter(v => Boolean(v.rentalId)).length;
+  const rentalExitsDaily = exitsDaily.filter(v => v.paymentMethod === 'rental' || Boolean(v.rentalId)).length;
 
   const totalRevenueDaily = completedVehiclesDaily.reduce((sum, v) => sum + (Number(v.price) || 0), 0);
 
@@ -73,6 +77,9 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
   const dailyTransactions = transactions.filter(t => t.date >= startOfDay && t.date <= endOfDay);
   const totalManualIncomeDaily = dailyTransactions.filter(t => t.type === 'income' && !isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
   const totalManualExpenseDaily = dailyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const rentalContractsRevenueDaily = dailyTransactions.filter(t => isRentalTransaction(t) && !isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+  const rentalContractsFiadoDaily = dailyTransactions.filter(t => isRentalTransaction(t) && isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+  const showRentalDaily = Boolean(deviceConfig?.enableSpotRentals) || rentalEntriesDaily > 0 || rentalExitsDaily > 0 || rentalContractsRevenueDaily > 0 || rentalContractsFiadoDaily > 0;
 
   const totalConsolidatedRevenueDaily = totalRevenueDaily + totalStoreRevenueDaily + totalManualIncomeDaily;
   const netBalanceDaily = totalConsolidatedRevenueDaily - totalManualExpenseDaily;
@@ -212,7 +219,8 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
     </h2>
     <div class="row"><span class="label">Entradas</span> <span class="value">${entriesDaily.length}</span></div>
     <div class="row"><span class="label">Saídas</span> <span class="value">${completedVehiclesDaily.length}</span></div>
-    <div class="row"><span class="label">T. Médio</span> <span class="value">R$ ${completedVehiclesDaily.length > 0 ? (totalRevenueDaily / completedVehiclesDaily.length).toFixed(2) : '0.00'}</span></div>
+    ${showRentalDaily ? `<div class="row"><span class="label">Vagas Alugadas (In/Out)</span> <span class="value">${rentalEntriesDaily} / ${rentalExitsDaily}</span></div>` : ''}
+    <div class="row"><span class="label">T. Médio (Avulso)</span> <span class="value">R$ ${payingVehiclesDaily.length > 0 ? (totalRevenueDaily / payingVehiclesDaily.length).toFixed(2) : '0.00'}</span></div>
   </div>
 
   <div class="section">
@@ -223,6 +231,7 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
     <div class="row"><span class="label">Pré Pago</span> <span class="value">R$ ${(revenueByPaymentDaily['card'] || 0).toFixed(2)}</span></div>
     <div class="row"><span class="label">Pós-Pago</span> <span class="value">R$ ${(revenueByPaymentDaily['postpaid_card'] || 0).toFixed(2)}</span></div>
     <div class="row"><span class="label">Fiado</span> <span class="value">R$ ${(revenueByPaymentDaily['fiado'] || 0).toFixed(2)}</span></div>
+    ${showRentalDaily ? `<div class="row"><span class="label">Contratos Aluguel (Caixa)</span> <span class="value">R$ ${rentalContractsRevenueDaily.toFixed(2)}</span></div>` : ''}
   </div>
 
   ${completedVehiclesDaily.length > 0 ? `
@@ -264,13 +273,20 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
 
   // Monthly Calculations
   const completedVehiclesMonthly = vehicles.filter(v => 
-    v.status === 'completed' && v.price && v.checkOutTime && v.checkOutTime >= startOfMonth && v.checkOutTime <= endOfMonth
+    v.status === 'completed' && (v.price !== undefined || v.paymentMethod === 'rental') && v.checkOutTime && v.checkOutTime >= startOfMonth && v.checkOutTime <= endOfMonth
   );
+  const payingVehiclesMonthly = completedVehiclesMonthly.filter(v => v.paymentMethod !== 'rental' && (Number(v.price) || 0) > 0);
 
   const avgTimeMonthly = calculateAverageTime(completedVehiclesMonthly);
 
   const entriesMonthly = vehicles.filter(v => v.checkInTime >= startOfMonth && v.checkInTime <= endOfMonth);
   const exitsMonthly = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= startOfMonth && v.checkOutTime <= endOfMonth);
+  const rentalEntriesMonthly = entriesMonthly.filter(v => Boolean(v.rentalId)).length;
+  const rentalExitsMonthly = exitsMonthly.filter(v => v.paymentMethod === 'rental' || Boolean(v.rentalId)).length;
+  const monthlyTransactions = transactions.filter(t => t.date >= startOfMonth && t.date <= endOfMonth);
+  const rentalContractsRevenueMonthly = monthlyTransactions.filter(t => isRentalTransaction(t) && !isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+  const rentalContractsFiadoMonthly = monthlyTransactions.filter(t => isRentalTransaction(t) && isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+  const showRentalMonthly = Boolean(deviceConfig?.enableSpotRentals) || rentalEntriesMonthly > 0 || rentalExitsMonthly > 0 || rentalContractsRevenueMonthly > 0 || rentalContractsFiadoMonthly > 0;
 
   const totalRevenueMonthly = completedVehiclesMonthly.reduce((sum, v) => sum + (Number(v.price) || 0), 0);
 
@@ -325,11 +341,18 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
   const customEnd = new Date(endDate + 'T23:59:59').getTime();
 
   const completedVehiclesCustom = vehicles.filter(v => 
-    v.status === 'completed' && v.price && v.checkOutTime && v.checkOutTime >= customStart && v.checkOutTime <= customEnd
+    v.status === 'completed' && (v.price !== undefined || v.paymentMethod === 'rental') && v.checkOutTime && v.checkOutTime >= customStart && v.checkOutTime <= customEnd
   );
+  const payingVehiclesCustom = completedVehiclesCustom.filter(v => v.paymentMethod !== 'rental' && (Number(v.price) || 0) > 0);
   const avgTimeCustom = calculateAverageTime(completedVehiclesCustom);
   const entriesCustom = vehicles.filter(v => v.checkInTime >= customStart && v.checkInTime <= customEnd);
   const exitsCustom = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= customStart && v.checkOutTime <= customEnd);
+  const rentalEntriesCustom = entriesCustom.filter(v => Boolean(v.rentalId)).length;
+  const rentalExitsCustom = exitsCustom.filter(v => v.paymentMethod === 'rental' || Boolean(v.rentalId)).length;
+  const customTransactions = transactions.filter(t => t.date >= customStart && t.date <= customEnd);
+  const rentalContractsRevenueCustom = customTransactions.filter(t => isRentalTransaction(t) && !isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+  const rentalContractsFiadoCustom = customTransactions.filter(t => isRentalTransaction(t) && isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+  const showRentalCustom = Boolean(deviceConfig?.enableSpotRentals) || rentalEntriesCustom > 0 || rentalExitsCustom > 0 || rentalContractsRevenueCustom > 0 || rentalContractsFiadoCustom > 0;
   const totalRevenueCustom = completedVehiclesCustom.reduce((sum, v) => sum + (Number(v.price) || 0), 0);
 
   const revenueByPaymentCustom = completedVehiclesCustom.reduce((acc, v) => {
@@ -698,8 +721,8 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Ticket Médio</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">
-                  R$ {completedVehiclesDaily.length > 0 ? (totalRevenueDaily / completedVehiclesDaily.length).toFixed(2) : '0.00'}
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">
+                  R$ {payingVehiclesDaily.length > 0 ? (totalRevenueDaily / payingVehiclesDaily.length).toFixed(2) : '0.00'}
                 </h3>
               </div>
             </div>
@@ -718,7 +741,7 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Entradas (Dia)</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">{entriesDaily.length}</h3>
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">{entriesDaily.length}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
@@ -727,7 +750,7 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Saídas</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">{exitsDaily.length}</h3>
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">{exitsDaily.length}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
@@ -736,10 +759,40 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">No Pátio</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">{activeVehiclesCount}</h3>
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">{activeVehiclesCount}</h3>
               </div>
             </div>
           </div>
+
+          {showRentalDaily && (
+            <div className="bg-teal-50/80 border border-teal-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-teal-100 p-2.5 rounded-xl">
+                  <CalendarRange className="w-5 h-5 text-teal-700" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-teal-900">Vagas Alugadas (Diário)</h4>
+                  <p className="text-xs text-teal-700">Receita de contratos/renovações já inclusa em Entradas Avulsas Caixa</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-5 text-sm">
+                <div>
+                  <span className="text-xs text-teal-700 block">Entradas / Saídas</span>
+                  <span className="font-bold text-teal-900 tabular-nums">{rentalEntriesDaily} / {rentalExitsDaily}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-teal-700 block">Contratos Recebidos</span>
+                  <span className="font-bold text-teal-900 tabular-nums">R$ {rentalContractsRevenueDaily.toFixed(2)}</span>
+                </div>
+                {rentalContractsFiadoDaily > 0 && (
+                  <div>
+                    <span className="text-xs text-orange-700 block">Contratos em Fiado</span>
+                    <span className="font-bold text-orange-800 tabular-nums">R$ {rentalContractsFiadoDaily.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue by Type */}
@@ -1220,8 +1273,8 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Ticket Médio</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">
-                  R$ {completedVehiclesMonthly.length > 0 ? (totalRevenueMonthly / completedVehiclesMonthly.length).toFixed(2) : '0.00'}
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">
+                  R$ {payingVehiclesMonthly.length > 0 ? (totalRevenueMonthly / payingVehiclesMonthly.length).toFixed(2) : '0.00'}
                 </h3>
               </div>
             </div>
@@ -1240,7 +1293,7 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Entradas (Mês)</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">{entriesMonthly.length}</h3>
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">{entriesMonthly.length}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
@@ -1249,7 +1302,7 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Saídas</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">{exitsMonthly.length}</h3>
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">{exitsMonthly.length}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
@@ -1258,10 +1311,40 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">No Pátio</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">{activeVehiclesCount}</h3>
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">{activeVehiclesCount}</h3>
               </div>
             </div>
           </div>
+
+          {showRentalMonthly && (
+            <div className="bg-teal-50/80 border border-teal-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-teal-100 p-2.5 rounded-xl">
+                  <CalendarRange className="w-5 h-5 text-teal-700" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-teal-900">Vagas Alugadas (Mensal)</h4>
+                  <p className="text-xs text-teal-700">Movimentação coberta e receita de contratos/renovações no mês</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-5 text-sm">
+                <div>
+                  <span className="text-xs text-teal-700 block">Entradas / Saídas</span>
+                  <span className="font-bold text-teal-900 tabular-nums">{rentalEntriesMonthly} / {rentalExitsMonthly}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-teal-700 block">Contratos Recebidos</span>
+                  <span className="font-bold text-teal-900 tabular-nums">R$ {rentalContractsRevenueMonthly.toFixed(2)}</span>
+                </div>
+                {rentalContractsFiadoMonthly > 0 && (
+                  <div>
+                    <span className="text-xs text-orange-700 block">Contratos em Fiado</span>
+                    <span className="font-bold text-orange-800 tabular-nums">R$ {rentalContractsFiadoMonthly.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue by Type */}
@@ -1397,8 +1480,8 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Ticket Médio</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">
-                  R$ {completedVehiclesCustom.length > 0 ? (totalRevenueCustom / completedVehiclesCustom.length).toFixed(2) : '0.00'}
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">
+                  R$ {payingVehiclesCustom.length > 0 ? (totalRevenueCustom / payingVehiclesCustom.length).toFixed(2) : '0.00'}
                 </h3>
               </div>
             </div>
@@ -1417,7 +1500,7 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Entradas</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">{entriesCustom.length}</h3>
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">{entriesCustom.length}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
@@ -1426,7 +1509,7 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">Saídas</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">{exitsCustom.length}</h3>
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">{exitsCustom.length}</h3>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
@@ -1435,10 +1518,40 @@ export function Reports({ vehicles, sales = [], transactions = [], deviceConfig 
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">No Pátio</p>
-                <h3 className="text-2xl font-black text-slate-900 truncate">{activeVehiclesCount}</h3>
+                <h3 className="text-2xl font-black text-slate-900 truncate tabular-nums">{activeVehiclesCount}</h3>
               </div>
             </div>
           </div>
+
+          {showRentalCustom && (
+            <div className="bg-teal-50/80 border border-teal-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-teal-100 p-2.5 rounded-xl">
+                  <CalendarRange className="w-5 h-5 text-teal-700" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-teal-900">Vagas Alugadas (Período Personalizado)</h4>
+                  <p className="text-xs text-teal-700">Movimentação coberta e receita de contratos/renovações no período</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-5 text-sm">
+                <div>
+                  <span className="text-xs text-teal-700 block">Entradas / Saídas</span>
+                  <span className="font-bold text-teal-900 tabular-nums">{rentalEntriesCustom} / {rentalExitsCustom}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-teal-700 block">Contratos Recebidos</span>
+                  <span className="font-bold text-teal-900 tabular-nums">R$ {rentalContractsRevenueCustom.toFixed(2)}</span>
+                </div>
+                {rentalContractsFiadoCustom > 0 && (
+                  <div>
+                    <span className="text-xs text-orange-700 block">Contratos em Fiado</span>
+                    <span className="font-bold text-orange-800 tabular-nums">R$ {rentalContractsFiadoCustom.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue by Type */}

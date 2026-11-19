@@ -228,17 +228,39 @@ export async function revertCheckIn(id) {
   return true;
 }
 
-export async function checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId, checkInTime) {
+export async function checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId, checkInTime, rentalId) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+
+  if (rentalId) {
+    try {
+      await getPool().query('ALTER TABLE vehicles ADD COLUMN rentalId VARCHAR(100)');
+    } catch (e) {
+      // column may already exist
+    }
+  }
   
   let query, params;
-  if (checkInTime) {
+  if (checkInTime && rentalId) {
+    query = `
+      UPDATE vehicles 
+      SET status = 'completed', checkOutTime = ?, price = ?, paymentMethod = ?, customerCardId = ?, checkInTime = ?, rentalId = ?
+      WHERE id = ?
+    `;
+    params = [checkOutTime, price, paymentMethod, customerCardId || null, checkInTime, rentalId, id];
+  } else if (checkInTime) {
     query = `
       UPDATE vehicles 
       SET status = 'completed', checkOutTime = ?, price = ?, paymentMethod = ?, customerCardId = ?, checkInTime = ?
       WHERE id = ?
     `;
     params = [checkOutTime, price, paymentMethod, customerCardId || null, checkInTime, id];
+  } else if (rentalId) {
+    query = `
+      UPDATE vehicles 
+      SET status = 'completed', checkOutTime = ?, price = ?, paymentMethod = ?, customerCardId = ?, rentalId = ?
+      WHERE id = ?
+    `;
+    params = [checkOutTime, price, paymentMethod, customerCardId || null, rentalId, id];
   } else {
     query = `
       UPDATE vehicles 
@@ -252,7 +274,7 @@ export async function checkOutVehicle(id, price, paymentMethod, checkOutTime, cu
   
   const [rows] = await getPool().query('SELECT * FROM vehicles WHERE id = ?', [id]);
   if (!rows || rows.length === 0) return null;
-  return { ...rows[0], price: rows[0].price ? parseFloat(rows[0].price) : undefined, cardLost: !!rows[0].cardLost };
+  return { ...rows[0], price: rows[0].price !== null && rows[0].price !== undefined ? parseFloat(rows[0].price) : undefined, cardLost: !!rows[0].cardLost };
 }
 
 export async function payFiado(id, paymentMethod, paymentDate, amountToPay) {

@@ -3,6 +3,8 @@ import { Shift, Transaction, ParkedVehicle, Sale } from '../types';
 import { X, Printer } from 'lucide-react';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 import { isFiadoTransaction, getTransactionPaymentMethod } from '../lib/transactionUtils';
+import { isRentalTransaction } from '../lib/rentalUtils';
+import { DeviceFeaturesConfig } from '../lib/deviceModules';
 
 interface ShiftDetailsModalProps {
   shift: Shift;
@@ -10,11 +12,13 @@ interface ShiftDetailsModalProps {
   vehicles: ParkedVehicle[];
   transactions: Transaction[];
   sales: Sale[];
+  deviceConfig?: DeviceFeaturesConfig;
 }
 
-export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sales }: ShiftDetailsModalProps) {
+export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sales, deviceConfig }: ShiftDetailsModalProps) {
   // Re-calculate complex details
   const shiftTransactions = transactions.filter(t => t.date >= shift.startTime && (!shift.endTime || t.date <= shift.endTime));
+  const checkedInVehicles = vehicles.filter(v => v.checkInTime >= shift.startTime && (!shift.endTime || v.checkInTime <= shift.endTime));
   const checkedOutVehicles = vehicles.filter(v => v.status === 'completed' && v.checkOutTime && v.checkOutTime >= shift.startTime && (!shift.endTime || v.checkOutTime <= shift.endTime));
   const shiftSales = sales.filter(s => s.date >= shift.startTime && (!shift.endTime || s.date <= shift.endTime));
 
@@ -24,6 +28,10 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
   let postpaid = 0;
   let expenses = 0;
   let prepaid = 0; // if used
+  let rentalCheckOutsCount = 0;
+  let rentalRevenuePaid = 0;
+  let rentalRevenueFiado = 0;
+  const rentalCheckInsCount = checkedInVehicles.filter(v => Boolean(v.rentalId)).length;
 
   // check out income
   checkedOutVehicles.forEach(v => {
@@ -33,7 +41,7 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
       else if (v.paymentMethod === 'card') prepaid += p;
       else if (v.paymentMethod === 'fiado') fiado += p;
       else if (v.paymentMethod === 'postpaid_card') postpaid += p;
-      else if (v.paymentMethod === 'rental') { /* coberto por vaga alugada */ }
+      else if (v.paymentMethod === 'rental') { rentalCheckOutsCount += 1; }
       else cash += p; // default
   });
 
@@ -54,7 +62,9 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
           expenses += t.amount;
       } else if (isFiadoTransaction(t)) {
           fiado += t.amount;
+          if (isRentalTransaction(t)) rentalRevenueFiado += t.amount;
       } else {
+          if (isRentalTransaction(t)) rentalRevenuePaid += t.amount;
           const m = getTransactionPaymentMethod(t);
           if (m === 'machine') card += t.amount;
           else cash += t.amount;
@@ -64,6 +74,7 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
   const totalIncomeReal = cash + card; 
   const totalPending = fiado + postpaid;
   const totalInternalBalances = prepaid;
+  const showRentalBlock = Boolean(deviceConfig?.enableSpotRentals) || rentalCheckInsCount > 0 || rentalCheckOutsCount > 0 || rentalRevenuePaid > 0 || rentalRevenueFiado > 0;
 
   const handlePrint = () => {
     // We launch print using an iframe just like before, but with the detailed layout
@@ -99,9 +110,13 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
 
   <div class="section">
     <h2>Operacional</h2>
-    <div class="row"><span class="label">Check-outs</span> <span class="value">${shift.summary?.checkOuts || 0}</span></div>
-    <div class="row"><span class="label">Check-ins</span> <span class="value">${shift.summary?.checkIns || 0}</span></div>
+    <div class="row"><span class="label">Check-outs</span> <span class="value">${shift.summary?.checkOuts || checkedOutVehicles.length}</span></div>
+    <div class="row"><span class="label">Check-ins</span> <span class="value">${shift.summary?.checkIns || checkedInVehicles.length}</span></div>
     <div class="row"><span class="label">Pernoites</span> <span class="value">${shift.summary?.overnightCount || 0}</span></div>
+    ${showRentalBlock ? `
+    <div class="row"><span class="label">Alugadas (In/Out)</span> <span class="value">${rentalCheckInsCount} / ${rentalCheckOutsCount}</span></div>
+    <div class="row"><span class="label">Contratos Aluguel</span> <span class="value">R$ ${rentalRevenuePaid.toFixed(2)}</span></div>
+    ` : ''}
   </div>
   
   <div class="footer">
@@ -219,6 +234,30 @@ export function ShiftDetailsModal({ shift, onClose, vehicles, transactions, sale
                    <span className="font-semibold text-blue-900">R$ {prepaid.toFixed(2)}</span>
                  </div>
                </div>
+            </div>
+          )}
+
+          {showRentalBlock && (
+            <div className="bg-teal-50 border text-sm border-teal-200 rounded-xl overflow-hidden">
+              <div className="bg-teal-100 px-4 py-3 border-b border-teal-200">
+                <h3 className="font-bold text-teal-900">Vagas Alugadas (Período)</h3>
+              </div>
+              <div className="p-4 space-y-2.5">
+                <div className="flex justify-between">
+                  <span className="text-teal-800">Entradas vinculadas / Saídas cobertas</span>
+                  <span className="font-semibold text-teal-900 tabular-nums">{rentalCheckInsCount} / {rentalCheckOutsCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-teal-800">Contratos / Renovações recebidos (incluso acima)</span>
+                  <span className="font-semibold text-teal-900 tabular-nums">R$ {rentalRevenuePaid.toFixed(2)}</span>
+                </div>
+                {rentalRevenueFiado > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-orange-800">Contratos / Renovações em Fiado</span>
+                    <span className="font-semibold text-orange-900 tabular-nums">R$ {rentalRevenueFiado.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

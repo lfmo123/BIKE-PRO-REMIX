@@ -266,7 +266,8 @@ export async function checkOutVehicle(
   checkOutTime,
   customerCardId,
   checkInTime,
-  checkOutOperatorName
+  checkOutOperatorName,
+  rentalId
 ) {
   const vehicleRef = doc(db, 'vehicles', id);
 
@@ -311,7 +312,8 @@ export async function checkOutVehicle(
       checkOutTime,
       checkInTime: checkInTime || undefined,
       customerCardId: resolvedCardId || undefined,
-      checkOutOperatorName: checkOutOperatorName || undefined
+      checkOutOperatorName: checkOutOperatorName || undefined,
+      rentalId: rentalId || undefined
     });
 
     tx.update(vehicleRef, updatedData);

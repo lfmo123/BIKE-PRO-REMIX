@@ -10,36 +10,43 @@ import {
   Printer,
   QrCode,
   MessageCircle,
-  Camera
+  Camera,
+  CalendarRange
 } from 'lucide-react';
-import { ParkedVehicle, VehicleType, Pricing } from '../types';
+import { ParkedVehicle, VehicleType, Pricing, SpotRental } from '../types';
 import { calculatePrice, formatDuration } from '../lib/pricing';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { generateQrSvg } from '../lib/pixUtils';
 import { buildCheckInWhatsappText, openWhatsappMessage } from '../lib/whatsappUtils';
+import { findMatchingRentalForVehicle, getRentalValidity, isVehicleCoveredByRental } from '../lib/rentalUtils';
 
 interface ActiveParkingProps {
   vehicles: ParkedVehicle[];
   pricing: Pricing;
+  spotRentals?: SpotRental[];
   deviceConfig?: DeviceFeaturesConfig;
   onCheckOut: (vehicle: ParkedVehicle) => void;
   onRevertCheckin?: (vehicleId: string) => void;
   onOpenScanner?: () => void;
+  onOpenRentals?: () => void;
 }
 
 export function ActiveParking({
   vehicles,
   pricing,
+  spotRentals = [],
   deviceConfig,
   onCheckOut,
-  onOpenScanner
+  onOpenScanner,
+  onOpenRentals
 }: ActiveParkingProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<VehicleType | 'all'>('all');
+  const [filterType, setFilterType] = useState<VehicleType | 'all' | 'rental'>('all');
   const [nowTime, setNowTime] = useState(Date.now());
 
   const hourlyEnabled = Boolean(deviceConfig?.enableHourlyPricing);
+  const rentalsEnabled = Boolean(deviceConfig?.enableSpotRentals);
 
   React.useEffect(() => {
     const interval = setInterval(() => setNowTime(Date.now()), 60000);
@@ -47,6 +54,7 @@ export function ActiveParking({
   }, []);
 
   const activeVehicles = vehicles.filter(v => v.status === 'active');
+  const rentedActiveCount = activeVehicles.filter(v => isVehicleCoveredByRental(v, spotRentals)).length;
 
   const now = new Date(nowTime);
   const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -59,7 +67,12 @@ export function ActiveParking({
       v.identifier.toLowerCase().includes(term) ||
       v.ownerName.toLowerCase().includes(term) ||
       v.cardNumber.toLowerCase().includes(term);
-    const matchesType = filterType === 'all' || v.type === filterType;
+    const matchesType =
+      filterType === 'all'
+        ? true
+        : filterType === 'rental'
+          ? isVehicleCoveredByRental(v, spotRentals)
+          : v.type === filterType;
     return matchesSearch && matchesType;
   });
 
@@ -120,17 +133,27 @@ export function ActiveParking({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Veículos Estacionados</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {rentalsEnabled && onOpenRentals && (
+            <button
+              type="button"
+              onClick={onOpenRentals}
+              className="flex items-center gap-2 px-3.5 py-2 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/60 text-teal-800 dark:text-teal-200 border border-teal-200 dark:border-teal-800 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors"
+            >
+              <CalendarRange className="w-4 h-4" />
+              Vagas Alugadas
+            </button>
+          )}
           {deviceConfig?.enableQrTicketScanner && onOpenScanner && (
             <button
               onClick={onOpenScanner}
-              className="flex items-center gap-2 px-3.5 py-2 bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors"
+              className="flex items-center gap-2 px-3.5 py-2 bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold whitespace-nowrap transition-colors"
             >
               <QrCode className="w-4 h-4" />
               Escanear Ticket QR
             </button>
           )}
-          <div className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full text-sm font-medium">
+          <div className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-3 py-2 sm:py-1 rounded-xl sm:rounded-full text-sm font-medium tabular-nums">
             {activeVehicles.length} Ativos
           </div>
         </div>
@@ -203,12 +226,30 @@ export function ActiveParking({
           >
             Motos
           </button>
+          {(rentalsEnabled || rentedActiveCount > 0) && (
+            <button
+              onClick={() => setFilterType('rental')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                filterType === 'rental'
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100'
+              }`}
+            >
+              <CalendarRange className="w-4 h-4" />
+              Alugadas ({rentedActiveCount})
+            </button>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredVehicles.map((vehicle) => {
           const isOvernight = now.getTime() - vehicle.checkInTime >= ONE_DAY_MS;
+          const matchedRental = (rentalsEnabled || vehicle.rentalId)
+            ? findMatchingRentalForVehicle(spotRentals, vehicle)
+            : undefined;
+          const rentalValidity = matchedRental ? getRentalValidity(matchedRental) : undefined;
+          const isRentalVehicle = Boolean(matchedRental || vehicle.rentalId);
           const showTicketBtn =
             deviceConfig?.canPrintTicket !== false &&
             (deviceConfig?.enableQrTicketScanner || deviceConfig?.canPrintTicket);
@@ -217,7 +258,11 @@ export function ActiveParking({
             <div
               key={vehicle.id}
               className={`bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border flex flex-col ${
-                isOvernight ? 'border-amber-300 dark:border-amber-700 shadow-amber-100/40' : 'border-slate-100 dark:border-slate-800'
+                isRentalVehicle
+                  ? 'border-teal-200 dark:border-teal-800'
+                  : isOvernight
+                    ? 'border-amber-300 dark:border-amber-700 shadow-amber-100/40'
+                    : 'border-slate-100 dark:border-slate-800'
               }`}
             >
               <div className="flex items-start justify-between mb-4">
@@ -232,7 +277,7 @@ export function ActiveParking({
                   <div className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold px-3 py-1 rounded-lg text-sm">
                     {vehicle.cardNumber.startsWith('SN') ? vehicle.cardNumber : `Cartão ${vehicle.cardNumber}`}
                   </div>
-                  {isOvernight && (
+                  {isOvernight && !rentalValidity?.isValidToday && (
                     <div className="bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold px-2 py-1 rounded-md text-xs flex items-center">
                       <AlertTriangle className="w-3 h-3 mr-1" />
                       +1 Diária
@@ -240,6 +285,22 @@ export function ActiveParking({
                   )}
                 </div>
               </div>
+
+              {isRentalVehicle && (
+                <div
+                  className={`mb-3 px-3 py-2 rounded-xl border flex items-center justify-between gap-2 text-xs font-semibold ${
+                    !matchedRental || rentalValidity?.isValidToday
+                      ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200'
+                      : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <CalendarRange className="w-3.5 h-3.5 shrink-0" />
+                    Vaga Alugada {matchedRental ? `• ${matchedRental.mode === 'fixed' ? 'Fixa' : 'Rotativa'}` : ''}
+                  </span>
+                  {rentalValidity && <span className="shrink-0 font-bold">{rentalValidity.label}</span>}
+                </div>
+              )}
 
               {(vehicle.photoData || vehicle.damageNotes) && (
                 <div className="mb-3 px-3 py-2 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 flex items-center gap-2 text-xs text-amber-900 dark:text-amber-200">
@@ -265,9 +326,15 @@ export function ActiveParking({
                     <span className="font-medium text-slate-900 dark:text-slate-100 block tabular-nums">
                       {formatDuration(vehicle.checkInTime, nowTime)}
                     </span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm block mt-0.5 tabular-nums">
-                      Est. R$ {calculatePrice(vehicle, pricing, nowTime, hourlyEnabled).toFixed(2)}
-                    </span>
+                    {rentalValidity?.isValidToday ? (
+                      <span className="text-teal-700 dark:text-teal-300 font-bold text-xs block mt-0.5">
+                        Coberto (Aluguel)
+                      </span>
+                    ) : (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm block mt-0.5 tabular-nums">
+                        Est. R$ {calculatePrice(vehicle, pricing, nowTime, hourlyEnabled).toFixed(2)}
+                      </span>
+                    )}
                   </div>
                 </div>
 

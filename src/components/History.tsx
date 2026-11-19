@@ -13,7 +13,7 @@ interface HistoryProps {
 
 export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<VehicleType | 'all'>('all');
+  const [filterType, setFilterType] = useState<VehicleType | 'all' | 'rental'>('all');
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [selectedCardForHistory, setSelectedCardForHistory] = useState<string | null>(null);
   
@@ -29,12 +29,22 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
     .filter(v => v.status === 'completed' && v.checkOutTime)
     .sort((a, b) => (b.checkOutTime || 0) - (a.checkOutTime || 0));
 
-  const filteredVehicles = completedVehicles.filter(v => {
-    const matchesSearch = v.identifier.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          v.ownerName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || v.type.toLowerCase() === filterType.toLowerCase();
-    const matchesDate = (v.checkOutTime || 0) >= startOfDay && (v.checkOutTime || 0) <= endOfDay;
-    return matchesSearch && matchesType && matchesDate;
+  const completedToday = completedVehicles.filter(v => (v.checkOutTime || 0) >= startOfDay && (v.checkOutTime || 0) <= endOfDay);
+  const rentalCountToday = completedToday.filter(v => v.paymentMethod === 'rental' || Boolean(v.rentalId)).length;
+
+  const filteredVehicles = completedToday.filter(v => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch =
+      v.identifier.toLowerCase().includes(term) ||
+      v.ownerName.toLowerCase().includes(term) ||
+      v.cardNumber.toLowerCase().includes(term);
+    const matchesType =
+      filterType === 'all'
+        ? true
+        : filterType === 'rental'
+          ? v.paymentMethod === 'rental' || Boolean(v.rentalId)
+          : v.type.toLowerCase() === filterType.toLowerCase();
+    return matchesSearch && matchesType;
   });
 
   // Create grouped list for the main table
@@ -46,10 +56,14 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
         type: v.type,
         totalPrice: 0,
         count: 0,
+        rentalCount: 0,
       };
     }
     acc[key].totalPrice += (v.price || 0);
     acc[key].count += 1;
+    if (v.paymentMethod === 'rental' || Boolean(v.rentalId)) {
+      acc[key].rentalCount += 1;
+    }
     return acc;
   }, {});
 
@@ -86,6 +100,19 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
     ? completedVehicles.filter(v => v.cardNumber === selectedCardForHistory && (v.checkOutTime || 0) >= startOfDay && (v.checkOutTime || 0) <= endOfDay)
     : [];
 
+  const formatPaymentLabel = (method?: string) => {
+    switch (method) {
+      case 'card': return 'Pré Pago';
+      case 'cash': return 'Dinheiro';
+      case 'machine': return 'Máquina';
+      case 'pix': return 'PIX';
+      case 'postpaid_card': return 'Pós-Pago';
+      case 'rental': return 'Vaga Alugada';
+      case 'fiado': return 'Fiado';
+      default: return method || '';
+    }
+  };
+
   const handleExportCsv = () => {
     exportToCsv(
       `historico_estacionamento_${selectedDate}`,
@@ -98,7 +125,7 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
         new Date(v.checkInTime).toLocaleString('pt-BR'),
         v.checkOutTime ? new Date(v.checkOutTime).toLocaleString('pt-BR') : '',
         (Number(v.price) || 0).toFixed(2).replace('.', ','),
-        v.paymentMethod || '',
+        formatPaymentLabel(v.paymentMethod),
         v.operatorName || '',
         v.checkOutOperatorName || ''
       ])
@@ -167,6 +194,19 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
           >
             Motos
           </button>
+          {(deviceConfig?.enableSpotRentals || rentalCountToday > 0) && (
+            <button
+              onClick={() => setFilterType('rental')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                filterType === 'rental'
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-teal-50 text-teal-700 hover:bg-teal-100'
+              }`}
+            >
+              <CalendarRange className="w-4 h-4" />
+              Alugadas ({rentalCountToday})
+            </button>
+          )}
         </div>
       </div>
 
@@ -182,10 +222,18 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {groupedList.map((group: any, idx) => (
+              {groupedList.map((group: any) => (
                 <tr key={`${group.cardNumber}-${group.type}`} className="hover:bg-slate-50/50 transition-colors">
                   <td className="p-4 text-emerald-600 font-bold hover:underline cursor-pointer" onClick={() => setSelectedCardForHistory(group.cardNumber)}>
-                    {group.cardNumber.startsWith('SN') ? group.cardNumber : `Cartão ${group.cardNumber}`}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span>{group.cardNumber.startsWith('SN') ? group.cardNumber : `Cartão ${group.cardNumber}`}</span>
+                      {group.rentalCount > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 text-[11px] font-semibold">
+                          <CalendarRange className="w-3 h-3" />
+                          Alugada
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="p-4">
                       <div className="flex items-center space-x-2">
@@ -193,8 +241,8 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
                         <span className="text-slate-700 capitalize">{group.type === 'bicycle' ? 'Bicicleta' : group.type === 'ebike' ? 'E-Bike' : 'Moto'}</span>
                       </div>
                   </td>
-                  <td className="p-4 text-slate-600 font-medium">{group.count}</td>
-                  <td className="p-4 text-right text-emerald-800 font-bold">R$ {group.totalPrice.toFixed(2)}</td>
+                  <td className="p-4 text-slate-600 font-medium tabular-nums">{group.count}</td>
+                  <td className="p-4 text-right text-emerald-800 font-bold tabular-nums">R$ {group.totalPrice.toFixed(2)}</td>
                 </tr>
               ))}
               {groupedList.length === 0 && (
@@ -246,7 +294,7 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
                         <th className="p-2">Veículo</th>
                         <th className="p-2">Tipo</th>
                         <th className="p-2">Horário</th>
-                        <th className="p-2">Duração</th>
+                        <th className="p-2">Pagamento</th>
                         <th className="p-2 text-right">Valor</th>
                         {onRevertCheckout && deviceConfig?.canRevertCheckout !== false && <th className="p-2 text-center">Ações</th>}
                       </tr>
@@ -266,11 +314,12 @@ export function History({ vehicles, deviceConfig, onRevertCheckout }: HistoryPro
                           <td className="p-2 text-xs">
                             In: {new Date(v.checkInTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}<br/>
                             Out: {new Date(v.checkOutTime || 0).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            <span className="block text-slate-400">{formatDuration(v.checkInTime, v.checkOutTime)}</span>
                           </td>
-                          <td className="p-2 text-xs">
-                            {formatDuration(v.checkInTime, v.checkOutTime)}
+                          <td className="p-2 text-xs font-medium">
+                            {v.paymentMethod === 'machine' ? 'Máquina' : v.paymentMethod === 'pix' ? 'PIX' : getPaymentIcon(v.paymentMethod)}
                           </td>
-                          <td className="p-2 text-right">R$ {(v.price || 0).toFixed(2)}</td>
+                          <td className="p-2 text-right tabular-nums">R$ {(v.price || 0).toFixed(2)}</td>
                           {onRevertCheckout && deviceConfig?.canRevertCheckout !== false && (
                             <td className="p-2 text-center text-xs">
                               <button 

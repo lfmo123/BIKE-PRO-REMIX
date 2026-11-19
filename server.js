@@ -277,7 +277,7 @@ async function startServer() {
   app.put('/api/vehicles/:id/checkout', async (req, res) => {
     try {
       const { id } = req.params;
-      const { price, paymentMethod, customerCardId, checkInTime, checkOutTime: providedCheckOutTime, checkOutOperatorName } = req.body;
+      const { price, paymentMethod, customerCardId, checkInTime, checkOutTime: providedCheckOutTime, checkOutOperatorName, rentalId } = req.body;
       const checkOutTime = providedCheckOutTime || Date.now();
       
       let updatedVehicle;
@@ -290,11 +290,12 @@ async function startServer() {
           checkOutTime,
           customerCardId,
           checkInTime,
-          checkOutOperatorName
+          checkOutOperatorName,
+          rentalId
         );
       } else if (dbType === 'mysql') {
         const mysqlDb = await import('./src/db/mysqlDb.js');
-        updatedVehicle = await mysqlDb.checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId, checkInTime);
+        updatedVehicle = await mysqlDb.checkOutVehicle(id, price, paymentMethod, checkOutTime, customerCardId, checkInTime, rentalId);
       } else {
         const db = readDb();
         const vehicleIndex = db.vehicles.findIndex(v => v.id === id);
@@ -309,7 +310,8 @@ async function startServer() {
             price,
             paymentMethod,
             customerCardId,
-            ...(checkOutOperatorName ? { checkOutOperatorName } : {})
+            ...(checkOutOperatorName ? { checkOutOperatorName } : {}),
+            ...(rentalId ? { rentalId } : {})
           };
           
           if (checkInTime) {

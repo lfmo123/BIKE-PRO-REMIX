@@ -9,13 +9,15 @@ import {
   AlertTriangle,
   TrendingUp,
   CreditCard,
-  Clock
+  Clock,
+  CalendarRange
 } from 'lucide-react';
 import { ParkedVehicle, Pricing, LostCard, Product, Sale, CustomerCard, SpotRental } from '../types';
 import { SaleModal } from './SaleModal';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 import { SpotsGrid } from './SpotsGrid';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
+import { getActiveValidRentals, isVehicleCoveredByRental } from '../lib/rentalUtils';
 
 export interface DashboardProps {
   vehicles: ParkedVehicle[];
@@ -144,6 +146,9 @@ export function Dashboard({
     ebike: activeVehicles.filter(v => v.type === 'ebike').length,
     motorcycle: activeVehicles.filter(v => v.type === 'motorcycle').length
   };
+
+  const rentedActiveCount = activeVehicles.filter(v => isVehicleCoveredByRental(v, spotRentals)).length;
+  const validRentalsCount = getActiveValidRentals(spotRentals).length;
 
   const storedCount = {
     bicycle: storedVehicles.filter(v => v.type === 'bicycle').length,
@@ -331,6 +336,25 @@ export function Dashboard({
                   </div>
                   <span className="text-xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">{typeCount.motorcycle}</span>
                 </div>
+
+                {(deviceConfig?.enableSpotRentals || rentedActiveCount > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => deviceConfig?.enableSpotRentals && onNavigate?.('rentals')}
+                    className="w-full flex items-center justify-between p-3 bg-teal-50/80 dark:bg-teal-950/40 hover:bg-teal-100/70 dark:hover:bg-teal-950/60 border border-teal-200 dark:border-teal-800 rounded-xl transition-colors text-left"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-teal-100 dark:bg-teal-900/60 p-2 rounded-lg">
+                        <CalendarRange className="w-5 h-5 text-teal-700 dark:text-teal-300" />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-teal-900 dark:text-teal-200 block leading-tight">Vagas Alugadas (No Pátio)</span>
+                        <span className="text-xs text-teal-700 dark:text-teal-400">{validRentalsCount} contrato(s) vigente(s)</span>
+                      </div>
+                    </div>
+                    <span className="text-xl font-bold text-teal-900 dark:text-teal-100 tabular-nums">{rentedActiveCount}</span>
+                  </button>
+                )}
               </div>
             </div>
 

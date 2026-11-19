@@ -905,7 +905,8 @@ export default function App() {
     paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'fiado' | 'machine' | 'pix' | 'rental',
     customerCardId?: string,
     checkInTime?: number,
-    checkOutTime?: number
+    checkOutTime?: number,
+    rentalId?: string
   ) => {
     const payload = {
       price,
@@ -914,6 +915,7 @@ export default function App() {
       checkInTime,
       checkOutTime,
       checkOutOperatorName: deviceModules.enableOperatorLogin ? activeOperator : undefined,
+      ...(rentalId ? { rentalId } : {}),
     };
 
     if (deviceModules.enableOfflineQueue && !navigator.onLine) {
@@ -926,7 +928,7 @@ export default function App() {
       setVehicles(prev =>
         prev.map(v =>
           v.id === vehicleId
-            ? { ...v, status: 'completed', price, paymentMethod, checkOutTime: checkOutTime || Date.now() }
+            ? { ...v, status: 'completed', price, paymentMethod, checkOutTime: checkOutTime || Date.now(), ...(rentalId ? { rentalId } : {}) }
             : v
         )
       );
@@ -964,7 +966,7 @@ export default function App() {
         setVehicles(prev =>
           prev.map(v =>
             v.id === vehicleId
-              ? { ...v, status: 'completed', price, paymentMethod, checkOutTime: checkOutTime || Date.now() }
+              ? { ...v, status: 'completed', price, paymentMethod, checkOutTime: checkOutTime || Date.now(), ...(rentalId ? { rentalId } : {}) }
               : v
           )
         );
@@ -1256,10 +1258,12 @@ export default function App() {
                   <ActiveParking
                     vehicles={vehicles}
                     pricing={pricing}
+                    spotRentals={spotRentals}
                     deviceConfig={deviceModules}
                     onCheckOut={setVehicleToCheckOut}
                     onRevertCheckin={handleRevertCheckin}
                     onOpenScanner={() => setIsScannerOpen(true)}
+                    onOpenRentals={() => setActiveTab('rentals')}
                   />
                 )}
                 {activeTab === 'conference' && <Conference vehicles={vehicles} shifts={shifts} />}
@@ -1341,6 +1345,7 @@ export default function App() {
                     spotRentals={spotRentals}
                     deviceConfig={deviceModules}
                     onCheckOut={handleCheckOut}
+                    onOpenRentals={() => setActiveTab('rentals')}
                   />
                 )}
                 {activeTab === 'cashbook' && (
@@ -1458,6 +1463,12 @@ export default function App() {
         spotRentals={spotRentals}
         deviceConfig={deviceModules}
         activeOperator={deviceModules.enableOperatorLogin ? activeOperator : undefined}
+        onOpenRentals={() => {
+          setIsCheckInOpen(false);
+          setInitialCheckInSpot('');
+          setInitialCheckInMeta({});
+          setActiveTab('rentals');
+        }}
       />
 
       <CheckOutModal
@@ -1470,6 +1481,10 @@ export default function App() {
         onConfirm={handleCheckOut}
         onReportLostCard={handleReportLostCard}
         onRevertCheckin={handleRevertCheckin}
+        onOpenRentals={() => {
+          setVehicleToCheckOut(null);
+          setActiveTab('rentals');
+        }}
       />
 
       <QrScannerModal

@@ -4,6 +4,7 @@ import { CheckSquare, LockIcon, Loader2, ArrowUpRight, ArrowDownRight, Clock, Us
 import { ShiftDetailsModal } from './ShiftDetailsModal';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { isFiadoTransaction, getTransactionPaymentMethod } from '../lib/transactionUtils';
+import { isRentalTransaction } from '../lib/rentalUtils';
 
 interface ShiftControlProps {
   operators: Operator[];
@@ -60,6 +61,11 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
     let totalCard = 0;
     let totalPix = 0;
     let totalMachine = 0;
+    let rentalRevenuePaid = 0;
+    let rentalRevenueFiado = 0;
+
+    const rentalCheckIns = checkedInVehicles.filter(v => Boolean(v.rentalId)).length;
+    const rentalCheckOuts = checkedOutVehicles.filter(v => v.paymentMethod === 'rental' || Boolean(v.rentalId)).length;
 
     const addPayment = (amount: number, method?: string) => {
         if (method === 'cash') totalCash += amount;
@@ -72,9 +78,13 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
     // manual transactions
     shiftTransactions.forEach(t => {
       if (t.type === 'income') {
+         const isRentalTx = isRentalTransaction(t);
          if (!isFiadoTransaction(t)) {
            totalIncome += t.amount;
            addPayment(t.amount, getTransactionPaymentMethod(t));
+           if (isRentalTx) rentalRevenuePaid += t.amount;
+         } else if (isRentalTx) {
+           rentalRevenueFiado += t.amount;
          }
       } else {
          totalExpense += t.amount;
@@ -98,7 +108,21 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
        }
     });
 
-    return { totalIncome, totalExpense, totalCash, totalCard, totalPix, totalMachine, overnightCount, checkIns: checkedInVehicles.length, checkOuts: checkedOutVehicles.length };
+    return {
+      totalIncome,
+      totalExpense,
+      totalCash,
+      totalCard,
+      totalPix,
+      totalMachine,
+      overnightCount,
+      checkIns: checkedInVehicles.length,
+      checkOuts: checkedOutVehicles.length,
+      rentalCheckIns,
+      rentalCheckOuts,
+      rentalRevenuePaid,
+      rentalRevenueFiado
+    };
   };
 
   const currentSummary = calculateCurrentSummary();
@@ -239,16 +263,32 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
                           <div className="grid grid-cols-2 gap-3">
                               <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
                                   <span className="text-xs font-semibold text-emerald-800 uppercase flex items-center"><ArrowUpRight className="w-3 h-3 mr-1"/> Entradas</span>
-                                  <p className="text-xl font-bold text-emerald-700">R$ {currentSummary.totalIncome.toFixed(2)}</p>
+                                  <p className="text-xl font-bold text-emerald-700 tabular-nums">R$ {currentSummary.totalIncome.toFixed(2)}</p>
                               </div>
                               <div className="bg-red-50 p-4 rounded-xl border border-red-100">
                                   <span className="text-xs font-semibold text-red-800 uppercase flex items-center"><ArrowDownRight className="w-3 h-3 mr-1"/> Saídas</span>
-                                  <p className="text-xl font-bold text-red-700">R$ {currentSummary.totalExpense.toFixed(2)}</p>
+                                  <p className="text-xl font-bold text-red-700 tabular-nums">R$ {currentSummary.totalExpense.toFixed(2)}</p>
                               </div>
                               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 col-span-2 flex justify-between items-center">
                                   <span className="text-sm font-bold text-blue-800">Saldo Parcial do Turno</span>
-                                  <p className="text-2xl font-bold text-blue-900">R$ {(activeShift.initialChange + currentSummary.totalIncome - currentSummary.totalExpense).toFixed(2)}</p>
+                                  <p className="text-2xl font-bold text-blue-900 tabular-nums">R$ {(activeShift.initialChange + currentSummary.totalIncome - currentSummary.totalExpense).toFixed(2)}</p>
                               </div>
+                              {(deviceConfig?.enableSpotRentals || currentSummary.rentalCheckIns > 0 || currentSummary.rentalCheckOuts > 0 || currentSummary.rentalRevenuePaid > 0 || currentSummary.rentalRevenueFiado > 0) && (
+                                <div className="bg-teal-50 p-3.5 rounded-xl border border-teal-200 col-span-2 flex flex-wrap justify-between items-center gap-2 text-xs text-teal-900">
+                                  <div>
+                                    <span className="font-bold block">Vagas Alugadas no Turno</span>
+                                    <span className="text-teal-700">
+                                      {currentSummary.rentalCheckIns} entrada(s) • {currentSummary.rentalCheckOuts} saída(s) coberta(s)
+                                    </span>
+                                  </div>
+                                  <div className="text-right tabular-nums">
+                                    <span className="font-bold block">Contratos: R$ {currentSummary.rentalRevenuePaid.toFixed(2)}</span>
+                                    {currentSummary.rentalRevenueFiado > 0 && (
+                                      <span className="text-orange-700 font-semibold">Fiado: R$ {currentSummary.rentalRevenueFiado.toFixed(2)}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                           </div>
                       )}
 
@@ -334,6 +374,7 @@ export function ShiftControl({ operators, shifts, transactions, vehicles, sales,
           vehicles={vehicles}
           transactions={transactions}
           sales={sales}
+          deviceConfig={deviceConfig}
         />
       )}
     </div>

@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { X, Bike, Zap, Motorbike, Layers, Camera, Trash2, QrCode, CalendarRange, Lock, AlertTriangle } from 'lucide-react';
+import { X, Bike, Zap, Motorbike, Layers, Camera, Trash2, QrCode, CalendarRange, Lock, AlertTriangle, ExternalLink } from 'lucide-react';
 import { VehicleType, ParkedVehicle, SpotRental } from '../types';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { generateQrSvg } from '../lib/pixUtils';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
-import { findFixedRentalForSpot, formatDateBr, getRentalValidity } from '../lib/rentalUtils';
+import { findFixedRentalForSpot, formatDateBr, getActiveValidRentals, getRentalValidity } from '../lib/rentalUtils';
 
 interface CheckInModalProps {
   isOpen: boolean;
@@ -21,6 +21,7 @@ interface CheckInModalProps {
   spotRentals?: SpotRental[];
   deviceConfig?: DeviceFeaturesConfig;
   activeOperator?: string;
+  onOpenRentals?: () => void;
 }
 
 async function compressImageFile(file: File, maxWidth = 400, quality = 0.6): Promise<string> {
@@ -66,12 +67,14 @@ export function CheckInModal({
   spotRentals = [],
   deviceConfig,
   activeOperator,
+  onOpenRentals,
 }: CheckInModalProps) {
   const [type, setType] = useState<VehicleType>('bicycle');
   const [cardNumber, setCardNumber] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [selectedRentalId, setSelectedRentalId] = useState('');
+  const [showRentalShortcut, setShowRentalShortcut] = useState(false);
   const [customDate, setCustomDate] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -94,9 +97,9 @@ export function CheckInModal({
   const showQrPrintOption = Boolean(deviceConfig?.enableQrTicketScanner && deviceConfig?.canPrintTicket !== false);
   const rentalsEnabled = Boolean(deviceConfig?.enableSpotRentals);
 
-  const activeFloatingRentals = useMemo(() => {
+  const activeValidRentals = useMemo(() => {
     if (!rentalsEnabled) return [];
-    return spotRentals.filter(r => r.status === 'active' && r.mode === 'floating' && getRentalValidity(r).isValidToday);
+    return getActiveValidRentals(spotRentals);
   }, [rentalsEnabled, spotRentals]);
 
   const fixedSpotRental = useMemo(() => {
@@ -137,6 +140,7 @@ export function CheckInModal({
       setOwnerName(initialOwnerName || '');
       setIdentifier(initialIdentifier || '');
       setSelectedRentalId(initialRentalId || '');
+      setShowRentalShortcut(Boolean(initialRentalId));
       setErrorMsg('');
 
       const now = new Date();
@@ -327,22 +331,38 @@ export function CheckInModal({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="block text-lg font-medium text-slate-700 dark:text-slate-200">Tipo de Veículo</label>
-              {canCheckInBulk && (
-                <button
-                  type="button"
-                  onClick={() => setIsBulkMode(!isBulkMode)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    isBulkMode
-                      ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <Layers className="w-4 h-4" />
-                  {isBulkMode ? 'Em Massa (Ativo)' : 'Em Massa'}
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {rentalsEnabled && !isBulkMode && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRentalShortcut(prev => !prev)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${
+                      showRentalShortcut || Boolean(activeRental)
+                        ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 border border-teal-300 dark:border-teal-700'
+                        : 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/50 border border-teal-200 dark:border-teal-800'
+                    }`}
+                  >
+                    <CalendarRange className="w-4 h-4" />
+                    Vaga Alugada
+                  </button>
+                )}
+                {canCheckInBulk && (
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkMode(!isBulkMode)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                      isBulkMode
+                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <Layers className="w-4 h-4" />
+                    {isBulkMode ? 'Em Massa (Ativo)' : 'Em Massa'}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
@@ -467,38 +487,80 @@ export function CheckInModal({
                       <span>O nome informado diverge do locatário reservado ({fixedSpotRental.ownerName}).</span>
                     </div>
                   )}
+                  {!validity.isValidToday && onOpenRentals && (
+                    <button
+                      type="button"
+                      onClick={onOpenRentals}
+                      className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Renovar Contrato
+                    </button>
+                  )}
                 </div>
               );
             })()}
 
-            {!isBulkMode && rentalsEnabled && !fixedSpotRental && activeFloatingRentals.length > 0 && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2">
-                <label htmlFor="floatingRental" className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-300">
-                  <CalendarRange className="w-4 h-4" />
-                  Vincular Direito Rotativo Vigente (Opcional)
-                </label>
-                <select
-                  id="floatingRental"
-                  value={selectedRentalId}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setSelectedRentalId(id);
-                    const picked = activeFloatingRentals.find(r => r.id === id);
-                    if (picked) {
-                      setOwnerName(picked.ownerName);
-                      setType(picked.vehicleType);
-                      if (picked.vehicleIdentifier) setIdentifier(picked.vehicleIdentifier);
-                    }
-                  }}
-                  className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                >
-                  <option value="">Entrada avulsa normal (sem contrato)</option>
-                  {activeFloatingRentals.map(r => (
-                    <option key={r.id} value={r.id}>
-                      {r.ownerName} • até {formatDateBr(r.endDate)} ({r.vehicleType === 'bicycle' ? 'Bicicleta' : r.vehicleType === 'ebike' ? 'E-Bike' : 'Moto'})
-                    </option>
-                  ))}
-                </select>
+            {!isBulkMode && rentalsEnabled && (showRentalShortcut || (!fixedSpotRental && Boolean(selectedRentalId))) && (
+              <div className="p-3.5 rounded-2xl bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="rentalQuickSelect" className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-300">
+                    <CalendarRange className="w-4 h-4" />
+                    Atalho: Contrato de Vaga Alugada
+                  </label>
+                  {onOpenRentals && (
+                    <button
+                      type="button"
+                      onClick={onOpenRentals}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 dark:text-teal-300 hover:underline whitespace-nowrap"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      + Novo / Gerenciar
+                    </button>
+                  )}
+                </div>
+
+                {activeValidRentals.length > 0 ? (
+                  <select
+                    id="rentalQuickSelect"
+                    value={fixedSpotRental?.id || selectedRentalId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedRentalId(id);
+                      const picked = activeValidRentals.find(r => r.id === id);
+                      if (picked) {
+                        if (picked.mode === 'fixed' && picked.spotNumber && !isVipGrid) {
+                          setCardNumber(picked.spotNumber);
+                        }
+                        setOwnerName(picked.ownerName);
+                        setType(picked.vehicleType);
+                        if (picked.vehicleIdentifier) setIdentifier(picked.vehicleIdentifier);
+                      }
+                    }}
+                    className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-teal-200 dark:border-teal-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="">Entrada avulsa normal (sem contrato)</option>
+                    {activeValidRentals.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.mode === 'fixed' && r.spotNumber ? `[Vaga ${r.spotNumber}] ` : '[Rotativo] '}
+                        {r.ownerName} • até {formatDateBr(r.endDate)} ({r.vehicleType === 'bicycle' ? 'Bicicleta' : r.vehicleType === 'ebike' ? 'E-Bike' : 'Moto'})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between gap-2 bg-white/80 dark:bg-slate-900/60 p-2.5 rounded-xl border border-teal-100 dark:border-teal-900">
+                    <span>Nenhum contrato de aluguel vigente cadastrado hoje.</span>
+                    {onOpenRentals && (
+                      <button
+                        type="button"
+                        onClick={onOpenRentals}
+                        className="px-2.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold whitespace-nowrap"
+                      >
+                        Criar Aluguel
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

@@ -16,13 +16,14 @@ import {
   QrCode,
   Copy,
   Check,
-  CalendarRange
+  CalendarRange,
+  ExternalLink
 } from 'lucide-react';
 import { ParkedVehicle, Pricing, VehicleType, CustomerCard, SpotRental } from '../types';
 import { calculatePrice, formatDuration, getBilledBreakdown } from '../lib/pricing';
 import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { generatePixPayload, generateQrDataUrl } from '../lib/pixUtils';
-import { findMatchingRentalForVehicle, formatDateBr, getRentalValidity } from '../lib/rentalUtils';
+import { findMatchingRentalForVehicle, formatDateBr, getActiveValidRentals, getRentalValidity, isVehicleCoveredByRental } from '../lib/rentalUtils';
 
 interface CheckOutProps {
   vehicles: ParkedVehicle[];
@@ -36,15 +37,18 @@ interface CheckOutProps {
     paymentMethod: 'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix' | 'rental',
     customerCardId?: string,
     checkInTime?: number,
-    checkOutTime?: number
+    checkOutTime?: number,
+    rentalId?: string
   ) => void;
+  onOpenRentals?: () => void;
 }
 
-export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], deviceConfig, onCheckOut }: CheckOutProps) {
+export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], deviceConfig, onCheckOut, onOpenRentals }: CheckOutProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<ParkedVehicle | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'postpaid_card' | 'machine' | 'pix' | 'rental'>('cash');
   const [selectedCardId, setSelectedCardId] = useState<string>('');
+  const [selectedRentalId, setSelectedRentalId] = useState<string>('');
   const [now, setNow] = useState(Date.now());
   const [editedCheckIn, setEditedCheckIn] = useState('');
   const [editedCheckOut, setEditedCheckOut] = useState('');
@@ -89,6 +93,7 @@ export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], d
       setEditedCheckOut(formatLocal(Date.now()));
 
       const matched = findMatchingRentalForVehicle(spotRentals, selectedVehicle);
+      setSelectedRentalId(matched?.id || selectedVehicle.rentalId || '');
       const isValid = matched ? getRentalValidity(matched).isValidToday : false;
       if ((rentalsEnabled || selectedVehicle.rentalId) && matched && isValid) {
         setPaymentMethod('rental');
@@ -102,6 +107,7 @@ export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], d
   useEffect(() => {
     if (!selectedVehicle || autoAppliedRentalRef.current === selectedVehicle.id) return;
     const matched = findMatchingRentalForVehicle(spotRentals, selectedVehicle);
+    if (matched) setSelectedRentalId(prev => prev || matched.id);
     const isValid = matched ? getRentalValidity(matched).isValidToday : false;
     if ((rentalsEnabled || selectedVehicle.rentalId) && matched && isValid) {
       setPaymentMethod('rental');
@@ -128,8 +134,10 @@ export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], d
   const basePrice = selectedVehicle
     ? calculatePrice({ ...selectedVehicle, checkInTime: checkInMs }, pricing, checkOutMs, hourlyEnabled)
     : 0;
-  const matchedRental = selectedVehicle ? findMatchingRentalForVehicle(spotRentals, selectedVehicle) : undefined;
+  const autoMatchedRental = selectedVehicle ? findMatchingRentalForVehicle(spotRentals, selectedVehicle) : undefined;
+  const matchedRental = (selectedRentalId ? spotRentals.find(r => r.id === selectedRentalId) : undefined) || autoMatchedRental;
   const rentalValidity = matchedRental ? getRentalValidity(matchedRental) : undefined;
+  const validRentals = rentalsEnabled ? getActiveValidRentals(spotRentals) : [];
   const showRentalOption = Boolean(selectedVehicle && (rentalsEnabled || matchedRental || selectedVehicle.rentalId));
   const currentPrice = paymentMethod === 'rental' ? 0 : basePrice;
 
@@ -197,10 +205,19 @@ export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], d
 
   const handleConfirm = () => {
     if (selectedVehicle) {
-      onCheckOut(selectedVehicle.id, currentPrice, paymentMethod, selectedCardId || undefined, checkInMs, checkOutMs);
+      onCheckOut(
+        selectedVehicle.id,
+        currentPrice,
+        paymentMethod,
+        selectedCardId || undefined,
+        checkInMs,
+        checkOutMs,
+        paymentMethod === 'rental' ? (selectedRentalId || matchedRental?.id || selectedVehicle.rentalId) : selectedVehicle.rentalId
+      );
       setSelectedVehicle(null);
       setSearchTerm('');
       setSelectedCardId('');
+      setSelectedRentalId('');
       setEditedCheckIn('');
       setEditedCheckOut('');
     }
@@ -210,8 +227,18 @@ export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], d
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex items-center justify-between shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Registrar Saída</h1>
+        {rentalsEnabled && onOpenRentals && (
+          <button
+            type="button"
+            onClick={onOpenRentals}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/60 text-teal-800 dark:text-teal-200 border border-teal-200 dark:border-teal-800 text-sm font-semibold whitespace-nowrap transition-colors"
+          >
+            <CalendarRange className="w-4 h-4" />
+            Vagas Alugadas
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
@@ -251,6 +278,12 @@ export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], d
                       <div>
                         <h3 className="font-bold text-slate-900 dark:text-slate-100">{vehicle.identifier}</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">{vehicle.ownerName}</p>
+                        {(rentalsEnabled || vehicle.rentalId) && isVehicleCoveredByRental(vehicle, spotRentals) && (
+                          <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 dark:text-teal-300">
+                            <CalendarRange className="w-3 h-3" />
+                            Vaga Alugada
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
@@ -371,10 +404,22 @@ export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], d
                       {rentalValidity?.label}
                     </span>
                   </div>
-                  <p className="mt-1">
-                    Titular: <span className="font-semibold">{matchedRental.ownerName}</span> • Vigência até{' '}
-                    <span className="font-semibold">{formatDateBr(matchedRental.endDate)}</span>
-                  </p>
+                  <div className="mt-1 flex items-center justify-between gap-2 flex-wrap">
+                    <p>
+                      Titular: <span className="font-semibold">{matchedRental.ownerName}</span> • Vigência até{' '}
+                      <span className="font-semibold">{formatDateBr(matchedRental.endDate)}</span>
+                    </p>
+                    {!rentalValidity?.isValidToday && onOpenRentals && (
+                      <button
+                        type="button"
+                        onClick={onOpenRentals}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold whitespace-nowrap"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Renovar Aluguel
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -453,6 +498,46 @@ export function CheckOut({ vehicles, pricing, customerCards, spotRentals = [], d
                     </button>
                   )}
                 </div>
+
+                {showRentalOption && paymentMethod === 'rental' && (
+                  <div className="p-3.5 rounded-xl bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-300 flex items-center gap-1.5">
+                        <CalendarRange className="w-3.5 h-3.5" />
+                        Vincular Contrato de Vaga Alugada
+                      </span>
+                      {onOpenRentals && (
+                        <button
+                          type="button"
+                          onClick={onOpenRentals}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 dark:text-teal-300 hover:underline whitespace-nowrap"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Gerenciar / Novo
+                        </button>
+                      )}
+                    </div>
+                    {validRentals.length > 0 ? (
+                      <select
+                        value={selectedRentalId || matchedRental?.id || ''}
+                        onChange={(e) => setSelectedRentalId(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-teal-200 dark:border-teal-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      >
+                        <option value="">Selecionar contrato vigente (opcional)...</option>
+                        {validRentals.map(r => (
+                          <option key={r.id} value={r.id}>
+                            {r.mode === 'fixed' && r.spotNumber ? `[Vaga ${r.spotNumber}] ` : '[Rotativo] '}
+                            {r.ownerName} • até {formatDateBr(r.endDate)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-xs text-teal-800 dark:text-teal-300">
+                        Saída registrada como coberta por Vaga Alugada (R$ 0,00 avulso).
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {deviceConfig?.enablePixQrCode && paymentMethod === 'pix' && (

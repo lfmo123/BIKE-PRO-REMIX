@@ -3,16 +3,19 @@ import { Transaction, ParkedVehicle, Shift } from '../types';
 import { X, Printer, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { generateThermalPrintHtml, printHtml } from '../utils/printHelper';
 import { isFiadoTransaction, getTransactionPaymentMethod } from '../lib/transactionUtils';
+import { isRentalTransaction } from '../lib/rentalUtils';
+import { DeviceFeaturesConfig } from '../lib/deviceModules';
 
 interface DailyReportModalProps {
   date: string; // YYYY-MM-DD
   vehicles: ParkedVehicle[];
   transactions: Transaction[];
   shifts: Shift[];
+  deviceConfig?: DeviceFeaturesConfig;
   onClose: () => void;
 }
 
-export function DailyReportModal({ date, vehicles, transactions, shifts, onClose }: DailyReportModalProps) {
+export function DailyReportModal({ date, vehicles, transactions, shifts, deviceConfig, onClose }: DailyReportModalProps) {
   const [year, month, day] = date.split('-').map(Number);
   const startOfDay = new Date(year, month - 1, day, 0, 0, 0).getTime();
   const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999).getTime();
@@ -35,6 +38,8 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
   const ebikesOut = exitsToday.filter(v => v.type === 'ebike').length;
   const motosIn = entriesToday.filter(v => v.type === 'motorcycle').length;
   const motosOut = exitsToday.filter(v => v.type === 'motorcycle').length;
+  const rentalsIn = entriesToday.filter(v => Boolean(v.rentalId)).length;
+  const rentalsOut = exitsToday.filter(v => v.paymentMethod === 'rental' || Boolean(v.rentalId)).length;
 
   // Operational Data (Yesterday)
   const entriesYest = vehicles.filter(v => v.checkInTime >= prevStartOfDay && v.checkInTime <= prevEndOfDay);
@@ -61,6 +66,10 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
 
   const totalFiadoGenerated = exitsToday.filter(v => v.paymentMethod === 'fiado').reduce((sum, v) => sum + (v.price || 0), 0) +
                               manualTransactions.filter(t => isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+
+  const rentalContractsPaid = manualPaidIncomes.filter(t => isRentalTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+  const rentalContractsFiado = manualTransactions.filter(t => isRentalTransaction(t) && isFiadoTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+  const showRentalSummary = Boolean(deviceConfig?.enableSpotRentals) || rentalsIn > 0 || rentalsOut > 0 || rentalContractsPaid > 0 || rentalContractsFiado > 0;
 
   const totalIncome = totalCash + totalPix + totalMachine;
   const totalExpense = totalExpenseTransactions;
@@ -112,6 +121,7 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
           <tr><td>Bicicletas</td><td style="text-align: right;">${bikesIn} / ${bikesOut}</td></tr>
           <tr><td>E-Bikes</td><td style="text-align: right;">${ebikesIn} / ${ebikesOut}</td></tr>
           <tr><td>Motos</td><td style="text-align: right;">${motosIn} / ${motosOut}</td></tr>
+          ${showRentalSummary ? `<tr><td>Vagas Alugadas (Entr./Saídas)</td><td style="text-align: right;">${rentalsIn} / ${rentalsOut}</td></tr>` : ''}
           <tr style="font-weight: bold; border-top: 1px solid #000;">
             <td>Total</td><td style="text-align: right;">${totalInToday} / ${totalOutToday}</td>
           </tr>
@@ -123,6 +133,7 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
         <div class="row"><span class="label">Dinheiro</span> <span class="value">R$ ${totalCash.toFixed(2)}</span></div>
         <div class="row"><span class="label">PIX</span> <span class="value">R$ ${totalPix.toFixed(2)}</span></div>
         <div class="row"><span class="label">Máquina</span> <span class="value">R$ ${totalMachine.toFixed(2)}</span></div>
+        ${showRentalSummary ? `<div class="row"><span class="label">Vagas Alugadas (incluso acima)</span> <span class="value">R$ ${rentalContractsPaid.toFixed(2)}</span></div>` : ''}
         <div class="row" style="font-weight: bold;"><span class="label">Total Entradas</span> <span class="value">R$ ${totalIncome.toFixed(2)}</span></div>
         <div class="row" style="color: #666;"><span class="label">Fiado Gerado (Pendente)</span> <span class="value">R$ ${totalFiadoGenerated.toFixed(2)}</span></div>
         <div class="row" style="color: #666;"><span class="label">Total Saídas</span> <span class="value">- R$ ${totalExpense.toFixed(2)}</span></div>
@@ -190,6 +201,15 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
                 <p className="text-sm font-medium text-slate-500 mb-2">Motos</p>
                 <div className="text-lg font-bold text-slate-900">{motosIn} / {motosOut}</div>
               </div>
+              {showRentalSummary && (
+                <div className="bg-teal-50 p-4 rounded-xl border border-teal-200 shadow-sm col-span-2 sm:col-span-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-teal-900">Vagas Alugadas (Movimentação do Dia)</p>
+                    <p className="text-xs text-teal-700">Entradas vinculadas / Saídas cobertas por contrato</p>
+                  </div>
+                  <div className="text-xl font-bold text-teal-900 tabular-nums">{rentalsIn} / {rentalsOut}</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -199,11 +219,17 @@ export function DailyReportModal({ date, vehicles, transactions, shifts, onClose
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
                 <p className="text-sm font-medium text-emerald-800 mb-1">Entradas</p>
-                <p className="text-2xl font-bold text-emerald-900">R$ {totalIncome.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-emerald-900 tabular-nums">R$ {totalIncome.toFixed(2)}</p>
                 <div className="text-xs text-emerald-700 mt-2 space-y-1">
                   <p>Dinheiro: R$ {totalCash.toFixed(2)}</p>
                   <p>PIX: R$ {totalPix.toFixed(2)}</p>
                   <p>Máquina: R$ {totalMachine.toFixed(2)}</p>
+                  {showRentalSummary && (
+                    <p className="text-teal-800 font-semibold pt-1 border-t border-emerald-200/60">
+                      Vagas Alugadas (Contratos, incluso acima): R$ {rentalContractsPaid.toFixed(2)}
+                      {rentalContractsFiado > 0 ? ` • Fiado R$ ${rentalContractsFiado.toFixed(2)}` : ''}
+                    </p>
+                  )}
                   {totalFiadoGenerated > 0 && (
                     <p className="text-orange-700 font-semibold pt-1 border-t border-emerald-200/60">
                       Fiado Gerado (Pendente): R$ {totalFiadoGenerated.toFixed(2)}

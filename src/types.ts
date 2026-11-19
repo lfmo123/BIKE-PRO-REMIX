@@ -141,6 +141,10 @@ export interface Shift {
     overnightCount: number;
     checkIns?: number;
     checkOuts?: number;
+    rentalCheckIns?: number;
+    rentalCheckOuts?: number;
+    rentalRevenuePaid?: number;
+    rentalRevenueFiado?: number;
   };
 }
 
