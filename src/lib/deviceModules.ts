@@ -61,6 +61,12 @@ export interface DeviceFeaturesConfig {
   enablePeakHoursChart: boolean;    // Gráfico de horários de pico nos Relatórios
   enableCsvExport: boolean;         // Exportação de tabelas/relatórios para Excel (CSV)
   enableSmartAlerts: boolean;       // Painel de alertas inteligentes (estoque baixo, fiado antigo, lotação)
+
+  // Livro Caixa Avançado (Módulos Individuais)
+  enableCashbookDrawer: boolean;        // Controle de gaveta (dinheiro físico vs digital), suprimentos e conferência
+  enableCashbookSmartLedger: boolean;   // Extrato inteligente: busca, filtros, filtro por turno, agrupamento e edição
+  enableCashbookAdvancedFiado: boolean; // Fiado avançado: visão por cliente, dias de atraso, quitados e cobrança Zap
+  enableCashbookAnalytics: boolean;     // Painel analítico: comparativo de período, gráficos leves e resumo WhatsApp
 }
 
 export type PresetProfile = 'all' | 'patio' | 'caixa';
@@ -81,6 +87,10 @@ export const NEW_FEATURES_DEFAULTS = {
   enablePeakHoursChart: false,
   enableCsvExport: false,
   enableSmartAlerts: false,
+  enableCashbookDrawer: false,
+  enableCashbookSmartLedger: false,
+  enableCashbookAdvancedFiado: false,
+  enableCashbookAnalytics: false,
 };
 
 export const DEFAULT_DEVICE_CONFIG: DeviceFeaturesConfig = {

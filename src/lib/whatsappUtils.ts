@@ -112,3 +112,89 @@ export function buildSpotRentalWhatsappText(rental: SpotRental): string {
   ].filter(Boolean).join('\n');
 }
 
+export function buildTransactionFiadoWhatsappText(params: {
+  clientName: string;
+  title: string;
+  date: number;
+  remainingAmount: number;
+  originLabel: string;
+}): string {
+  return [
+    `*BikePark - Lembrete de Pendência (Fiado)*`,
+    `Cliente: *${params.clientName}*`,
+    `Referência: ${params.title} (${params.originLabel})`,
+    `Data: ${new Date(params.date).toLocaleDateString('pt-BR')}`,
+    `Valor em aberto: *R$ ${params.remainingAmount.toFixed(2)}*`,
+    `Qualquer dúvida estamos à disposição.`
+  ].join('\n');
+}
+
+export function buildClientFiadoSummaryWhatsappText(params: {
+  clientName: string;
+  count: number;
+  totalRemaining: number;
+  oldestDate: number;
+}): string {
+  return [
+    `*BikePark - Resumo de Pendências (Fiado)*`,
+    `Cliente: *${params.clientName}*`,
+    `Lançamentos em aberto: ${params.count} (desde ${new Date(params.oldestDate).toLocaleDateString('pt-BR')})`,
+    `Total em aberto: *R$ ${params.totalRemaining.toFixed(2)}*`,
+    `Qualquer dúvida estamos à disposição.`
+  ].join('\n');
+}
+
+export function buildCashbookSummaryWhatsappText(params: {
+  periodLabel: string;
+  totalIncome: number;
+  incomeCash: number;
+  incomePix: number;
+  incomeMachine: number;
+  totalExpense: number;
+  balance: number;
+  incomeFiado: number;
+  totalPendingFiado: number;
+  drawerCash?: number;
+  digitalNet?: number;
+  rentalPaidIncome?: number;
+  rentalCheckoutsCount?: number;
+}): string {
+  const lines = [
+    `*BikePark - Resumo do Livro Caixa*`,
+    `Período: ${params.periodLabel}`,
+    ``,
+    `*Entradas:* R$ ${params.totalIncome.toFixed(2)}`,
+    `• Dinheiro: R$ ${params.incomeCash.toFixed(2)}`,
+    `• Máquina: R$ ${params.incomeMachine.toFixed(2)}`,
+    `• PIX: R$ ${params.incomePix.toFixed(2)}`,
+  ];
+
+  if (params.rentalPaidIncome && params.rentalPaidIncome > 0 || (params.rentalCheckoutsCount && params.rentalCheckoutsCount > 0)) {
+    lines.push(`• Vagas Alugadas (incluso acima): R$ ${(params.rentalPaidIncome || 0).toFixed(2)} (${params.rentalCheckoutsCount || 0} saídas)`);
+  }
+
+  lines.push(
+    `*Saídas:* R$ ${params.totalExpense.toFixed(2)}`,
+    `*Saldo do Período:* R$ ${params.balance.toFixed(2)}`
+  );
+
+  if (typeof params.drawerCash === 'number' && typeof params.digitalNet === 'number') {
+    lines.push(
+      ``,
+      `*Separação de Caixa:*`,
+      `• Dinheiro na Gaveta: R$ ${params.drawerCash.toFixed(2)}`,
+      `• Digital (PIX + Máquina): R$ ${params.digitalNet.toFixed(2)}`
+    );
+  }
+
+  lines.push(
+    ``,
+    `*Fiado:*`,
+    `• Gerado no período: R$ ${params.incomeFiado.toFixed(2)}`,
+    `• Total geral em haver: R$ ${params.totalPendingFiado.toFixed(2)}`
+  );
+
+  return lines.join('\n');
+}
+
+

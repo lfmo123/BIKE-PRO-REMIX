@@ -1534,11 +1534,32 @@ async function startServer() {
   app.put('/api/transactions/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      const data = req.body;
+      const body = req.body || {};
+      const data = {};
+      if (typeof body.description === 'string') data.description = body.description.trim();
+      if (body.amount !== undefined) {
+        const parsedAmt = Number(body.amount);
+        if (!Number.isFinite(parsedAmt) || parsedAmt <= 0) {
+          return res.status(400).json({ error: 'Valor inválido para o lançamento.' });
+        }
+        data.amount = parsedAmt;
+      }
+      if (body.type === 'income' || body.type === 'expense') data.type = body.type;
+      if (typeof body.category === 'string') data.category = body.category.trim();
+      if (typeof body.paymentMethod === 'string') data.paymentMethod = body.paymentMethod.trim();
+      if (typeof body.operator === 'string') data.operator = body.operator.trim();
+      if (typeof body.ownerName === 'string') data.ownerName = body.ownerName.trim();
+      if (typeof body.date === 'number' && Number.isFinite(body.date)) data.date = body.date;
+      if (typeof body.editedAt === 'number' && Number.isFinite(body.editedAt)) data.editedAt = body.editedAt;
+      if (typeof body.editedBy === 'string') data.editedBy = body.editedBy.trim();
+
       let updatedTransaction;
 
       if (dbType === 'firebase') {
         updatedTransaction = await firebaseDb.updateTransaction(id, data);
+      } else if (dbType === 'mysql') {
+        const mysqlDb = await import('./src/db/mysqlDb.js');
+        updatedTransaction = await mysqlDb.updateTransaction(id, data);
       } else {
         const db = readDb();
         db.transactions = db.transactions || [];

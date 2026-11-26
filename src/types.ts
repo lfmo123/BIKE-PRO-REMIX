@@ -91,6 +91,8 @@ export interface Transaction {
   fiadoPaidAmount?: number;
   fiadoPaymentDate?: number;
   fiadoPaymentMethod?: string;
+  editedAt?: number;
+  editedBy?: string;
 }
 
 export interface Product {

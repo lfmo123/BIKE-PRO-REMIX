@@ -609,9 +609,41 @@ export default function App() {
       const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setTransactions(prev => prev.filter(t => t.id !== id));
+        showToast('success', 'Lançamento excluído.');
+      } else {
+        showToast('error', 'Erro ao excluir lançamento.');
       }
     } catch (e) {
       console.error('Failed to delete transaction', e);
+      showToast('error', 'Falha de comunicação ao excluir lançamento.');
+    }
+  };
+
+  const handleUpdateTransaction = async (id: string, data: Partial<Transaction>) => {
+    const editor = deviceModules.enableOperatorLogin ? activeOperator : activeShift?.operatorName || 'Admin';
+    const payload: Partial<Transaction> = {
+      ...data,
+      editedAt: Date.now(),
+      editedBy: editor
+    };
+    try {
+      const res = await fetch(`/api/transactions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<Transaction>(res, 'Erro ao atualizar lançamento');
+      if (parsed.ok && parsed.data) {
+        setTransactions(prev =>
+          prev.map(t => (t.id === id ? { ...t, ...parsed.data } : t)).sort((a, b) => b.date - a.date)
+        );
+        showToast('success', 'Lançamento atualizado com sucesso!');
+      } else {
+        showToast('error', parsed.error || 'Erro ao atualizar lançamento.');
+      }
+    } catch (e) {
+      console.error('Failed to update transaction', e);
+      showToast('error', 'Falha de comunicação ao atualizar lançamento.');
     }
   };
 
@@ -1353,8 +1385,12 @@ export default function App() {
                     transactions={transactions}
                     vehicles={vehicles}
                     shifts={shifts}
+                    customerCards={customerCards}
+                    spotRentals={spotRentals}
+                    activeOperator={deviceModules.enableOperatorLogin ? activeOperator : undefined}
                     deviceConfig={deviceModules}
                     onAddTransaction={handleAddTransaction}
+                    onUpdateTransaction={handleUpdateTransaction}
                     onDeleteTransaction={handleDeleteTransaction}
                     onPayFiado={handlePayFiado}
                     onPayFiadoTransaction={handlePayFiadoTransaction}

@@ -511,9 +511,22 @@ export async function addTransaction(transaction) {
   } catch (e) {
     // ignore if columns already exist
   }
+  try {
+    await getPool().query('ALTER TABLE transactions ADD COLUMN category VARCHAR(100)');
+  } catch (e) { /* ignore */ }
+  try {
+    await getPool().query('ALTER TABLE transactions ADD COLUMN operator VARCHAR(100)');
+  } catch (e) { /* ignore */ }
+  try {
+    await getPool().query('ALTER TABLE transactions ADD COLUMN editedAt BIGINT');
+  } catch (e) { /* ignore */ }
+  try {
+    await getPool().query('ALTER TABLE transactions ADD COLUMN editedBy VARCHAR(100)');
+  } catch (e) { /* ignore */ }
+
   const query = `
-    INSERT INTO transactions (id, description, amount, date, type, paymentMethod, isFiadoPaid, fiadoPaidAmount)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO transactions (id, description, amount, date, type, category, operator, paymentMethod, isFiadoPaid, fiadoPaidAmount)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   await getPool().query(query, [
     transaction.id,
@@ -521,10 +534,57 @@ export async function addTransaction(transaction) {
     transaction.amount,
     transaction.date,
     transaction.type,
+    transaction.category || null,
+    transaction.operator || null,
     transaction.paymentMethod || null,
     transaction.isFiadoPaid ? 1 : 0,
     transaction.fiadoPaidAmount || 0
   ]);
+}
+
+export async function updateTransaction(id, data) {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  try {
+    await getPool().query('ALTER TABLE transactions ADD COLUMN paymentMethod VARCHAR(50)');
+  } catch (e) { /* ignore */ }
+  try {
+    await getPool().query('ALTER TABLE transactions ADD COLUMN category VARCHAR(100)');
+  } catch (e) { /* ignore */ }
+  try {
+    await getPool().query('ALTER TABLE transactions ADD COLUMN operator VARCHAR(100)');
+  } catch (e) { /* ignore */ }
+  try {
+    await getPool().query('ALTER TABLE transactions ADD COLUMN editedAt BIGINT');
+  } catch (e) { /* ignore */ }
+  try {
+    await getPool().query('ALTER TABLE transactions ADD COLUMN editedBy VARCHAR(100)');
+  } catch (e) { /* ignore */ }
+
+  const [existingRows] = await getPool().query('SELECT * FROM transactions WHERE id = ?', [id]);
+  if (!existingRows || existingRows.length === 0) return null;
+
+  const allowed = ['description', 'amount', 'date', 'type', 'category', 'operator', 'paymentMethod', 'editedAt', 'editedBy'];
+  const sets = [];
+  const values = [];
+  for (const key of allowed) {
+    if (data[key] !== undefined) {
+      sets.push(`${key} = ?`);
+      values.push(data[key]);
+    }
+  }
+  if (sets.length > 0) {
+    values.push(id);
+    await getPool().query(`UPDATE transactions SET ${sets.join(', ')} WHERE id = ?`, values);
+  }
+
+  const [rows] = await getPool().query('SELECT * FROM transactions WHERE id = ?', [id]);
+  if (!rows || rows.length === 0) return null;
+  return {
+    ...rows[0],
+    amount: rows[0].amount ? parseFloat(rows[0].amount) : 0,
+    fiadoPaidAmount: rows[0].fiadoPaidAmount ? parseFloat(rows[0].fiadoPaidAmount) : 0,
+    isFiadoPaid: rows[0].isFiadoPaid !== undefined ? !!rows[0].isFiadoPaid : undefined
+  };
 }
 
 export async function payFiadoTransaction(id, paymentMethod, paymentDate, amountToPay) {

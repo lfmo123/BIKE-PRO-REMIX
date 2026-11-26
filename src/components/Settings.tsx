@@ -666,6 +666,51 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
                       );
                     })}
                   </div>
+
+                  {/* Livro Caixa Avançado (Módulos Individuais) */}
+                  <div className="bg-white/90 dark:bg-slate-900/60 p-3 rounded-xl border border-indigo-100 dark:border-indigo-900/60 space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                      Livro Caixa Avançado (Módulos Individuais)
+                    </p>
+                    {[
+                      {
+                        key: 'enableCashbookDrawer',
+                        label: 'Controle de Gaveta e Suprimentos',
+                        desc: 'Separa Dinheiro na Gaveta de Digital (PIX + Máquina), libera suprimentos/entradas manuais, forma de pagamento nas despesas e conferência de gaveta'
+                      },
+                      {
+                        key: 'enableCashbookSmartLedger',
+                        label: 'Extrato Inteligente',
+                        desc: 'Adiciona busca instantânea, filtros por tipo/pagamento/categoria/operador, atalho por turno, agrupamento por dia com saldo acumulado e edição de lançamentos'
+                      },
+                      {
+                        key: 'enableCashbookAdvancedFiado',
+                        label: 'Fiado Avançado',
+                        desc: 'Visão agrupada por cliente (com baixa exclusiva), alerta de dias em aberto, aba de fiados quitados e cobrança via WhatsApp para cartão e vaga alugada'
+                      },
+                      {
+                        key: 'enableCashbookAnalytics',
+                        label: 'Painel Analítico do Caixa',
+                        desc: 'Comparativo automático com o período anterior, barras proporcionais de receitas e despesas por categoria e botão de resumo pronto para WhatsApp'
+                      },
+                    ].map((item) => {
+                      const isEnabled = Boolean((modules as any)[item.key]);
+                      return (
+                        <label key={item.key} className="flex items-start justify-between cursor-pointer p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                          <div className="pr-2">
+                            <span className={`text-xs font-semibold ${isEnabled ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-600 dark:text-slate-400'}`}>{item.label}</span>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">{item.desc}</p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={() => handleToggleModule(item.key as keyof DeviceModulesConfig)}
+                            className="mt-0.5 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
