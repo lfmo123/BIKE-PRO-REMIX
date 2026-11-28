@@ -67,6 +67,7 @@ export interface DeviceFeaturesConfig {
   enableCashbookSmartLedger: boolean;   // Extrato inteligente: busca, filtros, filtro por turno, agrupamento e edição
   enableCashbookAdvancedFiado: boolean; // Fiado avançado: visão por cliente, dias de atraso, quitados e cobrança Zap
   enableCashbookAnalytics: boolean;     // Painel analítico: comparativo de período, gráficos leves e resumo WhatsApp
+  enableFinanceModule: boolean;         // Módulo Financeiro completo (Empresa x Particular, Bancos, Depósitos e Contas a Pagar)
 }
 
 export type PresetProfile = 'all' | 'patio' | 'caixa';
@@ -91,6 +92,7 @@ export const NEW_FEATURES_DEFAULTS = {
   enableCashbookSmartLedger: false,
   enableCashbookAdvancedFiado: false,
   enableCashbookAnalytics: false,
+  enableFinanceModule: false,
 };
 
 export const DEFAULT_DEVICE_CONFIG: DeviceFeaturesConfig = {

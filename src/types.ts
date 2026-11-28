@@ -155,3 +155,70 @@ export interface Operator {
   name: string;
   pin?: string; // Optional individual PIN (used when enableOperatorLogin is enabled)
 }
+
+export type FinancialScope = 'company' | 'personal';
+export type FinancialAccountType = 'cash_drawer' | 'safe' | 'bank' | 'pix' | 'card_machine' | 'other';
+export type FinancialEntryType = 'income' | 'expense' | 'transfer';
+export type FinancialPaymentMethod = 'cash' | 'pix' | 'machine' | 'bank_transfer' | 'boleto' | 'other';
+
+export interface FinancialAccount {
+  id: string;
+  name: string;
+  type: FinancialAccountType;
+  scope: FinancialScope;
+  initialBalance: number;
+  notes?: string;
+  createdAt: number;
+}
+
+export interface FinancialOwner {
+  id: string;
+  name: string;
+  color?: 'indigo' | 'rose' | 'amber' | 'teal' | 'violet' | 'slate';
+  createdAt: number;
+}
+
+export interface FinancialEntry {
+  id: string;
+  type: FinancialEntryType;
+  scope: FinancialScope;
+  ownerId?: string;
+  ownerName?: string;
+  description: string;
+  category: string;
+  amount: number;
+  date: number;
+  accountId?: string;
+  toAccountId?: string;
+  paymentMethod?: FinancialPaymentMethod;
+  counterparty?: string;
+  payableId?: string;
+  notes?: string;
+  operator?: string;
+  editedAt?: number;
+  editedBy?: string;
+}
+
+export interface FinancialPayable {
+  id: string;
+  scope: FinancialScope;
+  ownerId?: string;
+  ownerName?: string;
+  description: string;
+  category: string;
+  counterparty?: string;
+  amount: number;
+  dueDate: string; // YYYY-MM-DD
+  status: 'pending' | 'paid';
+  paidDate?: number;
+  paidAmount?: number;
+  paidAccountId?: string;
+  paidPaymentMethod?: FinancialPaymentMethod;
+  recurrence?: 'none' | 'monthly';
+  installmentNumber?: number;
+  installmentTotal?: number;
+  groupId?: string;
+  notes?: string;
+  createdAt: number;
+}
+

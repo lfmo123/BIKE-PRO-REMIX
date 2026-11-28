@@ -1662,7 +1662,22 @@ async function startServer() {
     try {
       let backupData = {};
       if (dbType === 'firebase') {
-        const [vehicles, transactions, lostCards, pricing, customerCards, products, sales, shifts, operators, spotRentals] = await Promise.all([
+        const [
+          vehicles,
+          transactions,
+          lostCards,
+          pricing,
+          customerCards,
+          products,
+          sales,
+          shifts,
+          operators,
+          spotRentals,
+          financialAccounts,
+          financialOwners,
+          financialEntries,
+          financialPayables
+        ] = await Promise.all([
           firebaseDb.getVehicles(),
           firebaseDb.getTransactions(),
           firebaseDb.getLostCards(),
@@ -1672,10 +1687,14 @@ async function startServer() {
           firebaseDb.getSales(),
           firebaseDb.getShifts(),
           firebaseDb.getOperators(),
-          firebaseDb.getSpotRentals()
+          firebaseDb.getSpotRentals(),
+          firebaseDb.getFinancialAccounts(),
+          firebaseDb.getFinancialOwners(),
+          firebaseDb.getFinancialEntries(),
+          firebaseDb.getFinancialPayables()
         ]);
         backupData = {
-          version: 3,
+          version: 4,
           exportDate: new Date().toISOString(),
           pricing,
           vehicles,
@@ -1687,6 +1706,10 @@ async function startServer() {
           shifts,
           operators,
           spotRentals,
+          financialAccounts,
+          financialOwners,
+          financialEntries,
+          financialPayables,
           dbType
         };
       } else if (dbType === 'mysql') {
@@ -1698,7 +1721,7 @@ async function startServer() {
         backupData = { version: 2, exportDate: new Date().toISOString(), pricing, vehicles, transactions, lostCards, dbType };
       } else {
         const db = readDb();
-        backupData = { version: 3, exportDate: new Date().toISOString(), dbType, ...db };
+        backupData = { version: 4, exportDate: new Date().toISOString(), dbType, ...db };
       }
       res.json(backupData);
     } catch (error) {
@@ -1739,6 +1762,10 @@ async function startServer() {
         if (Array.isArray(data.shifts)) db.shifts = mergeById(db.shifts, data.shifts);
         if (Array.isArray(data.operators)) db.operators = mergeById(db.operators, data.operators);
         if (Array.isArray(data.spotRentals)) db.spotRentals = mergeById(db.spotRentals, data.spotRentals);
+        if (Array.isArray(data.financialAccounts)) db.financialAccounts = mergeById(db.financialAccounts, data.financialAccounts);
+        if (Array.isArray(data.financialOwners)) db.financialOwners = mergeById(db.financialOwners, data.financialOwners);
+        if (Array.isArray(data.financialEntries)) db.financialEntries = mergeById(db.financialEntries, data.financialEntries);
+        if (Array.isArray(data.financialPayables)) db.financialPayables = mergeById(db.financialPayables, data.financialPayables);
         if (Array.isArray(data.lostCards)) {
           const cardMap = new Map();
           (db.lostCards || []).forEach(c => {
@@ -1757,6 +1784,431 @@ async function startServer() {
     } catch (error) {
       console.error('Backup restore error:', error);
       res.status(500).json({ error: error.message || 'Falha ao restaurar backup completo.' });
+    }
+  });
+
+  // ------------------------------------
+  // FINANCIAL MANAGEMENT ROUTES (Empresa x Particular)
+  // ------------------------------------
+  const addMonthsIso = (dateStr, months) => {
+    const [y, m, d] = String(dateStr || '').split('-').map(Number);
+    const year = y || new Date().getFullYear();
+    const monthIdx = (m || 1) - 1 + months;
+    const targetYear = year + Math.floor(monthIdx / 12);
+    const normalizedMonth = ((monthIdx % 12) + 12) % 12;
+    const lastDay = new Date(targetYear, normalizedMonth + 1, 0).getDate();
+    const day = Math.min(d || 1, lastDay);
+    return `${targetYear}-${String(normalizedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
+  const financeStore = async (action, kind, arg1, arg2) => {
+    const fbMap = {
+      accounts: { get: firebaseDb.getFinancialAccounts, add: firebaseDb.addFinancialAccount, update: firebaseDb.updateFinancialAccount, remove: firebaseDb.removeFinancialAccount },
+      owners: { get: firebaseDb.getFinancialOwners, add: firebaseDb.addFinancialOwner, update: firebaseDb.updateFinancialOwner, remove: firebaseDb.removeFinancialOwner },
+      entries: { get: firebaseDb.getFinancialEntries, add: firebaseDb.addFinancialEntry, update: firebaseDb.updateFinancialEntry, remove: firebaseDb.removeFinancialEntry },
+      payables: { get: firebaseDb.getFinancialPayables, add: firebaseDb.addFinancialPayable, update: firebaseDb.updateFinancialPayable, remove: firebaseDb.removeFinancialPayable },
+    };
+    const jsonKeyMap = {
+      accounts: 'financialAccounts',
+      owners: 'financialOwners',
+      entries: 'financialEntries',
+      payables: 'financialPayables'
+    };
+
+    if (dbType === 'firebase') {
+      return fbMap[kind][action](arg1, arg2);
+    }
+    if (dbType === 'mysql') {
+      const mysqlDb = await import('./src/db/mysqlDb.js');
+      const myMap = {
+        accounts: { get: mysqlDb.getFinancialAccounts, add: mysqlDb.addFinancialAccount, update: mysqlDb.updateFinancialAccount, remove: mysqlDb.removeFinancialAccount },
+        owners: { get: mysqlDb.getFinancialOwners, add: mysqlDb.addFinancialOwner, update: mysqlDb.updateFinancialOwner, remove: mysqlDb.removeFinancialOwner },
+        entries: { get: mysqlDb.getFinancialEntries, add: mysqlDb.addFinancialEntry, update: mysqlDb.updateFinancialEntry, remove: mysqlDb.removeFinancialEntry },
+        payables: { get: mysqlDb.getFinancialPayables, add: mysqlDb.addFinancialPayable, update: mysqlDb.updateFinancialPayable, remove: mysqlDb.removeFinancialPayable },
+      };
+      return myMap[kind][action](arg1, arg2);
+    }
+
+    const db = readDb();
+    const jKey = jsonKeyMap[kind];
+    db[jKey] = db[jKey] || [];
+    if (action === 'get') return db[jKey];
+    if (action === 'add') {
+      db[jKey].push(arg1);
+      writeDb(db);
+      return arg1;
+    }
+    if (action === 'update') {
+      const idx = db[jKey].findIndex(i => i.id === arg1);
+      if (idx === -1) return null;
+      db[jKey][idx] = { ...db[jKey][idx], ...arg2 };
+      writeDb(db);
+      return db[jKey][idx];
+    }
+    if (action === 'remove') {
+      db[jKey] = db[jKey].filter(i => i.id !== arg1);
+      writeDb(db);
+      return true;
+    }
+    return null;
+  };
+
+  app.get('/api/finance/bootstrap', async (req, res) => {
+    try {
+      const [accounts, owners, entries, payables] = await Promise.all([
+        financeStore('get', 'accounts'),
+        financeStore('get', 'owners'),
+        financeStore('get', 'entries'),
+        financeStore('get', 'payables')
+      ]);
+      res.json({
+        accounts: (accounts || []).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)),
+        owners: (owners || []).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)),
+        entries: (entries || []).sort((a, b) => (b.date || 0) - (a.date || 0)),
+        payables: (payables || []).sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')))
+      });
+    } catch (error) {
+      console.error('Finance bootstrap error:', error);
+      res.status(500).json({ error: error.message || 'Falha ao carregar módulo financeiro.' });
+    }
+  });
+
+  // Accounts CRUD
+  app.post('/api/finance/accounts', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const name = String(b.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'Nome da conta é obrigatório.' });
+      const item = {
+        id: 'acc_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+        name,
+        type: b.type || 'bank',
+        scope: b.scope === 'personal' ? 'personal' : 'company',
+        initialBalance: Number(b.initialBalance) || 0,
+        notes: b.notes ? String(b.notes).trim() : undefined,
+        createdAt: Date.now()
+      };
+      const saved = await financeStore('add', 'accounts', item);
+      res.status(201).json(saved);
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao criar conta.' });
+    }
+  });
+
+  app.put('/api/finance/accounts/:id', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const data = {};
+      if (typeof b.name === 'string' && b.name.trim()) data.name = b.name.trim();
+      if (typeof b.type === 'string') data.type = b.type;
+      if (b.scope === 'company' || b.scope === 'personal') data.scope = b.scope;
+      if (b.initialBalance !== undefined && Number.isFinite(Number(b.initialBalance))) {
+        data.initialBalance = Number(b.initialBalance);
+      }
+      if (typeof b.notes === 'string') data.notes = b.notes.trim();
+      const updated = await financeStore('update', 'accounts', req.params.id, data);
+      if (!updated) return res.status(404).json({ error: 'Conta não encontrada.' });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao atualizar conta.' });
+    }
+  });
+
+  app.delete('/api/finance/accounts/:id', async (req, res) => {
+    try {
+      await financeStore('remove', 'accounts', req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao excluir conta.' });
+    }
+  });
+
+  // Owners (Titulares Particulares) CRUD
+  app.post('/api/finance/owners', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const name = String(b.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'Nome do titular é obrigatório.' });
+      const item = {
+        id: 'own_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+        name,
+        color: b.color || 'indigo',
+        createdAt: Date.now()
+      };
+      const saved = await financeStore('add', 'owners', item);
+      res.status(201).json(saved);
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao cadastrar titular.' });
+    }
+  });
+
+  app.put('/api/finance/owners/:id', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const data = {};
+      if (typeof b.name === 'string' && b.name.trim()) data.name = b.name.trim();
+      if (typeof b.color === 'string') data.color = b.color;
+      const updated = await financeStore('update', 'owners', req.params.id, data);
+      if (!updated) return res.status(404).json({ error: 'Titular não encontrado.' });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao atualizar titular.' });
+    }
+  });
+
+  app.delete('/api/finance/owners/:id', async (req, res) => {
+    try {
+      await financeStore('remove', 'owners', req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao excluir titular.' });
+    }
+  });
+
+  // Entries (Receitas, Despesas, Depósitos/Transferências) CRUD
+  app.post('/api/finance/entries', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const amount = Number(b.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({ error: 'Informe um valor maior que zero.' });
+      }
+      const type = ['income', 'expense', 'transfer'].includes(b.type) ? b.type : 'expense';
+      const description = String(b.description || '').trim();
+      if (!description) return res.status(400).json({ error: 'Descrição é obrigatória.' });
+
+      if (type === 'transfer' && (!b.accountId || !b.toAccountId || b.accountId === b.toAccountId)) {
+        return res.status(400).json({ error: 'Selecione contas de origem e destino diferentes para depósito/transferência.' });
+      }
+
+      const item = {
+        id: 'fin_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+        type,
+        scope: b.scope === 'personal' ? 'personal' : 'company',
+        ownerId: b.scope === 'personal' && b.ownerId ? String(b.ownerId) : undefined,
+        ownerName: b.scope === 'personal' && b.ownerName ? String(b.ownerName).trim() : undefined,
+        description,
+        category: String(b.category || (type === 'transfer' ? 'Depósito / Transferência' : 'Outros')).trim(),
+        amount,
+        date: typeof b.date === 'number' && Number.isFinite(b.date) ? b.date : Date.now(),
+        accountId: b.accountId ? String(b.accountId) : undefined,
+        toAccountId: type === 'transfer' && b.toAccountId ? String(b.toAccountId) : undefined,
+        paymentMethod: b.paymentMethod || 'cash',
+        counterparty: b.counterparty ? String(b.counterparty).trim() : undefined,
+        payableId: b.payableId ? String(b.payableId) : undefined,
+        notes: b.notes ? String(b.notes).trim() : undefined,
+        operator: b.operator ? String(b.operator).trim() : undefined
+      };
+      const saved = await financeStore('add', 'entries', item);
+      res.status(201).json(saved);
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao salvar lançamento financeiro.' });
+    }
+  });
+
+  app.put('/api/finance/entries/:id', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const data = {};
+      if (['income', 'expense', 'transfer'].includes(b.type)) data.type = b.type;
+      if (b.scope === 'company' || b.scope === 'personal') data.scope = b.scope;
+      if (b.scope === 'company') {
+        data.ownerId = '';
+        data.ownerName = '';
+      } else {
+        if (typeof b.ownerId === 'string') data.ownerId = b.ownerId;
+        if (typeof b.ownerName === 'string') data.ownerName = b.ownerName.trim();
+      }
+      if (typeof b.description === 'string' && b.description.trim()) data.description = b.description.trim();
+      if (typeof b.category === 'string') data.category = b.category.trim();
+      if (b.amount !== undefined) {
+        const amt = Number(b.amount);
+        if (!Number.isFinite(amt) || amt <= 0) return res.status(400).json({ error: 'Valor inválido.' });
+        data.amount = amt;
+      }
+      if (typeof b.date === 'number' && Number.isFinite(b.date)) data.date = b.date;
+      if (typeof b.accountId === 'string') data.accountId = b.accountId;
+      if (typeof b.toAccountId === 'string') data.toAccountId = b.toAccountId;
+      if (typeof b.paymentMethod === 'string') data.paymentMethod = b.paymentMethod;
+      if (typeof b.counterparty === 'string') data.counterparty = b.counterparty.trim();
+      if (typeof b.notes === 'string') data.notes = b.notes.trim();
+      data.editedAt = Date.now();
+      if (typeof b.editedBy === 'string') data.editedBy = b.editedBy.trim();
+
+      const updated = await financeStore('update', 'entries', req.params.id, data);
+      if (!updated) return res.status(404).json({ error: 'Lançamento não encontrado.' });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao atualizar lançamento.' });
+    }
+  });
+
+  app.delete('/api/finance/entries/:id', async (req, res) => {
+    try {
+      await financeStore('remove', 'entries', req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao excluir lançamento.' });
+    }
+  });
+
+  // Payables (Contas a Pagar) CRUD + Pay action
+  app.post('/api/finance/payables', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const amount = Number(b.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({ error: 'Informe um valor maior que zero.' });
+      }
+      const description = String(b.description || '').trim();
+      if (!description) return res.status(400).json({ error: 'Descrição da conta é obrigatória.' });
+      const dueDate = String(b.dueDate || '').trim();
+      if (!dueDate) return res.status(400).json({ error: 'Data de vencimento é obrigatória.' });
+
+      const installments = Math.max(1, Math.min(36, parseInt(b.installments, 10) || 1));
+      const recurrence = installments > 1 ? 'none' : (b.recurrence === 'monthly' ? 'monthly' : 'none');
+      const groupId = installments > 1 || recurrence === 'monthly'
+        ? 'grp_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5)
+        : undefined;
+
+      const createdItems = [];
+      for (let i = 0; i < installments; i++) {
+        const item = {
+          id: 'pay_' + Date.now().toString(36) + '_' + i + '_' + Math.random().toString(36).substring(2, 5),
+          scope: b.scope === 'personal' ? 'personal' : 'company',
+          ownerId: b.scope === 'personal' && b.ownerId ? String(b.ownerId) : undefined,
+          ownerName: b.scope === 'personal' && b.ownerName ? String(b.ownerName).trim() : undefined,
+          description: installments > 1 ? `${description} (${i + 1}/${installments})` : description,
+          category: String(b.category || 'Outros').trim(),
+          counterparty: b.counterparty ? String(b.counterparty).trim() : undefined,
+          amount,
+          dueDate: i === 0 ? dueDate : addMonthsIso(dueDate, i),
+          status: 'pending',
+          recurrence,
+          installmentNumber: installments > 1 ? i + 1 : undefined,
+          installmentTotal: installments > 1 ? installments : undefined,
+          groupId,
+          notes: b.notes ? String(b.notes).trim() : undefined,
+          createdAt: Date.now() + i
+        };
+        const saved = await financeStore('add', 'payables', item);
+        createdItems.push(saved);
+      }
+
+      res.status(201).json({ created: createdItems });
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao cadastrar conta a pagar.' });
+    }
+  });
+
+  app.put('/api/finance/payables/:id', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const data = {};
+      if (b.scope === 'company' || b.scope === 'personal') data.scope = b.scope;
+      if (b.scope === 'company') {
+        data.ownerId = '';
+        data.ownerName = '';
+      } else {
+        if (typeof b.ownerId === 'string') data.ownerId = b.ownerId;
+        if (typeof b.ownerName === 'string') data.ownerName = b.ownerName.trim();
+      }
+      if (typeof b.description === 'string' && b.description.trim()) data.description = b.description.trim();
+      if (typeof b.category === 'string') data.category = b.category.trim();
+      if (typeof b.counterparty === 'string') data.counterparty = b.counterparty.trim();
+      if (b.amount !== undefined && Number.isFinite(Number(b.amount)) && Number(b.amount) > 0) {
+        data.amount = Number(b.amount);
+      }
+      if (typeof b.dueDate === 'string' && b.dueDate.trim()) data.dueDate = b.dueDate.trim();
+      if (b.recurrence === 'none' || b.recurrence === 'monthly') data.recurrence = b.recurrence;
+      if (typeof b.notes === 'string') data.notes = b.notes.trim();
+
+      const updated = await financeStore('update', 'payables', req.params.id, data);
+      if (!updated) return res.status(404).json({ error: 'Conta não encontrada.' });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao atualizar conta.' });
+    }
+  });
+
+  app.post('/api/finance/payables/:id/pay', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const allPayables = await financeStore('get', 'payables');
+      const existing = (allPayables || []).find(p => p.id === req.params.id);
+      if (!existing) return res.status(404).json({ error: 'Conta a pagar não encontrada.' });
+      if (existing.status === 'paid') return res.status(400).json({ error: 'Esta conta já foi paga.' });
+
+      const paidAmount = Number(b.paidAmount) > 0 ? Number(b.paidAmount) : Number(existing.amount);
+      const paidDate = typeof b.paidDate === 'number' && Number.isFinite(b.paidDate) ? b.paidDate : Date.now();
+      const paidAccountId = b.accountId ? String(b.accountId) : undefined;
+      const paidPaymentMethod = b.paymentMethod || 'pix';
+
+      const updatedPayable = await financeStore('update', 'payables', req.params.id, {
+        status: 'paid',
+        paidDate,
+        paidAmount,
+        paidAccountId,
+        paidPaymentMethod
+      });
+
+      const expenseEntry = {
+        id: 'fin_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+        type: 'expense',
+        scope: existing.scope || 'company',
+        ownerId: existing.scope === 'personal' ? existing.ownerId : undefined,
+        ownerName: existing.scope === 'personal' ? existing.ownerName : undefined,
+        description: `Pagamento: ${existing.description}`,
+        category: existing.category || 'Outros',
+        amount: paidAmount,
+        date: paidDate,
+        accountId: paidAccountId,
+        paymentMethod: paidPaymentMethod,
+        counterparty: existing.counterparty,
+        payableId: existing.id,
+        notes: b.notes ? String(b.notes).trim() : existing.notes,
+        operator: b.operator ? String(b.operator).trim() : undefined
+      };
+      const savedEntry = await financeStore('add', 'entries', expenseEntry);
+
+      let nextRecurringPayable = null;
+      if (existing.recurrence === 'monthly') {
+        const nextItem = {
+          id: 'pay_' + Date.now().toString(36) + '_rec_' + Math.random().toString(36).substring(2, 5),
+          scope: existing.scope || 'company',
+          ownerId: existing.scope === 'personal' ? existing.ownerId : undefined,
+          ownerName: existing.scope === 'personal' ? existing.ownerName : undefined,
+          description: existing.description,
+          category: existing.category || 'Outros',
+          counterparty: existing.counterparty,
+          amount: Number(existing.amount) || paidAmount,
+          dueDate: addMonthsIso(existing.dueDate, 1),
+          status: 'pending',
+          recurrence: 'monthly',
+          groupId: existing.groupId,
+          notes: existing.notes,
+          createdAt: Date.now()
+        };
+        nextRecurringPayable = await financeStore('add', 'payables', nextItem);
+      }
+
+      res.json({
+        payable: updatedPayable,
+        entry: savedEntry,
+        nextRecurringPayable
+      });
+    } catch (error) {
+      console.error('Pay payable error:', error);
+      res.status(500).json({ error: error.message || 'Erro ao dar baixa na conta a pagar.' });
+    }
+  });
+
+  app.delete('/api/finance/payables/:id', async (req, res) => {
+    try {
+      await financeStore('remove', 'payables', req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao excluir conta.' });
     }
   });
 

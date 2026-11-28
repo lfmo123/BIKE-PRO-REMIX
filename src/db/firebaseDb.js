@@ -886,7 +886,72 @@ export async function restoreBackup(data) {
     });
   }
 
+  for (const [key, colName] of [
+    ['financialAccounts', 'financialAccounts'],
+    ['financialOwners', 'financialOwners'],
+    ['financialEntries', 'financialEntries'],
+    ['financialPayables', 'financialPayables']
+  ]) {
+    if (Array.isArray(data[key])) {
+      data[key].forEach((item) => {
+        if (item && item.id) {
+          ops.push((b) => b.set(doc(db, colName, String(item.id)), removeUndefinedFields(item)));
+        }
+      });
+    }
+  }
+
   await commitInChunks(ops);
   invalidateVehiclesCache();
   return { restoredCount: ops.length };
 }
+
+// ------------------------------------
+// FINANCIAL MANAGEMENT (Empresa x Particular)
+// ------------------------------------
+async function getAllFromCollection(colName) {
+  const snapshot = await getDocs(collection(db, colName));
+  const items = [];
+  snapshot.forEach(docSnap => items.push(docSnap.data()));
+  return items;
+}
+
+async function addToCollection(colName, item) {
+  const clean = removeUndefinedFields(item);
+  await setDoc(doc(db, colName, String(clean.id)), clean);
+  return clean;
+}
+
+async function updateInCollection(colName, id, data) {
+  const ref = doc(db, colName, String(id));
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  const updated = removeUndefinedFields({ ...snap.data(), ...data });
+  await setDoc(ref, updated);
+  return updated;
+}
+
+async function removeFromCollection(colName, id) {
+  await deleteDoc(doc(db, colName, String(id)));
+}
+
+export const getFinancialAccounts = () => getAllFromCollection('financialAccounts');
+export const addFinancialAccount = (item) => addToCollection('financialAccounts', item);
+export const updateFinancialAccount = (id, data) => updateInCollection('financialAccounts', id, data);
+export const removeFinancialAccount = (id) => removeFromCollection('financialAccounts', id);
+
+export const getFinancialOwners = () => getAllFromCollection('financialOwners');
+export const addFinancialOwner = (item) => addToCollection('financialOwners', item);
+export const updateFinancialOwner = (id, data) => updateInCollection('financialOwners', id, data);
+export const removeFinancialOwner = (id) => removeFromCollection('financialOwners', id);
+
+export const getFinancialEntries = () => getAllFromCollection('financialEntries');
+export const addFinancialEntry = (item) => addToCollection('financialEntries', item);
+export const updateFinancialEntry = (id, data) => updateInCollection('financialEntries', id, data);
+export const removeFinancialEntry = (id) => removeFromCollection('financialEntries', id);
+
+export const getFinancialPayables = () => getAllFromCollection('financialPayables');
+export const addFinancialPayable = (item) => addToCollection('financialPayables', item);
+export const updateFinancialPayable = (id, data) => updateInCollection('financialPayables', id, data);
+export const removeFinancialPayable = (id) => removeFromCollection('financialPayables', id);
+

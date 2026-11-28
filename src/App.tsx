@@ -6,6 +6,8 @@ import { Dashboard } from './components/Dashboard';
 import { ActiveParking } from './components/ActiveParking';
 import { StoredVehicles } from './components/StoredVehicles';
 import { CashBook } from './components/CashBook';
+import { FinanceManager } from './components/FinanceManager';
+import { CreatePayablePayload, PayPayablePayload } from './components/FinancePayablesTab';
 import { CheckOut } from './components/CheckOut';
 import { Conference } from './components/Conference';
 import { CustomerCards } from './components/CustomerCards';
@@ -22,7 +24,23 @@ import { CheckOutModal } from './components/CheckOutModal';
 import { ResetAppModal } from './components/ResetAppModal';
 import { QrScannerModal } from './components/QrScannerModal';
 import { OperatorLoginModal } from './components/OperatorLoginModal';
-import { ParkedVehicle, Pricing, LostCard, Transaction, Product, Sale, CustomerCard, Shift, Operator, SpotRental, VehicleType } from './types';
+import {
+  ParkedVehicle,
+  Pricing,
+  LostCard,
+  Transaction,
+  Product,
+  Sale,
+  CustomerCard,
+  Shift,
+  Operator,
+  SpotRental,
+  VehicleType,
+  FinancialAccount,
+  FinancialOwner,
+  FinancialEntry,
+  FinancialPayable
+} from './types';
 import { getLocalDateString } from './lib/dateUtils';
 import { parseResponseJson, safeFetchJson } from './lib/apiUtils';
 import { Capacitor } from '@capacitor/core';
@@ -50,6 +68,10 @@ export default function App() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [operators, setOperators] = useState<Operator[]>([]);
   const [spotRentals, setSpotRentals] = useState<SpotRental[]>([]);
+  const [financialAccounts, setFinancialAccounts] = useState<FinancialAccount[]>([]);
+  const [financialOwners, setFinancialOwners] = useState<FinancialOwner[]>([]);
+  const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>([]);
+  const [financialPayables, setFinancialPayables] = useState<FinancialPayable[]>([]);
   const activeShift = shifts.find(s => s.status === 'open');
   const [pricing, setPricing] = useState<Pricing>(defaultPricing);
   const [lostCards, setLostCards] = useState<LostCard[]>([]);
@@ -280,6 +302,24 @@ export default function App() {
     return res;
   };
 
+  const fetchFinanceBootstrap = async () => {
+    const res = await safeFetchJson<{
+      accounts: FinancialAccount[];
+      owners: FinancialOwner[];
+      entries: FinancialEntry[];
+      payables: FinancialPayable[];
+    }>('/api/finance/bootstrap');
+    if (res.ok && res.data) {
+      if (Array.isArray(res.data.accounts)) setFinancialAccounts(res.data.accounts);
+      if (Array.isArray(res.data.owners)) setFinancialOwners(res.data.owners);
+      if (Array.isArray(res.data.entries)) setFinancialEntries(res.data.entries);
+      if (Array.isArray(res.data.payables)) setFinancialPayables(res.data.payables);
+    } else if (!res.isHtml) {
+      console.warn('Finance bootstrap fetch:', res.error);
+    }
+    return res;
+  };
+
   const handleRefreshAll = useCallback(async () => {
     if (isSyncingRef.current) return;
     isSyncingRef.current = true;
@@ -294,7 +334,8 @@ export default function App() {
         fetchOperators(),
         fetchProducts(),
         fetchSales(),
-        fetchSpotRentals()
+        fetchSpotRentals(),
+        fetchFinanceBootstrap()
       ]);
 
       const anyHtml = results.some(
@@ -336,7 +377,8 @@ export default function App() {
         fetchProducts(),
         fetchSales(),
         fetchTransactions(),
-        fetchSpotRentals()
+        fetchSpotRentals(),
+        fetchFinanceBootstrap()
       ]);
     } catch (e) {
       console.warn('Background sync error:', e);
@@ -791,6 +833,286 @@ export default function App() {
     } catch (error) {
       console.error('Failed to delete spot rental', error);
       return { ok: false, error: 'Falha de conexão com o servidor.' };
+    }
+  };
+
+  // --- Financial Management Handlers ---
+  const handleAddFinancialAccount = async (payload: Omit<FinancialAccount, 'id' | 'createdAt'>): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/finance/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<FinancialAccount>(res, 'Erro ao criar conta.');
+      if (parsed.ok && parsed.data) {
+        setFinancialAccounts(prev => [...prev, parsed.data!]);
+        showToast('success', 'Conta cadastrada com sucesso!');
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao criar conta.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao criar conta.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleUpdateFinancialAccount = async (id: string, payload: Partial<FinancialAccount>): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/finance/accounts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<FinancialAccount>(res, 'Erro ao atualizar conta.');
+      if (parsed.ok && parsed.data) {
+        setFinancialAccounts(prev => prev.map(a => (a.id === id ? { ...a, ...parsed.data } : a)));
+        showToast('success', 'Conta atualizada.');
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao atualizar conta.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao atualizar conta.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleDeleteFinancialAccount = async (id: string): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/finance/accounts/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setFinancialAccounts(prev => prev.filter(a => a.id !== id));
+        showToast('success', 'Conta excluída.');
+        return { ok: true };
+      }
+      showToast('error', 'Erro ao excluir conta.');
+      return { ok: false, error: 'Erro ao excluir conta.' };
+    } catch {
+      showToast('error', 'Falha de conexão ao excluir conta.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleAddFinancialOwner = async (payload: Omit<FinancialOwner, 'id' | 'createdAt'>): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/finance/owners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<FinancialOwner>(res, 'Erro ao cadastrar titular.');
+      if (parsed.ok && parsed.data) {
+        setFinancialOwners(prev => [...prev, parsed.data!]);
+        showToast('success', 'Titular cadastrado!');
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao cadastrar titular.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao cadastrar titular.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleUpdateFinancialOwner = async (id: string, payload: Partial<FinancialOwner>): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/finance/owners/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<FinancialOwner>(res, 'Erro ao atualizar titular.');
+      if (parsed.ok && parsed.data) {
+        setFinancialOwners(prev => prev.map(o => (o.id === id ? { ...o, ...parsed.data } : o)));
+        showToast('success', 'Titular atualizado.');
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao atualizar titular.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao atualizar titular.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleDeleteFinancialOwner = async (id: string): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/finance/owners/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setFinancialOwners(prev => prev.filter(o => o.id !== id));
+        showToast('success', 'Titular excluído.');
+        return { ok: true };
+      }
+      showToast('error', 'Erro ao excluir titular.');
+      return { ok: false, error: 'Erro ao excluir titular.' };
+    } catch {
+      showToast('error', 'Falha de conexão ao excluir titular.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleAddFinancialEntry = async (payload: Omit<FinancialEntry, 'id'>): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/finance/entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<FinancialEntry>(res, 'Erro ao salvar lançamento.');
+      if (parsed.ok && parsed.data) {
+        setFinancialEntries(prev => [parsed.data!, ...prev].sort((a, b) => b.date - a.date));
+        showToast('success', 'Lançamento financeiro registrado!');
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao salvar lançamento.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao salvar lançamento.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleUpdateFinancialEntry = async (id: string, payload: Partial<FinancialEntry>): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/finance/entries/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<FinancialEntry>(res, 'Erro ao atualizar lançamento.');
+      if (parsed.ok && parsed.data) {
+        setFinancialEntries(prev =>
+          prev.map(e => (e.id === id ? { ...e, ...parsed.data } : e)).sort((a, b) => b.date - a.date)
+        );
+        showToast('success', 'Lançamento atualizado.');
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao atualizar lançamento.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao atualizar lançamento.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleDeleteFinancialEntry = async (id: string): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/finance/entries/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setFinancialEntries(prev => prev.filter(e => e.id !== id));
+        showToast('success', 'Lançamento excluído.');
+        return { ok: true };
+      }
+      showToast('error', 'Erro ao excluir lançamento.');
+      return { ok: false, error: 'Erro ao excluir lançamento.' };
+    } catch {
+      showToast('error', 'Falha de conexão ao excluir lançamento.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleAddFinancialPayable = async (payload: CreatePayablePayload): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/finance/payables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<{ created: FinancialPayable[] }>(res, 'Erro ao cadastrar conta a pagar.');
+      if (parsed.ok && parsed.data?.created) {
+        setFinancialPayables(prev =>
+          [...prev, ...parsed.data!.created].sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)))
+        );
+        const count = parsed.data.created.length;
+        showToast('success', count > 1 ? `${count} parcelas agendadas com sucesso!` : 'Conta a pagar agendada!');
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao agendar conta.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao agendar conta.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleUpdateFinancialPayable = async (id: string, payload: Partial<FinancialPayable>): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/finance/payables/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<FinancialPayable>(res, 'Erro ao atualizar conta.');
+      if (parsed.ok && parsed.data) {
+        setFinancialPayables(prev =>
+          prev
+            .map(p => (p.id === id ? { ...p, ...parsed.data } : p))
+            .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)))
+        );
+        showToast('success', 'Conta atualizada.');
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao atualizar conta.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao atualizar conta.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handlePayFinancialPayable = async (id: string, payload: PayPayablePayload): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/finance/payables/${id}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<{
+        payable: FinancialPayable;
+        entry: FinancialEntry;
+        nextRecurringPayable: FinancialPayable | null;
+      }>(res, 'Erro ao dar baixa na conta.');
+      if (parsed.ok && parsed.data) {
+        const { payable, entry, nextRecurringPayable } = parsed.data;
+        setFinancialPayables(prev => {
+          const updated = prev.map(p => (p.id === id ? { ...p, ...payable } : p));
+          if (nextRecurringPayable) updated.push(nextRecurringPayable);
+          return updated.sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+        });
+        if (entry) {
+          setFinancialEntries(prev => [entry, ...prev].sort((a, b) => b.date - a.date));
+        }
+        showToast(
+          'success',
+          nextRecurringPayable
+            ? 'Conta paga! Próximo vencimento mensal gerado automaticamente.'
+            : 'Pagamento registrado e debitado da conta!'
+        );
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao dar baixa na conta.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao registrar pagamento.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleDeleteFinancialPayable = async (id: string): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/finance/payables/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setFinancialPayables(prev => prev.filter(p => p.id !== id));
+        showToast('success', 'Conta excluída.');
+        return { ok: true };
+      }
+      showToast('error', 'Erro ao excluir conta.');
+      return { ok: false, error: 'Erro ao excluir conta.' };
+    } catch {
+      showToast('error', 'Falha de conexão ao excluir conta.');
+      return { ok: false, error: 'Falha de conexão.' };
     }
   };
 
@@ -1394,6 +1716,32 @@ export default function App() {
                     onDeleteTransaction={handleDeleteTransaction}
                     onPayFiado={handlePayFiado}
                     onPayFiadoTransaction={handlePayFiadoTransaction}
+                    onOpenFinance={() => setActiveTab('finance')}
+                  />
+                )}
+                {activeTab === 'finance' && deviceModules.enableFinanceModule && (
+                  <FinanceManager
+                    accounts={financialAccounts}
+                    owners={financialOwners}
+                    entries={financialEntries}
+                    payables={financialPayables}
+                    transactions={transactions}
+                    vehicles={vehicles}
+                    activeOperator={deviceModules.enableOperatorLogin ? activeOperator : activeShift?.operatorName}
+                    deviceConfig={deviceModules}
+                    onAddAccount={handleAddFinancialAccount}
+                    onUpdateAccount={handleUpdateFinancialAccount}
+                    onDeleteAccount={handleDeleteFinancialAccount}
+                    onAddOwner={handleAddFinancialOwner}
+                    onUpdateOwner={handleUpdateFinancialOwner}
+                    onDeleteOwner={handleDeleteFinancialOwner}
+                    onAddEntry={handleAddFinancialEntry}
+                    onUpdateEntry={handleUpdateFinancialEntry}
+                    onDeleteEntry={handleDeleteFinancialEntry}
+                    onAddPayable={handleAddFinancialPayable}
+                    onUpdatePayable={handleUpdateFinancialPayable}
+                    onPayPayable={handlePayFinancialPayable}
+                    onDeletePayable={handleDeleteFinancialPayable}
                   />
                 )}
                 {activeTab === 'shifts' && (

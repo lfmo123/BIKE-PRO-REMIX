@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CustomerCard, ParkedVehicle, Shift, SpotRental, Transaction } from '../types';
 import {
   Wallet,
-  Plus,
+  Landmark,
   ArrowUpRight,
   ArrowDownRight,
   Trash2,
@@ -58,6 +58,7 @@ interface CashBookProps {
   onDeleteTransaction: (id: string) => Promise<void>;
   onPayFiado: (id: string, paymentMethod: string, amount: number, observation?: string) => Promise<void>;
   onPayFiadoTransaction?: (id: string, paymentMethod: string, amount: number, observation?: string) => Promise<void>;
+  onOpenFinance?: () => void;
 }
 
 const EXPENSE_CATEGORIES = ['Manutenção', 'Materiais', 'Pagamento', 'Retirada', 'Ajuste de Caixa', 'Outros'];
@@ -108,19 +109,14 @@ export function CashBook({
   onUpdateTransaction,
   onDeleteTransaction,
   onPayFiado,
-  onPayFiadoTransaction
+  onPayFiadoTransaction,
+  onOpenFinance
 }: CashBookProps) {
   const canManageCashbook = deviceConfig?.canManageCashbook !== false;
   const enableDrawer = Boolean(deviceConfig?.enableCashbookDrawer);
   const enableSmartLedger = Boolean(deviceConfig?.enableCashbookSmartLedger);
   const enableAnalytics = Boolean(deviceConfig?.enableCashbookAnalytics);
-
-  // Manual Entry Form State
-  const [entryType, setEntryType] = useState<'expense' | 'income'>('expense');
-  const [entryPaymentMethod, setEntryPaymentMethod] = useState<CashMethod>('cash');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Outros');
-  const [amount, setAmount] = useState('');
+  const enableFinanceModule = Boolean(deviceConfig?.enableFinanceModule);
 
   // Date and Time Range State
   const todayStr = getLocalDateString();
@@ -156,16 +152,6 @@ export function CashBook({
   useEffect(() => {
     setGroupByDay(startDate !== endDate);
   }, [startDate, endDate]);
-
-  // Reset form category cleanly when switching type
-  const handleSwitchEntryType = (nextType: 'expense' | 'income') => {
-    setEntryType(nextType);
-    if (nextType === 'income') {
-      setCategory('Suprimento (Troco)');
-    } else {
-      setCategory('Outros');
-    }
-  };
 
   // Derive Period Timestamps
   const startOfPeriod = useMemo(() => {
@@ -497,33 +483,6 @@ export function CashBook({
     metrics.rentalCheckoutsCount > 0;
 
   // Handlers
-  const handleAddTransactionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsedAmount = parseFloat(amount);
-    if (!description.trim() || isNaN(parsedAmount) || parsedAmount <= 0) return;
-
-    const now = new Date();
-    const [y, m, d] = (startDate || todayStr).split('-').map(Number);
-    const transactionDate = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).getTime();
-
-    const finalType = enableDrawer ? entryType : 'expense';
-    const finalMethod = enableDrawer ? entryPaymentMethod : 'cash';
-
-    await onAddTransaction({
-      description: description.trim(),
-      amount: parsedAmount,
-      type: finalType,
-      date: transactionDate,
-      category,
-      paymentMethod: finalMethod,
-      operator: currentOperatorName
-    });
-
-    setDescription('');
-    setAmount('');
-    setCategory(finalType === 'income' ? 'Suprimento (Troco)' : 'Outros');
-  };
-
   const startEditingEntry = (entry: CombinedLedgerEntry) => {
     setEditingId(entry.id);
     setEditDesc(entry.description);
@@ -898,6 +857,16 @@ export function CashBook({
         </div>
 
         <div className="flex flex-wrap gap-2 sm:gap-2.5 print:hidden">
+          {enableFinanceModule && onOpenFinance && (
+            <button
+              type="button"
+              onClick={onOpenFinance}
+              className="flex items-center justify-center gap-2 bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl transition-colors text-sm font-semibold shadow-sm whitespace-nowrap shrink-0"
+            >
+              <Landmark className="w-4 h-4" />
+              <span>Financeiro</span>
+            </button>
+          )}
           {enableAnalytics && (
             <button
               type="button"
@@ -1251,136 +1220,6 @@ export function CashBook({
             onPayFiado={onPayFiado}
             onPayFiadoTransaction={onPayFiadoTransaction}
           />
-
-          {/* Lançamento Manual (Nova Despesa ou Novo Lançamento unificado quando Módulo Gaveta ativo) */}
-          {canManageCashbook && (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6">
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                  {enableDrawer ? 'Novo Lançamento' : 'Nova Despesa'}
-                </h2>
-                {enableDrawer && (
-                  <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => handleSwitchEntryType('expense')}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
-                        entryType === 'expense'
-                          ? 'bg-white dark:bg-slate-900 text-red-600 dark:text-red-400 shadow-xs'
-                          : 'text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      Despesa
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSwitchEntryType('income')}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
-                        entryType === 'income'
-                          ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
-                          : 'text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      Suprimento
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <form onSubmit={handleAddTransactionSubmit} className="space-y-3.5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    {enableDrawer && entryType === 'income' ? 'Tipo de Entrada' : 'Categoria da Despesa'}
-                  </label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  >
-                    {(enableDrawer && entryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(cat => (
-                      <option key={cat} value={cat}>
-                        {cat === 'Retirada' ? 'Retirada (Sangria)' : cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {enableDrawer && (
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Meio / Origem do Valor
-                    </label>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {[
-                        { id: 'cash', label: 'Dinheiro' },
-                        { id: 'pix', label: 'PIX' },
-                        { id: 'machine', label: 'Máquina' }
-                      ].map(m => (
-                        <button
-                          key={m.id}
-                          type="button"
-                          onClick={() => setEntryPaymentMethod(m.id as CashMethod)}
-                          className={`py-2 px-2 text-xs font-semibold rounded-xl border transition-colors ${
-                            entryPaymentMethod === m.id
-                              ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-700 dark:text-emerald-300'
-                              : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                          }`}
-                        >
-                          {m.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Justificativa / Descrição
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder={
-                      enableDrawer && entryType === 'income'
-                        ? 'Ex: Reforço de troco inicial...'
-                        : 'Ex: Pagamento de energia...'
-                    }
-                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Valor (R$)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className={`w-full py-2.5 text-white rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 mt-2 ${
-                    enableDrawer && entryType === 'income'
-                      ? 'bg-emerald-600 hover:bg-emerald-700'
-                      : 'bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600'
-                  }`}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>
-                    {enableDrawer && entryType === 'income' ? 'Adicionar Entrada / Suprimento' : 'Adicionar Despesa'}
-                  </span>
-                </button>
-              </form>
-            </div>
-          )}
         </div>
 
         {/* Right Column: Extrato do Período */}

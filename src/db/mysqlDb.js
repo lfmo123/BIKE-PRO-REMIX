@@ -694,3 +694,72 @@ export async function removeSpotRental(id) {
   if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
   await getPool().query('DELETE FROM spot_rentals WHERE id = ?', [id]);
 }
+
+let financeTablesReady = false;
+async function ensureFinanceTables() {
+  if (!isDbConnected) throw new Error("A conexão com o banco de dados falhou: " + dbConnectionError);
+  if (financeTablesReady) return;
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS financial_records (
+      id VARCHAR(100) NOT NULL,
+      kind VARCHAR(50) NOT NULL,
+      payload LONGTEXT NOT NULL,
+      createdAt BIGINT NOT NULL,
+      PRIMARY KEY (kind, id)
+    )
+  `);
+  financeTablesReady = true;
+}
+
+async function getFinanceKind(kind) {
+  await ensureFinanceTables();
+  const [rows] = await getPool().query('SELECT payload FROM financial_records WHERE kind = ? ORDER BY createdAt DESC', [kind]);
+  return rows.map(r => {
+    try { return JSON.parse(r.payload); } catch { return null; }
+  }).filter(Boolean);
+}
+
+async function addFinanceKind(kind, item) {
+  await ensureFinanceTables();
+  await getPool().query(
+    'INSERT INTO financial_records (id, kind, payload, createdAt) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE payload = VALUES(payload)',
+    [String(item.id), kind, JSON.stringify(item), item.createdAt || item.date || Date.now()]
+  );
+  return item;
+}
+
+async function updateFinanceKind(kind, id, data) {
+  await ensureFinanceTables();
+  const [rows] = await getPool().query('SELECT payload FROM financial_records WHERE kind = ? AND id = ?', [kind, String(id)]);
+  if (!rows || rows.length === 0) return null;
+  const existing = JSON.parse(rows[0].payload);
+  const updated = { ...existing, ...data };
+  await getPool().query('UPDATE financial_records SET payload = ? WHERE kind = ? AND id = ?', [JSON.stringify(updated), kind, String(id)]);
+  return updated;
+}
+
+async function removeFinanceKind(kind, id) {
+  await ensureFinanceTables();
+  await getPool().query('DELETE FROM financial_records WHERE kind = ? AND id = ?', [kind, String(id)]);
+}
+
+export const getFinancialAccounts = () => getFinanceKind('accounts');
+export const addFinancialAccount = (item) => addFinanceKind('accounts', item);
+export const updateFinancialAccount = (id, data) => updateFinanceKind('accounts', id, data);
+export const removeFinancialAccount = (id) => removeFinanceKind('accounts', id);
+
+export const getFinancialOwners = () => getFinanceKind('owners');
+export const addFinancialOwner = (item) => addFinanceKind('owners', item);
+export const updateFinancialOwner = (id, data) => updateFinanceKind('owners', id, data);
+export const removeFinancialOwner = (id) => removeFinanceKind('owners', id);
+
+export const getFinancialEntries = () => getFinanceKind('entries');
+export const addFinancialEntry = (item) => addFinanceKind('entries', item);
+export const updateFinancialEntry = (id, data) => updateFinanceKind('entries', id, data);
+export const removeFinancialEntry = (id) => removeFinanceKind('entries', id);
+
+export const getFinancialPayables = () => getFinanceKind('payables');
+export const addFinancialPayable = (item) => addFinanceKind('payables', item);
+export const updateFinancialPayable = (id, data) => updateFinanceKind('payables', id, data);
+export const removeFinancialPayable = (id) => removeFinanceKind('payables', id);
+

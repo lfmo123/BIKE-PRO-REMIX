@@ -390,8 +390,9 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
                   { key: 'cards', label: 'Cartões Mensalistas', desc: 'Pré-pago e pós-pago de clientes' },
                   { key: 'enableSpotRentals', label: 'Vagas Alugadas (Opcional)', desc: 'Aluguel mensal/período de vaga fixa ou rotativa (inicia desativado)', optionalDefaultOff: true },
                   { key: 'shifts', label: 'Fechamento de Caixa', desc: 'Abertura, turnos e conferência de caixa' },
-                  { key: 'cashbook', label: 'Livro Caixa', desc: 'Registro de entradas e saídas extras' },
-                  { key: 'enableCashbookDrawer', label: 'Caixa: Gaveta & Suprimentos (Opcional)', desc: 'Dinheiro físico vs PIX/Máquina, suprimentos e conferência (inicia desativado)', optionalDefaultOff: true },
+                  { key: 'cashbook', label: 'Livro Caixa', desc: 'Extrato operacional, conferência de gaveta e fiados' },
+                  { key: 'enableFinanceModule', label: 'Financeiro Completo (Opcional)', desc: 'Empresa × Particular (titulares), bancos, depósitos e contas a pagar (inicia desativado)', optionalDefaultOff: true },
+                  { key: 'enableCashbookDrawer', label: 'Caixa: Gaveta & Suprimentos (Opcional)', desc: 'Dinheiro físico vs PIX/Máquina e conferência de gaveta (inicia desativado)', optionalDefaultOff: true },
                   { key: 'enableCashbookSmartLedger', label: 'Caixa: Extrato Inteligente (Opcional)', desc: 'Busca, filtros, atalho por turno, agrupamento e edição (inicia desativado)', optionalDefaultOff: true },
                   { key: 'enableCashbookAdvancedFiado', label: 'Caixa: Fiado Avançado (Opcional)', desc: 'Visão por cliente, atrasos, quitados e cobrança Zap (inicia desativado)', optionalDefaultOff: true },
                   { key: 'enableCashbookAnalytics', label: 'Caixa: Painel Analítico (Opcional)', desc: 'Comparativo de período, gráficos leves e resumo WhatsApp (inicia desativado)', optionalDefaultOff: true },
@@ -671,16 +672,21 @@ export function Settings({ operators, onAddOperator, onDeleteOperator, pricing, 
                     })}
                   </div>
 
-                  {/* Livro Caixa Avançado (Módulos Individuais) */}
+                  {/* Livro Caixa Avançado & Gestão Financeira */}
                   <div className="bg-white/90 dark:bg-slate-900/60 p-3 rounded-xl border border-indigo-100 dark:border-indigo-900/60 space-y-2">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                      Livro Caixa Avançado (Módulos Individuais)
+                      Livro Caixa Avançado & Gestão Financeira
                     </p>
                     {[
                       {
+                        key: 'enableFinanceModule',
+                        label: 'Gestão Financeira Completa (Empresa × Particular)',
+                        desc: 'Menu dedicado com contas/bancos, depósitos entre contas, receitas/despesas separadas por Empresa e Particular (por titular) e Contas a Pagar'
+                      },
+                      {
                         key: 'enableCashbookDrawer',
-                        label: 'Controle de Gaveta e Suprimentos',
-                        desc: 'Separa Dinheiro na Gaveta de Digital (PIX + Máquina), libera suprimentos/entradas manuais, forma de pagamento nas despesas e conferência de gaveta'
+                        label: 'Controle de Gaveta (Dinheiro vs. Digital)',
+                        desc: 'Separa Dinheiro na Gaveta de Digital (PIX + Máquina) e libera conferência rápida de gaveta no Livro Caixa'
                       },
                       {
                         key: 'enableCashbookSmartLedger',

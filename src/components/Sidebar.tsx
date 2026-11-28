@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Bike, History, Settings, BarChart3, LogOut, LogOutIcon, Grid, PackageOpen, Wallet, StoreIcon, CreditCard, LockIcon, ShieldCheck, ClipboardCheck, CalendarRange } from 'lucide-react';
+import { LayoutDashboard, Bike, History, Settings, BarChart3, LogOut, LogOutIcon, Grid, PackageOpen, Wallet, StoreIcon, CreditCard, LockIcon, ShieldCheck, ClipboardCheck, CalendarRange, Landmark } from 'lucide-react';
 
 import { DeviceModulesConfig } from '../lib/deviceModules';
 
@@ -24,6 +24,7 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
     { id: 'rentals', label: 'Vagas Alugadas', icon: CalendarRange },
     { id: 'shifts', label: 'Fechamento de Caixa', icon: LockIcon },
     { id: 'cashbook', label: 'Livro Caixa', icon: Wallet },
+    { id: 'finance', label: 'Financeiro', icon: Landmark },
     { id: 'store', label: 'Loja', icon: StoreIcon },
     { id: 'history', label: 'Histórico', icon: History },
     { id: 'reports', label: 'Relatórios', icon: BarChart3 },
@@ -34,6 +35,9 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, user, isOpen, setIs
   const navItems = allNavItems.filter((item) => {
     if (item.id === 'rentals') {
       return modules?.enableSpotRentals === true;
+    }
+    if (item.id === 'finance') {
+      return modules?.enableFinanceModule === true;
     }
     if (!modules) return true;
     if (item.id === 'settings') return true; // Configurações sempre visível para administração
