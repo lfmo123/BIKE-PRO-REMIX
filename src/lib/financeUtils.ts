@@ -1,5 +1,7 @@
 import {
   FinancialAccount,
+  FinancialCategory,
+  FinancialCategoryType,
   FinancialEntry,
   FinancialOwner,
   FinancialPayable,
@@ -52,6 +54,79 @@ export const PERSONAL_INCOME_CATEGORIES = [
   'Reembolso',
   'Outros (Particular)'
 ];
+
+export const DEFAULT_FINANCIAL_CATEGORIES: FinancialCategory[] = [
+  ...COMPANY_EXPENSE_CATEGORIES.map((name, i) => ({
+    id: `def_exp_company_${i}`,
+    name,
+    type: 'expense' as const,
+    scope: 'company' as const,
+    createdAt: i + 1
+  })),
+  ...COMPANY_INCOME_CATEGORIES.map((name, i) => ({
+    id: `def_inc_company_${i}`,
+    name,
+    type: 'income' as const,
+    scope: 'company' as const,
+    createdAt: 100 + i + 1
+  })),
+  ...PERSONAL_EXPENSE_CATEGORIES.map((name, i) => ({
+    id: `def_exp_personal_${i}`,
+    name,
+    type: 'expense' as const,
+    scope: 'personal' as const,
+    createdAt: 200 + i + 1
+  })),
+  ...PERSONAL_INCOME_CATEGORIES.map((name, i) => ({
+    id: `def_inc_personal_${i}`,
+    name,
+    type: 'income' as const,
+    scope: 'personal' as const,
+    createdAt: 300 + i + 1
+  }))
+];
+
+export function resolveEffectiveCategories(storedCategories: FinancialCategory[] = []): FinancialCategory[] {
+  const byId = new Map<string, FinancialCategory>();
+  DEFAULT_FINANCIAL_CATEGORIES.forEach(cat => byId.set(cat.id, { ...cat }));
+
+  storedCategories.forEach(item => {
+    if (!item || !item.id) return;
+    if (item.deleted) {
+      byId.delete(item.id);
+    } else if (item.name && item.name.trim()) {
+      byId.set(item.id, {
+        ...item,
+        name: item.name.trim(),
+        type: item.type === 'income' ? 'income' : 'expense',
+        scope: item.scope === 'personal' || item.scope === 'both' ? item.scope : 'company'
+      });
+    }
+  });
+
+  return Array.from(byId.values()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+}
+
+export function getCategoryNamesFor(
+  categories: FinancialCategory[],
+  type: FinancialCategoryType,
+  scope: FinancialScope
+): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  categories.forEach(cat => {
+    if (cat.deleted) return;
+    if (cat.type !== type) return;
+    if (cat.scope !== scope && cat.scope !== 'both') return;
+    const clean = cat.name.trim();
+    const key = clean.toLowerCase();
+    if (clean && !seen.has(key)) {
+      seen.add(key);
+      names.push(clean);
+    }
+  });
+  return names.length > 0 ? names : ['Outros'];
+}
 
 export const ACCOUNT_TYPE_LABELS: Record<FinancialAccount['type'], string> = {
   cash_drawer: 'Caixa / Gaveta',

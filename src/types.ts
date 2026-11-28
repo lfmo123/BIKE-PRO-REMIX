@@ -222,3 +222,16 @@ export interface FinancialPayable {
   createdAt: number;
 }
 
+export type FinancialCategoryType = 'expense' | 'income';
+export type FinancialCategoryScope = 'company' | 'personal' | 'both';
+
+export interface FinancialCategory {
+  id: string;
+  name: string;
+  type: FinancialCategoryType;
+  scope: FinancialCategoryScope;
+  deleted?: boolean;
+  createdAt: number;
+}
+
+

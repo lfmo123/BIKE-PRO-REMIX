@@ -8,6 +8,7 @@ import { StoredVehicles } from './components/StoredVehicles';
 import { CashBook } from './components/CashBook';
 import { FinanceManager } from './components/FinanceManager';
 import { CreatePayablePayload, PayPayablePayload } from './components/FinancePayablesTab';
+import { UpdateCategoryPayload } from './components/FinanceCategoriesTab';
 import { CheckOut } from './components/CheckOut';
 import { Conference } from './components/Conference';
 import { CustomerCards } from './components/CustomerCards';
@@ -39,7 +40,10 @@ import {
   FinancialAccount,
   FinancialOwner,
   FinancialEntry,
-  FinancialPayable
+  FinancialPayable,
+  FinancialCategory,
+  FinancialCategoryScope,
+  FinancialCategoryType
 } from './types';
 import { getLocalDateString } from './lib/dateUtils';
 import { parseResponseJson, safeFetchJson } from './lib/apiUtils';
@@ -72,6 +76,7 @@ export default function App() {
   const [financialOwners, setFinancialOwners] = useState<FinancialOwner[]>([]);
   const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>([]);
   const [financialPayables, setFinancialPayables] = useState<FinancialPayable[]>([]);
+  const [financialCategories, setFinancialCategories] = useState<FinancialCategory[]>([]);
   const activeShift = shifts.find(s => s.status === 'open');
   const [pricing, setPricing] = useState<Pricing>(defaultPricing);
   const [lostCards, setLostCards] = useState<LostCard[]>([]);
@@ -308,12 +313,14 @@ export default function App() {
       owners: FinancialOwner[];
       entries: FinancialEntry[];
       payables: FinancialPayable[];
+      categories?: FinancialCategory[];
     }>('/api/finance/bootstrap');
     if (res.ok && res.data) {
       if (Array.isArray(res.data.accounts)) setFinancialAccounts(res.data.accounts);
       if (Array.isArray(res.data.owners)) setFinancialOwners(res.data.owners);
       if (Array.isArray(res.data.entries)) setFinancialEntries(res.data.entries);
       if (Array.isArray(res.data.payables)) setFinancialPayables(res.data.payables);
+      if (Array.isArray(res.data.categories)) setFinancialCategories(res.data.categories);
     } else if (!res.isHtml) {
       console.warn('Finance bootstrap fetch:', res.error);
     }
@@ -1116,6 +1123,130 @@ export default function App() {
     }
   };
 
+  const handleAddFinancialCategory = async (payload: {
+    name: string;
+    type: FinancialCategoryType;
+    scope: FinancialCategoryScope;
+  }): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/finance/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<FinancialCategory>(res, 'Erro ao criar categoria.');
+      if (parsed.ok && parsed.data) {
+        const created = parsed.data;
+        setFinancialCategories(prev => [...prev.filter(c => c.id !== created.id), created]);
+        showToast('success', 'Categoria cadastrada com sucesso!');
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao criar categoria.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao criar categoria.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleUpdateFinancialCategory = async (
+    id: string,
+    payload: UpdateCategoryPayload
+  ): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/finance/categories/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const parsed = await parseResponseJson<{
+        category: FinancialCategory;
+        renamedEntriesCount?: number;
+        renamedPayablesCount?: number;
+      }>(res, 'Erro ao atualizar categoria.');
+      if (parsed.ok && parsed.data?.category) {
+        const updated = parsed.data.category;
+        const renamedTotal =
+          (parsed.data.renamedEntriesCount || 0) + (parsed.data.renamedPayablesCount || 0);
+        setFinancialCategories(prev => {
+          const exists = prev.some(c => c.id === updated.id);
+          return exists
+            ? prev.map(c => (c.id === updated.id ? { ...c, ...updated } : c))
+            : [...prev, updated];
+        });
+        if (renamedTotal > 0) {
+          await fetchFinanceBootstrap();
+          showToast(
+            'success',
+            `Categoria atualizada (${renamedTotal} ${renamedTotal === 1 ? 'registro atualizado' : 'registros atualizados'}).`
+          );
+        } else {
+          showToast('success', 'Categoria atualizada!');
+        }
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao atualizar categoria.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao atualizar categoria.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleDeleteFinancialCategory = async (id: string): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/finance/categories/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+      const parsed = await parseResponseJson<{
+        success: boolean;
+        tombstone?: FinancialCategory;
+      }>(res, 'Erro ao excluir categoria.');
+      if (parsed.ok) {
+        const tombstone = parsed.data?.tombstone;
+        if (tombstone) {
+          setFinancialCategories(prev => {
+            const exists = prev.some(c => c.id === tombstone.id);
+            return exists
+              ? prev.map(c => (c.id === tombstone.id ? tombstone : c))
+              : [...prev, tombstone];
+          });
+        } else {
+          setFinancialCategories(prev => prev.filter(c => c.id !== id));
+        }
+        showToast('success', 'Categoria apagada.');
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao excluir categoria.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao excluir categoria.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
+  const handleRestoreDefaultFinancialCategories = async (): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/finance/categories/restore-defaults', {
+        method: 'POST'
+      });
+      const parsed = await parseResponseJson<{
+        success: boolean;
+        categories: FinancialCategory[];
+      }>(res, 'Erro ao restaurar categorias padrão.');
+      if (parsed.ok && Array.isArray(parsed.data?.categories)) {
+        setFinancialCategories(parsed.data.categories);
+        showToast('success', 'Categorias padrão restauradas!');
+        return { ok: true };
+      }
+      showToast('error', parsed.error || 'Erro ao restaurar categorias padrão.');
+      return { ok: false, error: parsed.error };
+    } catch {
+      showToast('error', 'Falha de conexão ao restaurar categorias padrão.');
+      return { ok: false, error: 'Falha de conexão.' };
+    }
+  };
+
   const handleOpenShift = async (operatorName: string, initialChange: number, startTime?: number) => {
     try {
       const newShift: Omit<Shift, 'id'> = { operatorName, initialChange, startTime: startTime || Date.now(), status: 'open' };
@@ -1725,6 +1856,7 @@ export default function App() {
                     owners={financialOwners}
                     entries={financialEntries}
                     payables={financialPayables}
+                    storedCategories={financialCategories}
                     transactions={transactions}
                     vehicles={vehicles}
                     activeOperator={deviceModules.enableOperatorLogin ? activeOperator : activeShift?.operatorName}
@@ -1742,6 +1874,10 @@ export default function App() {
                     onUpdatePayable={handleUpdateFinancialPayable}
                     onPayPayable={handlePayFinancialPayable}
                     onDeletePayable={handleDeleteFinancialPayable}
+                    onAddCategory={handleAddFinancialCategory}
+                    onUpdateCategory={handleUpdateFinancialCategory}
+                    onDeleteCategory={handleDeleteFinancialCategory}
+                    onRestoreDefaultCategories={handleRestoreDefaultFinancialCategories}
                   />
                 )}
                 {activeTab === 'shifts' && (

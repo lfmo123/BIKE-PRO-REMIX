@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Building2,
   User,
@@ -17,17 +17,17 @@ import {
 } from 'lucide-react';
 import {
   FinancialAccount,
+  FinancialCategory,
   FinancialOwner,
   FinancialPayable,
   FinancialPaymentMethod,
   FinancialScope
 } from '../types';
 import {
-  COMPANY_EXPENSE_CATEGORIES,
-  PERSONAL_EXPENSE_CATEGORIES,
   PAYMENT_METHOD_LABELS,
   addMonthsToDateStr,
   formatDateBrShort,
+  getCategoryNamesFor,
   getPayableStatusInfo
 } from '../lib/financeUtils';
 import { getLocalDateString } from '../lib/dateUtils';
@@ -60,6 +60,7 @@ interface FinancePayablesTabProps {
   payables: FinancialPayable[];
   accounts: FinancialAccount[];
   owners: FinancialOwner[];
+  categories: FinancialCategory[];
   scopeFilter: 'all' | FinancialScope;
   ownerFilter: string;
   activeOperator?: string;
@@ -67,19 +68,22 @@ interface FinancePayablesTabProps {
   onUpdatePayable: (id: string, payload: Partial<FinancialPayable>) => Promise<{ ok: boolean; error?: string }>;
   onPayPayable: (id: string, payload: PayPayablePayload) => Promise<{ ok: boolean; error?: string }>;
   onDeletePayable: (id: string) => Promise<{ ok: boolean; error?: string }>;
+  onOpenCategories?: (type: 'expense' | 'income', scope: FinancialScope) => void;
 }
 
 export function FinancePayablesTab({
   payables,
   accounts,
   owners,
+  categories,
   scopeFilter,
   ownerFilter,
   activeOperator,
   onAddPayable,
   onUpdatePayable,
   onPayPayable,
-  onDeletePayable
+  onDeletePayable,
+  onOpenCategories
 }: FinancePayablesTabProps) {
   const todayStr = getLocalDateString();
 
@@ -89,7 +93,15 @@ export function FinancePayablesTab({
   const [customOwnerName, setCustomOwnerName] = useState('');
   const [description, setDescription] = useState('');
   const [counterparty, setCounterparty] = useState('');
-  const [category, setCategory] = useState(COMPANY_EXPENSE_CATEGORIES[0]);
+  const companyExpenseCategories = useMemo(
+    () => getCategoryNamesFor(categories, 'expense', 'company'),
+    [categories]
+  );
+  const personalExpenseCategories = useMemo(
+    () => getCategoryNamesFor(categories, 'expense', 'personal'),
+    [categories]
+  );
+  const [category, setCategory] = useState(companyExpenseCategories[0] || 'Outros');
   const [amount, setAmount] = useState('');
   const [dueDate, setDueDate] = useState(todayStr);
   const [scheduleMode, setScheduleMode] = useState<'single' | 'monthly' | 'installments'>('single');
@@ -121,11 +133,18 @@ export function FinancePayablesTab({
   const [editOwnerId, setEditOwnerId] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const categoryOptions = scope === 'personal' ? PERSONAL_EXPENSE_CATEGORIES : COMPANY_EXPENSE_CATEGORIES;
+  const categoryOptions = scope === 'personal' ? personalExpenseCategories : companyExpenseCategories;
+
+  useEffect(() => {
+    if (categoryOptions.length > 0 && !categoryOptions.includes(category)) {
+      setCategory(categoryOptions[0]);
+    }
+  }, [categoryOptions, category]);
 
   const handleSwitchScope = (next: FinancialScope) => {
     setScope(next);
-    setCategory(next === 'personal' ? PERSONAL_EXPENSE_CATEGORIES[0] : COMPANY_EXPENSE_CATEGORIES[0]);
+    const nextList = next === 'personal' ? personalExpenseCategories : companyExpenseCategories;
+    setCategory(nextList[0] || 'Outros');
     if (next === 'personal' && !ownerId && owners.length > 0) {
       setOwnerId(owners[0].id);
     }
@@ -378,9 +397,20 @@ export function FinancePayablesTab({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Categoria
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Categoria
+                  </label>
+                  {onOpenCategories && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenCategories('expense', scope)}
+                      className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
+                    >
+                      Gerenciar
+                    </button>
+                  )}
+                </div>
                 <select
                   value={category}
                   onChange={e => setCategory(e.target.value)}
@@ -620,7 +650,7 @@ export function FinancePayablesTab({
                         : 'border-l-4 border-l-slate-300 dark:border-l-slate-700';
 
                 if (isEditingThis) {
-                  const editCats = editScope === 'personal' ? PERSONAL_EXPENSE_CATEGORIES : COMPANY_EXPENSE_CATEGORIES;
+                  const editCats = editScope === 'personal' ? personalExpenseCategories : companyExpenseCategories;
                   return (
                     <div
                       key={payable.id}
@@ -641,9 +671,8 @@ export function FinancePayablesTab({
                           onChange={e => {
                             const next = e.target.value as FinancialScope;
                             setEditScope(next);
-                            setEditCategory(
-                              next === 'personal' ? PERSONAL_EXPENSE_CATEGORIES[0] : COMPANY_EXPENSE_CATEGORIES[0]
-                            );
+                            const nextCats = next === 'personal' ? personalExpenseCategories : companyExpenseCategories;
+                            setEditCategory(nextCats[0] || 'Outros');
                           }}
                           className="px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100"
                         >

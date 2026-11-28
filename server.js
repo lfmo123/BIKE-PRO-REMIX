@@ -1676,7 +1676,8 @@ async function startServer() {
           financialAccounts,
           financialOwners,
           financialEntries,
-          financialPayables
+          financialPayables,
+          financialCategories
         ] = await Promise.all([
           firebaseDb.getVehicles(),
           firebaseDb.getTransactions(),
@@ -1691,7 +1692,8 @@ async function startServer() {
           firebaseDb.getFinancialAccounts(),
           firebaseDb.getFinancialOwners(),
           firebaseDb.getFinancialEntries(),
-          firebaseDb.getFinancialPayables()
+          firebaseDb.getFinancialPayables(),
+          firebaseDb.getFinancialCategories()
         ]);
         backupData = {
           version: 4,
@@ -1710,6 +1712,7 @@ async function startServer() {
           financialOwners,
           financialEntries,
           financialPayables,
+          financialCategories,
           dbType
         };
       } else if (dbType === 'mysql') {
@@ -1766,6 +1769,7 @@ async function startServer() {
         if (Array.isArray(data.financialOwners)) db.financialOwners = mergeById(db.financialOwners, data.financialOwners);
         if (Array.isArray(data.financialEntries)) db.financialEntries = mergeById(db.financialEntries, data.financialEntries);
         if (Array.isArray(data.financialPayables)) db.financialPayables = mergeById(db.financialPayables, data.financialPayables);
+        if (Array.isArray(data.financialCategories)) db.financialCategories = mergeById(db.financialCategories, data.financialCategories);
         if (Array.isArray(data.lostCards)) {
           const cardMap = new Map();
           (db.lostCards || []).forEach(c => {
@@ -1807,12 +1811,14 @@ async function startServer() {
       owners: { get: firebaseDb.getFinancialOwners, add: firebaseDb.addFinancialOwner, update: firebaseDb.updateFinancialOwner, remove: firebaseDb.removeFinancialOwner },
       entries: { get: firebaseDb.getFinancialEntries, add: firebaseDb.addFinancialEntry, update: firebaseDb.updateFinancialEntry, remove: firebaseDb.removeFinancialEntry },
       payables: { get: firebaseDb.getFinancialPayables, add: firebaseDb.addFinancialPayable, update: firebaseDb.updateFinancialPayable, remove: firebaseDb.removeFinancialPayable },
+      categories: { get: firebaseDb.getFinancialCategories, add: firebaseDb.addFinancialCategory, update: firebaseDb.updateFinancialCategory, remove: firebaseDb.removeFinancialCategory },
     };
     const jsonKeyMap = {
       accounts: 'financialAccounts',
       owners: 'financialOwners',
       entries: 'financialEntries',
-      payables: 'financialPayables'
+      payables: 'financialPayables',
+      categories: 'financialCategories'
     };
 
     if (dbType === 'firebase') {
@@ -1825,6 +1831,7 @@ async function startServer() {
         owners: { get: mysqlDb.getFinancialOwners, add: mysqlDb.addFinancialOwner, update: mysqlDb.updateFinancialOwner, remove: mysqlDb.removeFinancialOwner },
         entries: { get: mysqlDb.getFinancialEntries, add: mysqlDb.addFinancialEntry, update: mysqlDb.updateFinancialEntry, remove: mysqlDb.removeFinancialEntry },
         payables: { get: mysqlDb.getFinancialPayables, add: mysqlDb.addFinancialPayable, update: mysqlDb.updateFinancialPayable, remove: mysqlDb.removeFinancialPayable },
+        categories: { get: mysqlDb.getFinancialCategories, add: mysqlDb.addFinancialCategory, update: mysqlDb.updateFinancialCategory, remove: mysqlDb.removeFinancialCategory },
       };
       return myMap[kind][action](arg1, arg2);
     }
@@ -1834,13 +1841,23 @@ async function startServer() {
     db[jKey] = db[jKey] || [];
     if (action === 'get') return db[jKey];
     if (action === 'add') {
-      db[jKey].push(arg1);
+      const existingIdx = db[jKey].findIndex(i => i.id === arg1.id);
+      if (existingIdx >= 0) db[jKey][existingIdx] = arg1;
+      else db[jKey].push(arg1);
       writeDb(db);
       return arg1;
     }
     if (action === 'update') {
       const idx = db[jKey].findIndex(i => i.id === arg1);
-      if (idx === -1) return null;
+      if (idx === -1) {
+        if (kind === 'categories') {
+          const created = { id: arg1, createdAt: Date.now(), ...arg2 };
+          db[jKey].push(created);
+          writeDb(db);
+          return created;
+        }
+        return null;
+      }
       db[jKey][idx] = { ...db[jKey][idx], ...arg2 };
       writeDb(db);
       return db[jKey][idx];
@@ -1855,17 +1872,19 @@ async function startServer() {
 
   app.get('/api/finance/bootstrap', async (req, res) => {
     try {
-      const [accounts, owners, entries, payables] = await Promise.all([
+      const [accounts, owners, entries, payables, categories] = await Promise.all([
         financeStore('get', 'accounts'),
         financeStore('get', 'owners'),
         financeStore('get', 'entries'),
-        financeStore('get', 'payables')
+        financeStore('get', 'payables'),
+        financeStore('get', 'categories')
       ]);
       res.json({
         accounts: (accounts || []).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)),
         owners: (owners || []).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)),
         entries: (entries || []).sort((a, b) => (b.date || 0) - (a.date || 0)),
-        payables: (payables || []).sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')))
+        payables: (payables || []).sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || ''))),
+        categories: (categories || []).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
       });
     } catch (error) {
       console.error('Finance bootstrap error:', error);
@@ -2209,6 +2228,115 @@ async function startServer() {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: error.message || 'Erro ao excluir conta.' });
+    }
+  });
+
+  // Categories CRUD (supports custom categories + editing/deleting built-in defaults via deterministic IDs)
+  app.post('/api/finance/categories', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const name = String(b.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'Nome da categoria é obrigatório.' });
+      const type = b.type === 'income' ? 'income' : 'expense';
+      const scope = ['company', 'personal', 'both'].includes(b.scope) ? b.scope : 'company';
+      const item = {
+        id: 'cat_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+        name,
+        type,
+        scope,
+        deleted: false,
+        createdAt: Date.now()
+      };
+      const saved = await financeStore('add', 'categories', item);
+      res.status(201).json(saved);
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao criar categoria.' });
+    }
+  });
+
+  app.put('/api/finance/categories/:id', async (req, res) => {
+    try {
+      const b = req.body || {};
+      const name = String(b.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'Nome da categoria é obrigatório.' });
+      const type = b.type === 'income' ? 'income' : 'expense';
+      const scope = ['company', 'personal', 'both'].includes(b.scope) ? b.scope : 'company';
+      const data = {
+        name,
+        type,
+        scope,
+        deleted: false,
+        ...(typeof b.createdAt === 'number' && Number.isFinite(b.createdAt) ? { createdAt: b.createdAt } : {})
+      };
+      const updated = await financeStore('update', 'categories', req.params.id, data);
+
+      let renamedEntriesCount = 0;
+      let renamedPayablesCount = 0;
+      const oldName = typeof b.oldName === 'string' ? b.oldName.trim() : '';
+      if (b.renameExisting && oldName && oldName !== name) {
+        const [allEntries, allPayables] = await Promise.all([
+          financeStore('get', 'entries'),
+          financeStore('get', 'payables')
+        ]);
+        for (const entry of (allEntries || [])) {
+          if (entry && entry.category === oldName && entry.type === type) {
+            await financeStore('update', 'entries', entry.id, { category: name });
+            renamedEntriesCount++;
+          }
+        }
+        if (type === 'expense') {
+          for (const payable of (allPayables || [])) {
+            if (payable && payable.category === oldName) {
+              await financeStore('update', 'payables', payable.id, { category: name });
+              renamedPayablesCount++;
+            }
+          }
+        }
+      }
+
+      res.json({
+        category: updated,
+        renamedEntriesCount,
+        renamedPayablesCount
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao atualizar categoria.' });
+    }
+  });
+
+  app.delete('/api/finance/categories/:id', async (req, res) => {
+    try {
+      const id = String(req.params.id || '');
+      if (id.startsWith('def_')) {
+        // Persist tombstone so built-in default stays deleted across reloads and devices
+        const tombstone = await financeStore('update', 'categories', id, {
+          name: '',
+          type: id.includes('_inc_') ? 'income' : 'expense',
+          scope: id.includes('_personal_') ? 'personal' : 'company',
+          deleted: true,
+          createdAt: Date.now()
+        });
+        return res.json({ success: true, tombstone });
+      }
+      await financeStore('remove', 'categories', id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao excluir categoria.' });
+    }
+  });
+
+  app.post('/api/finance/categories/restore-defaults', async (req, res) => {
+    try {
+      const stored = await financeStore('get', 'categories');
+      for (const item of (stored || [])) {
+        if (item && String(item.id).startsWith('def_') && item.deleted) {
+          await financeStore('remove', 'categories', item.id);
+        }
+      }
+      const refreshed = await financeStore('get', 'categories');
+      res.json({ success: true, categories: refreshed || [] });
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Erro ao restaurar categorias padrão.' });
     }
   });
 

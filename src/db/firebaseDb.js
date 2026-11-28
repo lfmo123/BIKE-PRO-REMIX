@@ -890,7 +890,8 @@ export async function restoreBackup(data) {
     ['financialAccounts', 'financialAccounts'],
     ['financialOwners', 'financialOwners'],
     ['financialEntries', 'financialEntries'],
-    ['financialPayables', 'financialPayables']
+    ['financialPayables', 'financialPayables'],
+    ['financialCategories', 'financialCategories']
   ]) {
     if (Array.isArray(data[key])) {
       data[key].forEach((item) => {
@@ -954,4 +955,17 @@ export const getFinancialPayables = () => getAllFromCollection('financialPayable
 export const addFinancialPayable = (item) => addToCollection('financialPayables', item);
 export const updateFinancialPayable = (id, data) => updateInCollection('financialPayables', id, data);
 export const removeFinancialPayable = (id) => removeFromCollection('financialPayables', id);
+
+export const getFinancialCategories = () => getAllFromCollection('financialCategories');
+export const addFinancialCategory = (item) => addToCollection('financialCategories', item);
+export const updateFinancialCategory = async (id, data) => {
+  const ref = doc(db, 'financialCategories', String(id));
+  const snap = await getDoc(ref);
+  const existing = snap.exists() ? snap.data() : { id: String(id), createdAt: Date.now() };
+  const updated = removeUndefinedFields({ ...existing, ...data, id: String(id) });
+  await setDoc(ref, updated);
+  return updated;
+};
+export const removeFinancialCategory = (id) => removeFromCollection('financialCategories', id);
+
 

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Landmark,
   Building2,
@@ -22,6 +22,9 @@ import {
 } from 'lucide-react';
 import {
   FinancialAccount,
+  FinancialCategory,
+  FinancialCategoryScope,
+  FinancialCategoryType,
   FinancialEntry,
   FinancialEntryType,
   FinancialOwner,
@@ -35,13 +38,11 @@ import { DeviceFeaturesConfig } from '../lib/deviceModules';
 import { getLocalDateString } from '../lib/dateUtils';
 import { exportToCsv } from '../lib/csvExport';
 import {
-  COMPANY_EXPENSE_CATEGORIES,
-  COMPANY_INCOME_CATEGORIES,
-  PERSONAL_EXPENSE_CATEGORIES,
-  PERSONAL_INCOME_CATEGORIES,
   PAYMENT_METHOD_LABELS,
   computeAccountBalances,
-  computeFinancePeriodSummary
+  computeFinancePeriodSummary,
+  getCategoryNamesFor,
+  resolveEffectiveCategories
 } from '../lib/financeUtils';
 import {
   FinanceAccountsSection,
@@ -53,12 +54,17 @@ import {
   FinancePayablesTab,
   PayPayablePayload
 } from './FinancePayablesTab';
+import {
+  FinanceCategoriesTab,
+  UpdateCategoryPayload
+} from './FinanceCategoriesTab';
 
 interface FinanceManagerProps {
   accounts: FinancialAccount[];
   owners: FinancialOwner[];
   entries: FinancialEntry[];
   payables: FinancialPayable[];
+  storedCategories: FinancialCategory[];
   transactions: Transaction[];
   vehicles: ParkedVehicle[];
   activeOperator?: string;
@@ -76,15 +82,24 @@ interface FinanceManagerProps {
   onUpdatePayable: (id: string, payload: Partial<FinancialPayable>) => Promise<{ ok: boolean; error?: string }>;
   onPayPayable: (id: string, payload: PayPayablePayload) => Promise<{ ok: boolean; error?: string }>;
   onDeletePayable: (id: string) => Promise<{ ok: boolean; error?: string }>;
+  onAddCategory: (payload: {
+    name: string;
+    type: FinancialCategoryType;
+    scope: FinancialCategoryScope;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  onUpdateCategory: (id: string, payload: UpdateCategoryPayload) => Promise<{ ok: boolean; error?: string }>;
+  onDeleteCategory: (id: string) => Promise<{ ok: boolean; error?: string }>;
+  onRestoreDefaultCategories: () => Promise<{ ok: boolean; error?: string }>;
 }
 
-type FinanceTab = 'entries' | 'payables' | 'accounts' | 'owners';
+type FinanceTab = 'entries' | 'payables' | 'accounts' | 'owners' | 'categories';
 
 export function FinanceManager({
   accounts,
   owners,
   entries,
   payables,
+  storedCategories,
   transactions,
   vehicles,
   activeOperator,
@@ -101,7 +116,11 @@ export function FinanceManager({
   onAddPayable,
   onUpdatePayable,
   onPayPayable,
-  onDeletePayable
+  onDeletePayable,
+  onAddCategory,
+  onUpdateCategory,
+  onDeleteCategory,
+  onRestoreDefaultCategories
 }: FinanceManagerProps) {
   const todayStr = getLocalDateString();
   const firstOfMonthStr = useMemo(() => {
@@ -109,8 +128,22 @@ export function FinanceManager({
     return getLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1));
   }, []);
 
+  const effectiveCategories = useMemo(
+    () => resolveEffectiveCategories(storedCategories),
+    [storedCategories]
+  );
+
+  const hasDeletedDefaults = useMemo(
+    () => storedCategories.some(c => c && c.id.startsWith('def_') && Boolean(c.deleted)),
+    [storedCategories]
+  );
+
   // Navigation & Global Filters
   const [activeTab, setActiveTab] = useState<FinanceTab>('entries');
+  const [categoryShortcutPreset, setCategoryShortcutPreset] = useState<{
+    type?: FinancialCategoryType;
+    scope?: FinancialCategoryScope;
+  }>({});
   const [scopeFilter, setScopeFilter] = useState<'all' | FinancialScope>('all');
   const [ownerFilter, setOwnerFilter] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>(firstOfMonthStr);
@@ -122,7 +155,9 @@ export function FinanceManager({
   const [formScope, setFormScope] = useState<FinancialScope>('company');
   const [formOwnerId, setFormOwnerId] = useState<string>('');
   const [formCustomOwnerName, setFormCustomOwnerName] = useState<string>('');
-  const [formCategory, setFormCategory] = useState<string>(COMPANY_EXPENSE_CATEGORIES[0]);
+  const [formCategory, setFormCategory] = useState<string>(
+    () => getCategoryNamesFor(effectiveCategories, 'expense', 'company')[0] || 'Outros'
+  );
   const [formAccountId, setFormAccountId] = useState<string>('');
   const [formToAccountId, setFormToAccountId] = useState<string>('');
   const [formMethod, setFormMethod] = useState<FinancialPaymentMethod>('pix');
@@ -242,11 +277,20 @@ export function FinanceManager({
   };
 
   const formCategoryOptions = useMemo(() => {
-    if (formType === 'income') {
-      return formScope === 'personal' ? PERSONAL_INCOME_CATEGORIES : COMPANY_INCOME_CATEGORIES;
+    const catType: FinancialCategoryType = formType === 'income' ? 'income' : 'expense';
+    return getCategoryNamesFor(effectiveCategories, catType, formScope);
+  }, [effectiveCategories, formType, formScope]);
+
+  useEffect(() => {
+    if (formType !== 'transfer' && formCategoryOptions.length > 0 && !formCategoryOptions.includes(formCategory)) {
+      setFormCategory(formCategoryOptions[0]);
     }
-    return formScope === 'personal' ? PERSONAL_EXPENSE_CATEGORIES : COMPANY_EXPENSE_CATEGORIES;
-  }, [formType, formScope]);
+  }, [formType, formCategoryOptions, formCategory]);
+
+  const handleOpenCategoriesShortcut = (targetType: FinancialCategoryType, targetScope: FinancialScope) => {
+    setCategoryShortcutPreset({ type: targetType, scope: targetScope });
+    setActiveTab('categories');
+  };
 
   const handleSwitchFormType = (nextType: FinancialEntryType) => {
     setFormType(nextType);
@@ -256,18 +300,18 @@ export function FinanceManager({
       if (!formAccountId && accounts.length > 0) setFormAccountId(accounts[0].id);
       if (!formToAccountId && accounts.length > 1) setFormToAccountId(accounts[1].id);
     } else if (nextType === 'income') {
-      setFormCategory(formScope === 'personal' ? PERSONAL_INCOME_CATEGORIES[0] : COMPANY_INCOME_CATEGORIES[0]);
+      setFormCategory(getCategoryNamesFor(effectiveCategories, 'income', formScope)[0] || 'Outros');
     } else {
-      setFormCategory(formScope === 'personal' ? PERSONAL_EXPENSE_CATEGORIES[0] : COMPANY_EXPENSE_CATEGORIES[0]);
+      setFormCategory(getCategoryNamesFor(effectiveCategories, 'expense', formScope)[0] || 'Outros');
     }
   };
 
   const handleSwitchFormScope = (nextScope: FinancialScope) => {
     setFormScope(nextScope);
     if (formType === 'income') {
-      setFormCategory(nextScope === 'personal' ? PERSONAL_INCOME_CATEGORIES[0] : COMPANY_INCOME_CATEGORIES[0]);
+      setFormCategory(getCategoryNamesFor(effectiveCategories, 'income', nextScope)[0] || 'Outros');
     } else if (formType === 'expense') {
-      setFormCategory(nextScope === 'personal' ? PERSONAL_EXPENSE_CATEGORIES[0] : COMPANY_EXPENSE_CATEGORIES[0]);
+      setFormCategory(getCategoryNamesFor(effectiveCategories, 'expense', nextScope)[0] || 'Outros');
     }
     if (nextScope === 'personal' && !formOwnerId && owners.length > 0) {
       setFormOwnerId(owners[0].id);
@@ -823,7 +867,8 @@ export function FinanceManager({
           { id: 'entries', label: 'Lançamentos', count: filteredEntries.length },
           { id: 'payables', label: 'Contas a Pagar', count: pendingPayablesCount, alert: summary.overduePayablesCount > 0 },
           { id: 'accounts', label: 'Contas & Bancos', count: accounts.length },
-          { id: 'owners', label: 'Titulares (Particular)', count: owners.length }
+          { id: 'owners', label: 'Titulares (Particular)', count: owners.length },
+          { id: 'categories', label: 'Categorias', count: effectiveCategories.length }
         ].map(tab => {
           const active = activeTab === tab.id;
           return (
@@ -992,9 +1037,23 @@ export function FinanceManager({
 
                     {/* Category */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Categoria
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Categoria
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleOpenCategoriesShortcut(
+                              formType === 'income' ? 'income' : 'expense',
+                              formScope
+                            )
+                          }
+                          className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
+                        >
+                          Gerenciar categorias
+                        </button>
+                      </div>
                       <select
                         value={formCategory}
                         onChange={e => setFormCategory(e.target.value)}
@@ -1389,14 +1448,11 @@ export function FinanceManager({
                     const ownerCol = ownerObj ? getOwnerColorClasses(ownerObj.color) : null;
 
                     if (isEditing) {
-                      const editCats =
-                        entry.type === 'income'
-                          ? editScope === 'personal'
-                            ? PERSONAL_INCOME_CATEGORIES
-                            : COMPANY_INCOME_CATEGORIES
-                          : editScope === 'personal'
-                            ? PERSONAL_EXPENSE_CATEGORIES
-                            : COMPANY_EXPENSE_CATEGORIES;
+                      const editCats = getCategoryNamesFor(
+                        effectiveCategories,
+                        entry.type === 'income' ? 'income' : 'expense',
+                        editScope
+                      );
 
                       return (
                         <div
@@ -1665,6 +1721,7 @@ export function FinanceManager({
           payables={payables}
           accounts={accounts}
           owners={owners}
+          categories={effectiveCategories}
           scopeFilter={scopeFilter}
           ownerFilter={ownerFilter}
           activeOperator={activeOperator}
@@ -1672,6 +1729,7 @@ export function FinanceManager({
           onUpdatePayable={onUpdatePayable}
           onPayPayable={onPayPayable}
           onDeletePayable={onDeletePayable}
+          onOpenCategories={(t, s) => handleOpenCategoriesShortcut(t, s)}
         />
       )}
 
@@ -1699,6 +1757,22 @@ export function FinanceManager({
             setOwnerFilter(ownerId);
             setActiveTab('entries');
           }}
+        />
+      )}
+
+      {/* TAB 5: CATEGORIAS (DESPESAS E RECEITAS) */}
+      {activeTab === 'categories' && (
+        <FinanceCategoriesTab
+          categories={effectiveCategories}
+          entries={entries}
+          payables={payables}
+          hasDeletedDefaults={hasDeletedDefaults}
+          initialType={categoryShortcutPreset.type}
+          initialScope={categoryShortcutPreset.scope}
+          onAddCategory={onAddCategory}
+          onUpdateCategory={onUpdateCategory}
+          onDeleteCategory={onDeleteCategory}
+          onRestoreDefaults={onRestoreDefaultCategories}
         />
       )}
     </div>

@@ -763,3 +763,19 @@ export const addFinancialPayable = (item) => addFinanceKind('payables', item);
 export const updateFinancialPayable = (id, data) => updateFinanceKind('payables', id, data);
 export const removeFinancialPayable = (id) => removeFinanceKind('payables', id);
 
+export const getFinancialCategories = () => getFinanceKind('categories');
+export const addFinancialCategory = (item) => addFinanceKind('categories', item);
+export const updateFinancialCategory = async (id, data) => {
+  await ensureFinanceTables();
+  const [rows] = await getPool().query('SELECT payload FROM financial_records WHERE kind = ? AND id = ?', ['categories', String(id)]);
+  const existing = rows && rows.length > 0 ? JSON.parse(rows[0].payload) : { id: String(id), createdAt: Date.now() };
+  const updated = { ...existing, ...data, id: String(id) };
+  await getPool().query(
+    'INSERT INTO financial_records (id, kind, payload, createdAt) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE payload = VALUES(payload)',
+    [String(id), 'categories', JSON.stringify(updated), updated.createdAt || Date.now()]
+  );
+  return updated;
+};
+export const removeFinancialCategory = (id) => removeFinanceKind('categories', id);
+
+
